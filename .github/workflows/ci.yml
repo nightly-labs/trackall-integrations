@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -24,7 +26,40 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
+      - name: Find affected tests
+        id: affected
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE=${{ github.event.pull_request.base.sha }}
+            HEAD=${{ github.event.pull_request.head.sha }}
+          else
+            BASE=$(git rev-parse HEAD^)
+            HEAD=$(git rev-parse HEAD)
+          fi
+
+          CHANGED=$(git diff --name-only "$BASE" "$HEAD" -- '*.ts')
+
+          TEST_FILES=""
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            if echo "$f" | grep -q '\.test\.ts$'; then
+              TEST_FILES="$TEST_FILES $f"
+            else
+              SIBLING="${f%.ts}.test.ts"
+              if [ -f "$SIBLING" ]; then
+                TEST_FILES="$TEST_FILES $SIBLING"
+              fi
+            fi
+          done <<< "$CHANGED"
+
+          # Deduplicate
+          TEST_FILES=$(echo "$TEST_FILES" | tr ' ' '\n' | sort -u | grep -v '^$' | tr '\n' ' ')
+          echo "files=${TEST_FILES}" >> "$GITHUB_OUTPUT"
+          echo "has_tests=$([ -n "$TEST_FILES" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "Affected tests: $TEST_FILES"
+
       - name: Test
-        run: bun run test
+        if: steps.affected.outputs.has_tests == 'true'
+        run: bun test ${{ steps.affected.outputs.files }}
         env:
           SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL }}
