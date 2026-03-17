@@ -21,7 +21,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
-} from '@trackall/shared'
+} from '../../types/index'
 
 export const meteoraIntegration: SolanaIntegration = {
   platform: {
@@ -214,3 +214,5 @@ export const meteoraIntegration: SolanaIntegration = {
     return result
   },
 }
+
+export default meteoraIntegration

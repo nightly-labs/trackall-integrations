@@ -2,8 +2,9 @@ import { describe, expect, it } from 'bun:test'
 import { Connection, PublicKey } from '@solana/web3.js'
 
 import { meteoraIntegration } from './index'
-import { createSolanaRpc, runIntegrations, TokenPlugin } from '@trackall/shared'
-import type { AccountsMap, MaybeSolanaAccount, SolanaAddress, UserPositionsPlan } from '@trackall/shared'
+import { createSolanaRpc } from '@solana/kit'
+import { runIntegrations, TokenPlugin } from '../../types/index'
+import type { AccountsMap, MaybeSolanaAccount, SolanaAddress, UserPositionsPlan } from '../../types/index'
 
 const solanaRpcUrl = process.env.SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com'
 const wallet = 'D2TKNY5CwCHCTu5YPbpouC9D4DGuoSvFsaYnMyEg7djn'
