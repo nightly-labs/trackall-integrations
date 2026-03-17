@@ -1,0 +1,2 @@
+$ tsc --noEmit
+solana/meteora/index.ts(19,3): error TS2305: Module '"@trackall/shared"' has no exported member 'ConcentratedRangeLiquidityDefiPosition'.

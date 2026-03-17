@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig/api.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["**/*.ts"],
+  "references": [
+    {
+      "path": "../shared/tsconfig.build.json"
+    }
+  ]
+}
