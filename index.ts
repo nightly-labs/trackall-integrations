@@ -1,9 +1,9 @@
-import type { SolanaIntegration } from '@trackall/shared'
-export { meteoraIntegration } from './solana/meteora/index'
+import type { SolanaIntegration } from './src/types/index'
 
-import { meteoraIntegration } from './solana/meteora/index'
+const modules = import.meta.glob<{ default: SolanaIntegration }>('./src/solana/*/index.ts', {
+  eager: true,
+})
 
-export const allIntegrations: SolanaIntegration[] = [
-  meteoraIntegration,
-  // protocol teams add their integration here
-]
+export const allIntegrations: SolanaIntegration[] = Object.values(modules).map((m) => m.default)
+
+export { meteoraIntegration } from './src/solana/meteora/index'
