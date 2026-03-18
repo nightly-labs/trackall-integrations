@@ -40,6 +40,7 @@ export class TokenPlugin {
   private map: TokensMap = new Map()
   private rpc: SolanaRpc
   private db: Database
+  private upsertTokenStmt: ReturnType<Database['prepare']>
 
   constructor(rpc: SolanaRpc, cachePath = '.cache/tokens.sqlite') {
     this.rpc = rpc
@@ -49,40 +50,86 @@ export class TokenPlugin {
     }
 
     this.db = new Database(cachePath)
-    this.db.exec(`
+
+    const tableInfo = this.db.query('PRAGMA table_info(tokens)').all() as Array<{ name: string }>
+    const hasTokenAddress = tableInfo.some((column) => column.name === 'token_address')
+    const hasTokenData = tableInfo.some((column) => column.name === 'token_data')
+    const hasLegacyMintAddress = tableInfo.some((column) => column.name === 'mint_address')
+    const hasLegacyData = tableInfo.some((column) => column.name === 'data')
+
+    if (!hasTokenAddress && !hasTokenData && hasLegacyMintAddress && hasLegacyData) {
+      this.db.run('ALTER TABLE tokens RENAME COLUMN mint_address TO token_address')
+      this.db.run('ALTER TABLE tokens RENAME COLUMN data TO token_data')
+    }
+
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS tokens (
-        mint_address TEXT PRIMARY KEY,
-        data TEXT NOT NULL
+        token_address TEXT PRIMARY KEY,
+        token_data TEXT NOT NULL
       )
     `)
+
+    this.upsertTokenStmt = this.db.prepare(
+      'INSERT INTO tokens (token_address, token_data) VALUES (?, ?) ON CONFLICT(token_address) DO UPDATE SET token_data = excluded.token_data',
+    )
   }
 
-  /** Load cache from disk. Call once at startup. */
+  /** Load cache from sqlite. Call once at startup. */
   async load(): Promise<void> {
+    this.map.clear()
+
+    let rows: Array<{ token_address: string; token_data: string }> = []
     try {
-      const rows = this.db.prepare('SELECT mint_address, data FROM tokens').all() as Array<{
-        mint_address: string
-        data: string
+      rows = this.db.query('SELECT token_address, token_data FROM tokens').all() as Array<{
+        token_address: string
+        token_data: string
       }>
-      this.map = new Map(
-        rows.flatMap((row) => {
-          try {
-            return [[row.mint_address as SolanaAddress, JSON.parse(row.data) as TokenData]]
-          } catch {
-            return []
-          }
-        }),
-      )
     } catch {
-      // File doesn't exist or is invalid — start with empty cache
+      // Backward compatibility for older schema name if present
+      try {
+        const legacyRows = this.db.query('SELECT mint_address, data FROM tokens').all() as Array<{
+          mint_address: string
+          data: string
+        }>
+        rows = legacyRows.map((row) => ({ token_address: row.mint_address, token_data: row.data }))
+      } catch {
+        // Table missing or unreadable — start with empty cache
+      }
+    }
+
+    for (const { token_address, token_data } of rows) {
+      try {
+        const tokenData = JSON.parse(token_data) as TokenData
+        if (tokenData?.mintAddress) {
+          this.map.set(token_address, tokenData)
+        }
+      } catch {
+        // Invalid row payload — skip this token and continue
+      }
     }
   }
 
-  /** Persist current cache to disk. */
-  async save(): Promise<void> {
-    const statement = this.db.prepare('INSERT OR REPLACE INTO tokens (mint_address, data) VALUES (?, ?)')
-    for (const [mint, tokenData] of this.map.entries()) {
-      statement.run(mint, JSON.stringify(tokenData))
+  /** Persist selected token(s) from in-memory cache to sqlite. If no mint list is provided, persists current full map. */
+  async save(tokenAddresses?: readonly SolanaAddress[]): Promise<void> {
+    const entries:
+      | IterableIterator<[SolanaAddress, TokenData]>
+      | Array<[SolanaAddress, TokenData]> =
+      tokenAddresses == null
+        ? this.map.entries()
+        : tokenAddresses.flatMap((mint) => {
+            const tokenData = this.map.get(mint)
+            return tokenData === undefined ? [] : [[mint, tokenData]]
+          })
+
+    this.db.run('BEGIN')
+    try {
+      for (const [tokenAddress, tokenData] of entries) {
+        this.upsertTokenStmt.run(tokenAddress, JSON.stringify(tokenData))
+      }
+      this.db.run('COMMIT')
+    } catch (error) {
+      this.db.run('ROLLBACK')
+      throw error
     }
   }
 
@@ -99,6 +146,10 @@ export class TokenPlugin {
 
   async fetchMany(mints: readonly SolanaAddress[]): Promise<Map<SolanaAddress, TokenData | undefined>> {
     const uniqueMints = [...new Set(mints)]
+    if (uniqueMints.length > MAX_ACCOUNT_FETCH_SIZE) {
+      throw new Error(`fetchMany supports at most ${MAX_ACCOUNT_FETCH_SIZE} mints per call`)
+    }
+
     const result = new Map<SolanaAddress, TokenData | undefined>()
 
     const uncachedMints: SolanaAddress[] = []
@@ -124,10 +175,6 @@ export class TokenPlugin {
 
     if (accountFetchTargets.length === 0) return result
 
-    if (accountFetchTargets.length > MAX_ACCOUNT_FETCH_SIZE) {
-      throw new Error(`fetchMany supports at most ${MAX_ACCOUNT_FETCH_SIZE} uncached mints per call`)
-    }
-
     const allTokens: Array<{ mint: SolanaAddress; tokenData: TokenData }> = []
     try {
       const accountInfos = await this.rpc
@@ -152,7 +199,12 @@ export class TokenPlugin {
           return
         }
 
-        const decimals = mintData[MINT_DECIMALS_OFFSET]!
+        const decimals = mintData[MINT_DECIMALS_OFFSET]
+        if (decimals === undefined) {
+          result.set(target.mint, undefined)
+          return
+        }
+
         const tokenData: TokenData = { mintAddress: target.mint, decimals }
         result.set(target.mint, tokenData)
         allTokens.push({ mint: target.mint, tokenData })
@@ -206,7 +258,7 @@ export class TokenPlugin {
       allTokens.forEach(({ mint, tokenData }) => {
         this.map.set(mint, tokenData)
       })
-      await this.save()
+      await this.save(allTokens.map((entry) => entry.mint))
     }
 
     return result
