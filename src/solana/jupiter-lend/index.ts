@@ -2,7 +2,10 @@ import { getAssociatedTokenAddressSync, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID 
 import { PublicKey } from '@solana/web3.js'
 import { borrowPda } from '@jup-ag/lend'
 import { INIT_TICK, MIN_TICK, ZERO_TICK_SCALED_RATIO, getRatioAtTick } from '@jup-ag/lend/borrow'
+import { BorshCoder } from '@coral-xyz/anchor'
 import BN from 'bn.js'
+import lendingIdl from './idls/lending.json'
+import vaultsIdl from './idls/vaults.json'
 
 import type {
   LendingBorrowedAsset,
@@ -17,73 +20,36 @@ import type {
 export const testAddress = 'BsYDTmksyvTWpP3DGSWpoAXP7ykFDhikYdKEVspkStc4'
 
 // ─── Program IDs ─────────────────────────────────────────────────────────────
-const LENDING_PROGRAM_ID = 'jup3YeL8QhtSx1e253b2FDvsMNC87fDrgQZivbrndc9'
-const VAULTS_PROGRAM_ID = 'jupr81YtYssSyPt8jbnGuiWon5f6x9TcDEFxYe3Bdzi'
-
-// ─── Anchor account discriminators (sha256("account:<name>")[0..8]) ──────────
-const LENDING_DISC = Buffer.from([135, 199, 82, 16, 249, 131, 182, 241])
-const POSITION_DISC = Buffer.from([170, 188, 143, 228, 122, 64, 247, 208])
+const LENDING_PROGRAM_ID = lendingIdl.address
+const VAULTS_PROGRAM_ID = vaultsIdl.address
 
 // ─── Exchange precision (1e12) ────────────────────────────────────────────────
 const EXCHANGE_PRECISION = BigInt('1000000000000')
-const ZERO_TICK_BN = ZERO_TICK_SCALED_RATIO // imported from @jup-ag/lend/borrow
+const ZERO_TICK_BN = ZERO_TICK_SCALED_RATIO
 const INIT_TICK_VALUE = INIT_TICK // -2147483648
 const MIN_TICK_VALUE = MIN_TICK // -16383
 
-// ─── Lending (earn) account layout — Borsh, 196 bytes ────────────────────────
-// [0-7]    discriminator
-// [8-39]   mint: pubkey
-// [40-71]  fTokenMint: pubkey
-// [74]     decimals: u8
-// [115-122] tokenExchangePrice: u64
-const L_MINT = 8
-const L_FTOKEN_MINT = 40
-const L_DECIMALS = 74
-const L_TOKEN_EXCHANGE_PRICE = 115
+const lendingCoder = new BorshCoder(lendingIdl as never)
+const vaultsCoder = new BorshCoder(vaultsIdl as never)
 
-// ─── Position (vault CDP) layout — bytemuck packed, 71 bytes ─────────────────
-// [0-7]  discriminator
-// [8-9]  vaultId: u16
-// [14-45] positionMint: pubkey
-// [46]   isSupplyOnlyPosition: u8
-// [47-50] tick: i32
-// [55-62] supplyAmount: u64
-// [63-70] dustDebtAmount: u64
-const P_VAULT_ID = 8
-const P_POSITION_MINT = 14
-const P_IS_SUPPLY_ONLY = 46
-const P_TICK = 47
-const P_SUPPLY_AMOUNT = 55
-const P_DUST_DEBT = 63
-
-// ─── VaultConfig layout — bytemuck packed, 219 bytes ─────────────────────────
-// [154-185] supplyToken: pubkey  (collateral mint)
-// [186-217] borrowToken: pubkey  (debt mint)
-const VC_SUPPLY_TOKEN = 154
-const VC_BORROW_TOKEN = 186
-
-// ─── VaultState layout — bytemuck packed, 127 bytes ──────────────────────────
-// [99-106]  vaultSupplyExchangePrice: u64
-// [107-114] vaultBorrowExchangePrice: u64
-const VS_VAULT_SUPPLY_EX_PRICE = 99
-const VS_VAULT_BORROW_EX_PRICE = 107
-
-// ─── VaultMetadata layout — Borsh, 44 bytes ───────────────────────────────────
-// [42] supplyMintDecimals: u8
-// [43] borrowMintDecimals: u8
-const VM_SUPPLY_DECIMALS = 42
-const VM_BORROW_DECIMALS = 43
-
-// SPL token account: amount at offset 64 (same for SPL and Token-2022)
-const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
-// SPL token account: mint at offset 0, owner at offset 32
-const TOKEN_ACCOUNT_MINT_OFFSET = 0
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function discBase64(disc: Buffer): string {
-  return disc.toString('base64')
+function accountDiscriminatorBase64(
+  idl: { accounts?: Array<{ name: string; discriminator?: number[] }> },
+  accountName: string,
+): string {
+  const discriminator = idl.accounts?.find((account) => account.name === accountName)?.discriminator
+  if (!discriminator) {
+    throw new Error(`Missing discriminator for account "${accountName}"`)
+  }
+  return Buffer.from(discriminator).toString('base64')
 }
+
+// Discriminator bytes for getProgramAccounts memcmp filters
+const LENDING_DISC_B64 = accountDiscriminatorBase64(lendingIdl, 'Lending')
+const POSITION_DISC_B64 = accountDiscriminatorBase64(vaultsIdl, 'Position')
+
+// SPL token account: amount at offset 64, mint at offset 0
+const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
+const TOKEN_ACCOUNT_MINT_OFFSET = 0
 
 function readPubkey(buf: Buffer, offset: number): string {
   return new PublicKey(buf.slice(offset, offset + 32)).toBase58()
@@ -91,57 +57,6 @@ function readPubkey(buf: Buffer, offset: number): string {
 
 function readU64LE(buf: Buffer, offset: number): bigint {
   return buf.readBigUInt64LE(offset)
-}
-
-function decodeLendingAccount(data: Uint8Array) {
-  const buf = Buffer.from(data)
-  if (buf.length < 123 || !buf.slice(0, 8).equals(LENDING_DISC)) return null
-  return {
-    mint: readPubkey(buf, L_MINT),
-    fTokenMint: readPubkey(buf, L_FTOKEN_MINT),
-    decimals: buf.readUInt8(L_DECIMALS),
-    tokenExchangePrice: readU64LE(buf, L_TOKEN_EXCHANGE_PRICE),
-  }
-}
-
-function decodePositionAccount(data: Uint8Array) {
-  const buf = Buffer.from(data)
-  if (buf.length < 71 || !buf.slice(0, 8).equals(POSITION_DISC)) return null
-  return {
-    vaultId: buf.readUInt16LE(P_VAULT_ID),
-    positionMint: readPubkey(buf, P_POSITION_MINT),
-    isSupplyOnly: buf.readUInt8(P_IS_SUPPLY_ONLY) !== 0,
-    tick: buf.readInt32LE(P_TICK),
-    supplyAmount: readU64LE(buf, P_SUPPLY_AMOUNT),
-    dustDebtAmount: readU64LE(buf, P_DUST_DEBT),
-  }
-}
-
-function decodeVaultConfig(data: Uint8Array) {
-  const buf = Buffer.from(data)
-  if (buf.length < 219) return null
-  return {
-    supplyToken: readPubkey(buf, VC_SUPPLY_TOKEN),
-    borrowToken: readPubkey(buf, VC_BORROW_TOKEN),
-  }
-}
-
-function decodeVaultState(data: Uint8Array) {
-  const buf = Buffer.from(data)
-  if (buf.length < 127) return null
-  return {
-    vaultSupplyExchangePrice: readU64LE(buf, VS_VAULT_SUPPLY_EX_PRICE),
-    vaultBorrowExchangePrice: readU64LE(buf, VS_VAULT_BORROW_EX_PRICE),
-  }
-}
-
-function decodeVaultMetadata(data: Uint8Array) {
-  const buf = Buffer.from(data)
-  if (buf.length < 44) return null
-  return {
-    supplyDecimals: buf.readUInt8(VM_SUPPLY_DECIMALS),
-    borrowDecimals: buf.readUInt8(VM_BORROW_DECIMALS),
-  }
 }
 
 function readTokenAccountAmount(data: Uint8Array): bigint | null {
@@ -171,7 +86,7 @@ function computeNetDebtRaw(supplyAmount: bigint, tick: number, isSupplyOnly: boo
 // ─── Integration ─────────────────────────────────────────────────────────────
 
 export const jupiterLendIntegration: SolanaIntegration = {
-  platformId: 'jupiter-lend',
+  platformId: 'jupiter',
 
   getUserPositions: async function* (
     address: string,
@@ -183,7 +98,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
     const lendingMap = yield {
       kind: 'getProgramAccounts' as const,
       programId: LENDING_PROGRAM_ID,
-      filters: [{ memcmp: { offset: 0, bytes: discBase64(LENDING_DISC), encoding: 'base64' } }],
+      filters: [{ memcmp: { offset: 0, bytes: LENDING_DISC_B64, encoding: 'base64' } }],
     }
 
     const earnPools: {
@@ -195,13 +110,20 @@ export const jupiterLendIntegration: SolanaIntegration = {
 
     for (const acc of Object.values(lendingMap)) {
       if (!acc.exists) continue
-      const d = decodeLendingAccount(acc.data)
-      if (d) earnPools.push(d)
+      try {
+        const d = lendingCoder.accounts.decode('Lending', Buffer.from(acc.data))
+        earnPools.push({
+          mint: (d.mint as PublicKey).toBase58(),
+          fTokenMint: (d.f_token_mint as PublicKey).toBase58(),
+          decimals: d.decimals as number,
+          tokenExchangePrice: BigInt((d.token_exchange_price as BN).toString()),
+        })
+      } catch {
+        // skip accounts that fail to decode
+      }
     }
 
     // ── Phase 0b: Get all of the user's SPL token accounts ───────────────────
-    // This tells us earn balances (for SPL fTokens) AND which positionMint NFTs
-    // the user holds — without fetching ATAs for every possible position.
     const userSplMap = yield {
       kind: 'getProgramAccounts' as const,
       programId: TOKEN_PROGRAM_ID.toBase58(),
@@ -236,12 +158,10 @@ export const jupiterLendIntegration: SolanaIntegration = {
     }
 
     // ── Phase 0c: Vault positions — all CDP positions in the vaults program ──
-    // We cross-reference positionMint (stored inside each account) against the
-    // user's held mints — no ATA scan needed.
     const positionsMap = yield {
       kind: 'getProgramAccounts' as const,
       programId: VAULTS_PROGRAM_ID,
-      filters: [{ memcmp: { offset: 0, bytes: discBase64(POSITION_DISC), encoding: 'base64' } }],
+      filters: [{ memcmp: { offset: 0, bytes: POSITION_DISC_B64, encoding: 'base64' } }],
     }
 
     const ownedPositions: {
@@ -256,16 +176,28 @@ export const jupiterLendIntegration: SolanaIntegration = {
 
     for (const acc of Object.values(positionsMap)) {
       if (!acc.exists) continue
-      const d = decodePositionAccount(acc.data)
-      if (!d || d.supplyAmount === 0n) continue
-      // The user owns this position if they hold the positionMint NFT (amount=1)
-      if (userMintBalances.get(d.positionMint) !== 1n) continue
-      ownedPositions.push(d)
-      uniqueVaultIds.add(d.vaultId)
+      try {
+        const d = vaultsCoder.accounts.decode('Position', Buffer.from(acc.data))
+        const supplyAmount = BigInt((d.supply_amount as BN).toString())
+        if (supplyAmount === 0n) continue
+        const positionMint = (d.position_mint as PublicKey).toBase58()
+        if (userMintBalances.get(positionMint) !== 1n) continue
+        const vaultId = d.vault_id as number
+        ownedPositions.push({
+          vaultId,
+          positionMint,
+          isSupplyOnly: (d.is_supply_only_position as number) !== 0,
+          tick: d.tick as number,
+          supplyAmount,
+          dustDebtAmount: BigInt((d.dust_debt_amount as BN).toString()),
+        })
+        uniqueVaultIds.add(vaultId)
+      } catch {
+        // skip accounts that fail to decode
+      }
     }
 
     // ── Phase 1: Small targeted fetch ────────────────────────────────────────
-    // Only: Token-2022 earn ATAs (rare) + vault config/state/meta per owned vault
     const t22ATAs = needsToken22Check.map((fTokenMint) =>
       getAssociatedTokenAddressSync(
         new PublicKey(fTokenMint),
@@ -288,7 +220,6 @@ export const jupiterLendIntegration: SolanaIntegration = {
     for (let i = 0; i < earnPools.length; i++) {
       const pool = earnPools[i]!
 
-      // SPL balance (found in Phase 0b), or Token-2022 balance (fetched in Phase 1)
       let shares = splEarnBalances.get(pool.fTokenMint)
       if (shares === undefined) {
         const t22Idx = needsToken22Check.indexOf(pool.fTokenMint)
@@ -299,7 +230,6 @@ export const jupiterLendIntegration: SolanaIntegration = {
       }
       if (!shares || shares === 0n) continue
 
-      // underlying = shares × tokenExchangePrice / 1e12
       const underlying = (shares * pool.tokenExchangePrice) / EXCHANGE_PRECISION
       if (underlying === 0n) continue
 
@@ -318,33 +248,49 @@ export const jupiterLendIntegration: SolanaIntegration = {
 
       result.push({
         positionKind: 'lending',
-        platformId: 'jupiter-lend',
+        platformId: 'jupiter',
         supplied: [supplied],
         ...(usdValue !== undefined && { valueUsd: usdValue }),
       } satisfies LendingDefiPosition)
     }
 
     // ── Decode CDP vault positions ────────────────────────────────────────────
-    const vaultConfigMap = new Map<number, ReturnType<typeof decodeVaultConfig> & object>()
-    const vaultStateMap = new Map<number, ReturnType<typeof decodeVaultState> & object>()
-    const vaultMetaMap = new Map<number, ReturnType<typeof decodeVaultMetadata> & object>()
+    const vaultConfigMap = new Map<number, { supplyToken: string; borrowToken: string }>()
+    const vaultStateMap = new Map<number, { vaultSupplyExchangePrice: bigint; vaultBorrowExchangePrice: bigint }>()
+    const vaultMetaMap = new Map<number, { supplyDecimals: number; borrowDecimals: number }>()
 
     for (let i = 0; i < vaultIds.length; i++) {
       const id = vaultIds[i]!
       const cfgAcc = phase1Map[vaultConfigAddrs[i]!]
       const stateAcc = phase1Map[vaultStateAddrs[i]!]
       const metaAcc = phase1Map[vaultMetaAddrs[i]!]
+
       if (cfgAcc?.exists) {
-        const d = decodeVaultConfig(cfgAcc.data)
-        if (d) vaultConfigMap.set(id, d)
+        try {
+          const d = vaultsCoder.accounts.decode('VaultConfig', Buffer.from(cfgAcc.data))
+          vaultConfigMap.set(id, {
+            supplyToken: (d.supply_token as PublicKey).toBase58(),
+            borrowToken: (d.borrow_token as PublicKey).toBase58(),
+          })
+        } catch {}
       }
       if (stateAcc?.exists) {
-        const d = decodeVaultState(stateAcc.data)
-        if (d) vaultStateMap.set(id, d)
+        try {
+          const d = vaultsCoder.accounts.decode('VaultState', Buffer.from(stateAcc.data))
+          vaultStateMap.set(id, {
+            vaultSupplyExchangePrice: BigInt((d.vault_supply_exchange_price as BN).toString()),
+            vaultBorrowExchangePrice: BigInt((d.vault_borrow_exchange_price as BN).toString()),
+          })
+        } catch {}
       }
       if (metaAcc?.exists) {
-        const d = decodeVaultMetadata(metaAcc.data)
-        if (d) vaultMetaMap.set(id, d)
+        try {
+          const d = vaultsCoder.accounts.decode('VaultMetadata', Buffer.from(metaAcc.data))
+          vaultMetaMap.set(id, {
+            supplyDecimals: d.supply_mint_decimals as number,
+            borrowDecimals: d.borrow_mint_decimals as number,
+          })
+        } catch {}
       }
     }
 
@@ -357,10 +303,8 @@ export const jupiterLendIntegration: SolanaIntegration = {
       const supplyDecimals = meta?.supplyDecimals ?? 6
       const borrowDecimals = meta?.borrowDecimals ?? 6
 
-      // colAmount = supplyAmount × vaultSupplyExchangePrice / 1e12
       const colAmount = (pos.supplyAmount * state.vaultSupplyExchangePrice) / EXCHANGE_PRECISION
 
-      // netDebtRaw recovered from tick, total = net + dust (absorbed liquidation debt)
       const netDebtRaw = computeNetDebtRaw(pos.supplyAmount, pos.tick, pos.isSupplyOnly)
       const totalDebtRaw = netDebtRaw + pos.dustDebtAmount
       const debtAmount = (totalDebtRaw * state.vaultBorrowExchangePrice) / EXCHANGE_PRECISION
@@ -391,7 +335,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
 
       const positionResult: LendingDefiPosition = {
         positionKind: 'lending',
-        platformId: 'jupiter-lend',
+        platformId: 'jupiter',
         supplied: [supplied],
         ...(colUsd !== undefined && { valueUsd: colUsd.toString() }),
       }

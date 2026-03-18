@@ -2,7 +2,7 @@ import type { Platform } from '../types/platform'
 import { PlatformTag } from '../types/platformTag'
 
 const jupiterLendPlatform = {
-  id: 'jupiter-lend' as const,
+  id: 'jupiter' as const,
   networks: ['solana'],
   name: 'Jupiter Lend',
   image: 'https://jup.ag/favicon.ico',

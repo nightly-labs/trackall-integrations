@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
     "@jup-ag/lend": "^0.1.8",
     "@metaplex-foundation/mpl-token-metadata-kit": "latest",
     "@meteora-ag/dlmm": "^1.9.4",
