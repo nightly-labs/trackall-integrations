@@ -1,5 +1,5 @@
 import type { TokenPlugin } from '../plugin/tokens'
-import type { Platform } from './platform'
+import type { PlatformId } from '../platforms/index'
 import type { UserDefiPosition } from './position'
 
 export interface SolanaPlugins {
@@ -38,8 +38,8 @@ export type AccountsMap = Record<SolanaAddress, MaybeSolanaAccount>
 export type UserPositionsPlan = AsyncGenerator<SolanaAddress[] | GetProgramAccountsRequest, UserDefiPosition[], AccountsMap>
 
 export interface SolanaIntegration {
-  /** Platform instance. */
-  platform: Platform
+  /** Platform identifier. */
+  platformId: PlatformId
   /** Get the total value locked (TVL) of the integration. */
   getTvl?: (plugins: SolanaPlugins) => Promise<string>
   /** Get the volume of the integration. */

@@ -3,4 +3,5 @@ node_modules/
 tsconfig.tsbuildinfo
 dist/
 .cache/
+.types/
 .env

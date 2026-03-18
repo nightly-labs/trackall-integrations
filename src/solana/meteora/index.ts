@@ -25,15 +25,7 @@ import type {
 } from '../../types/index'
 
 export const meteoraIntegration: SolanaIntegration = {
-  platform: {
-    id: 'meteora',
-    network: 'solana',
-    name: 'Meteora',
-    image: 'https://meteora.ag/logo.png',
-    description: 'Meteora DLMM liquidity pools on Solana',
-    tags: [],
-    defiLlamaId: 'meteora',
-  },
+  platformId: 'meteora',
 
   getUserPositions: async function* (address: string, { endpoint, tokens }: SolanaPlugins): UserPositionsPlan {
     const programId = new PublicKey(LBCLMM_PROGRAM_IDS['mainnet-beta'])

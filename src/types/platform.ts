@@ -20,8 +20,8 @@ export interface PlatformLinks {
 export interface Platform {
   /** Unique platform identifier (string). */
   id: string
-  /** Network of the platform. */
-  network: string
+  /** Networks the platform is deployed on. */
+  networks: string[]
   /** Display name of the platform. */
   name: string
   /** Expected format: URL of the platform logo/image (https://... with image extension). */
