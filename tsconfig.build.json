@@ -8,6 +8,6 @@
     "rootDir": ".",
     "tsBuildInfoFile": "./.types/tsconfig.tsbuildinfo"
   },
-  "include": ["."],
+  "include": ["**/*.ts", "**/*.json"],
   "exclude": ["**/*.test.ts"]
 }
