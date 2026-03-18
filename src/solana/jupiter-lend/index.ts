@@ -1,4 +1,8 @@
-import { getAssociatedTokenAddressSync, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token'
+import {
+  getAssociatedTokenAddressSync,
+  TOKEN_2022_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
+} from '@solana/spl-token'
 import { PublicKey } from '@solana/web3.js'
 import { borrowPda } from '@jup-ag/lend'
 import { INIT_TICK, MIN_TICK, ZERO_TICK_SCALED_RATIO, getRatioAtTick } from '@jup-ag/lend/borrow'
@@ -50,6 +54,8 @@ const POSITION_DISC_B64 = accountDiscriminatorBase64(vaultsIdl, 'Position')
 // SPL token account: amount at offset 64, mint at offset 0
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
+// Position struct (Anchor bytemuck): discriminator (8) + vault_id (u16) + nft_id (u32)
+const POSITION_MINT_OFFSET = 14
 
 function readPubkey(buf: Buffer, offset: number): string {
   return new PublicKey(buf.slice(offset, offset + 32)).toBase58()
@@ -100,7 +106,6 @@ export const jupiterLendIntegration: SolanaIntegration = {
       programId: LENDING_PROGRAM_ID,
       filters: [{ memcmp: { offset: 0, bytes: LENDING_DISC_B64, encoding: 'base64' } }],
     }
-
     const earnPools: {
       mint: string
       fTokenMint: string
@@ -127,12 +132,8 @@ export const jupiterLendIntegration: SolanaIntegration = {
     const userSplMap = yield {
       kind: 'getProgramAccounts' as const,
       programId: TOKEN_PROGRAM_ID.toBase58(),
-      filters: [
-        { dataSize: 165 },
-        { memcmp: { offset: 32, bytes: walletPubkey.toBase58() } },
-      ],
+      filters: [{ dataSize: 165 }, { memcmp: { offset: 32, bytes: walletPubkey.toBase58() } }],
     }
-
     // Build mint → amount map for all the user's SPL token accounts
     const userMintBalances = new Map<string, bigint>() // mint → amount
     for (const acc of Object.values(userSplMap)) {
@@ -157,13 +158,10 @@ export const jupiterLendIntegration: SolanaIntegration = {
       }
     }
 
-    // ── Phase 0c: Vault positions — all CDP positions in the vaults program ──
-    const positionsMap = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: VAULTS_PROGRAM_ID,
-      filters: [{ memcmp: { offset: 0, bytes: POSITION_DISC_B64, encoding: 'base64' } }],
-    }
-
+    // ── Phase 0c: Vault positions — user-owned positions via position mint ──
+    const userPositionMints = [...userMintBalances.entries()]
+      .filter(([, amount]) => amount === 1n)
+      .map(([mint]) => mint)
     const ownedPositions: {
       vaultId: number
       positionMint: string
@@ -173,27 +171,43 @@ export const jupiterLendIntegration: SolanaIntegration = {
       dustDebtAmount: bigint
     }[] = []
     const uniqueVaultIds = new Set<number>()
+    const seenPositionMints = new Set<string>()
 
-    for (const acc of Object.values(positionsMap)) {
-      if (!acc.exists) continue
-      try {
-        const d = vaultsCoder.accounts.decode('Position', Buffer.from(acc.data))
-        const supplyAmount = BigInt((d.supply_amount as BN).toString())
-        if (supplyAmount === 0n) continue
-        const positionMint = (d.position_mint as PublicKey).toBase58()
-        if (userMintBalances.get(positionMint) !== 1n) continue
-        const vaultId = d.vault_id as number
-        ownedPositions.push({
-          vaultId,
-          positionMint,
-          isSupplyOnly: (d.is_supply_only_position as number) !== 0,
-          tick: d.tick as number,
-          supplyAmount,
-          dustDebtAmount: BigInt((d.dust_debt_amount as BN).toString()),
-        })
-        uniqueVaultIds.add(vaultId)
-      } catch {
-        // skip accounts that fail to decode
+    for (const positionMint of userPositionMints) {
+      const positionsByMint = yield {
+        kind: 'getProgramAccounts' as const,
+        programId: VAULTS_PROGRAM_ID,
+        filters: [
+          { memcmp: { offset: 0, bytes: POSITION_DISC_B64, encoding: 'base64' } },
+          { memcmp: { offset: POSITION_MINT_OFFSET, bytes: positionMint } },
+        ],
+      }
+
+      for (const acc of Object.values(positionsByMint)) {
+        if (!acc.exists) continue
+        try {
+          const d = vaultsCoder.accounts.decode('Position', Buffer.from(acc.data))
+          const supplyAmount = BigInt((d.supply_amount as BN).toString())
+          if (supplyAmount === 0n) continue
+
+          const decodedPositionMint = (d.position_mint as PublicKey).toBase58()
+          if (seenPositionMints.has(decodedPositionMint)) continue
+          if (decodedPositionMint !== positionMint) continue
+          seenPositionMints.add(decodedPositionMint)
+          const vaultId = d.vault_id as number
+          const positionId = (d.nft_id as number)
+          ownedPositions.push({
+            vaultId,
+            positionMint: decodedPositionMint,
+            isSupplyOnly: (d.is_supply_only_position as number) !== 0,
+            tick: d.tick as number,
+            supplyAmount,
+            dustDebtAmount: BigInt((d.dust_debt_amount as BN).toString()),
+          })
+          uniqueVaultIds.add(vaultId)
+        } catch {
+          // skip accounts that fail to decode
+        }
       }
     }
 
@@ -213,7 +227,6 @@ export const jupiterLendIntegration: SolanaIntegration = {
     const vaultMetaAddrs = vaultIds.map((id) => borrowPda.getVaultMetadata(id).toBase58())
 
     const phase1Map = yield [...t22ATAs, ...vaultConfigAddrs, ...vaultStateAddrs, ...vaultMetaAddrs]
-
     const result: UserDefiPosition[] = []
 
     // ── Decode Earn positions ─────────────────────────────────────────────────
@@ -241,7 +254,11 @@ export const jupiterLendIntegration: SolanaIntegration = {
           : undefined
 
       const supplied: LendingSuppliedAsset = {
-        amount: { token: pool.mint, amount: underlying.toString(), decimals: pool.decimals.toString() },
+        amount: {
+          token: pool.mint,
+          amount: underlying.toString(),
+          decimals: pool.decimals.toString(),
+        },
         ...(priceUsd !== undefined && { priceUsd: priceUsd.toString() }),
         ...(usdValue !== undefined && { usdValue }),
       }
@@ -256,7 +273,10 @@ export const jupiterLendIntegration: SolanaIntegration = {
 
     // ── Decode CDP vault positions ────────────────────────────────────────────
     const vaultConfigMap = new Map<number, { supplyToken: string; borrowToken: string }>()
-    const vaultStateMap = new Map<number, { vaultSupplyExchangePrice: bigint; vaultBorrowExchangePrice: bigint }>()
+    const vaultStateMap = new Map<
+      number,
+      { vaultSupplyExchangePrice: bigint; vaultBorrowExchangePrice: bigint }
+    >()
     const vaultMetaMap = new Map<number, { supplyDecimals: number; borrowDecimals: number }>()
 
     for (let i = 0; i < vaultIds.length; i++) {
