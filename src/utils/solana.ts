@@ -26,8 +26,8 @@ export async function fetchAccountsBatch(
 }
 
 /**
- * Helius getProgramAccountsV2 — cursor-based pagination fallback for programs
- * with too many accounts (e.g. AMM v4).
+ * Helius getProgramAccountsV2 — cursor-based pagination for programs with
+ * potentially large account sets.
  */
 async function fetchViaGetProgramAccountsV2(
   rpcUrl: string,
@@ -38,19 +38,18 @@ async function fetchViaGetProgramAccountsV2(
   let page = 0
 
   do {
+    const options: Record<string, unknown> = {
+      encoding: 'base64',
+      filters: req.filters,
+      limit: 10000,
+    }
+    if (paginationKey != null) options.paginationKey = paginationKey
+
     const body = {
       jsonrpc: '2.0',
       id: `gpa-v2-${page++}`,
       method: 'getProgramAccountsV2',
-      params: [
-        req.programId,
-        {
-          encoding: 'base64',
-          filters: req.filters,
-          limit: 10000,
-          paginationKey,
-        },
-      ],
+      params: [req.programId, options],
     }
 
     const res = await fetch(rpcUrl, {
@@ -70,7 +69,7 @@ async function fetchViaGetProgramAccountsV2(
       error?: { message: string }
     }
 
-    if (json.error) throw new Error(json.error.message)
+    if (json.error) throw new Error(`[getProgramAccountsV2] ${req.programId}: ${json.error.message}`)
     if (!json.result) break
 
     for (const entry of json.result.accounts) {
@@ -115,29 +114,7 @@ export async function fetchProgramAccountsBatch(
     return map
   }
 
-  // getProgramAccounts — try standard first, fall back to V2 on deprioritization
-  try {
-    const results = await connection.getProgramAccounts(new PublicKey(req.programId), {
-      filters: req.filters as any,
-    })
-    const map: AccountsMap = {}
-    for (const { pubkey, account } of results) {
-      const addr = pubkey.toBase58()
-      map[addr] = {
-        exists: true,
-        address: addr,
-        lamports: BigInt(account.lamports),
-        programAddress: account.owner.toBase58(),
-        data: new Uint8Array(account.data as Buffer),
-      }
-    }
-    return map
-  } catch (err: any) {
-    const msg: string = err?.message ?? ''
-    if (!msg.includes('deprioritized')) throw err
-    console.log(`[solana] falling back to getProgramAccountsV2 for ${req.programId}`)
-    return fetchViaGetProgramAccountsV2(connection.rpcEndpoint, req)
-  }
+  return fetchViaGetProgramAccountsV2(connection.rpcEndpoint, req)
 }
 
 export function createFetchAccounts(connection: Connection) {
