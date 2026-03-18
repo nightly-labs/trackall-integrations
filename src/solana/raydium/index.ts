@@ -204,9 +204,6 @@ export const raydiumIntegration: SolanaIntegration = {
       }
     }
 
-    for (const [mint, amount] of userMintBalances) {
-      console.log(`  ${mint}: ${amount}`)
-    }
 
     if (userMintBalances.size === 0) return []
 
