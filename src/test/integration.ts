@@ -15,15 +15,25 @@ export function testIntegration(integration: SolanaIntegration, testAddress?: st
         const tokens = new TokenPlugin(createSolanaRpc(rpcUrl))
         const plugins = { endpoint: rpcUrl, tokens }
 
+        let totalBatches = 0
+        let totalAccounts = 0
+
         const [positions] = await runIntegrations(
           [integration.getUserPositions!(testAddress, plugins)],
-          (addrs) => fetchAccountsBatch(connection, addrs),
+          async (addrs) => {
+            totalBatches++
+            totalAccounts += addrs.length
+            console.log(`  batch ${totalBatches}: fetching ${addrs.length} accounts`)
+            return fetchAccountsBatch(connection, addrs)
+          },
           (req) => fetchProgramAccountsBatch(connection, req),
         )
 
-        console.log(`\n✓ getUserPositions → ${positions?.length ?? 0} positions`)
-        if (positions && positions.length > 0) {
-          console.log('  sample:', JSON.stringify(positions[0], null, 2))
+        console.log(`\n✓ getUserPositions → ${positions?.length ?? 0} positions (${totalBatches} batches, ${totalAccounts} accounts)`)
+        if (positions) {
+          for (const position of positions) {
+            console.log(JSON.stringify(position, null, 2))
+          }
         }
 
         expect(Array.isArray(positions)).toBe(true)

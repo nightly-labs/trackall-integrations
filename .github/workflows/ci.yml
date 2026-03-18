@@ -154,7 +154,7 @@ jobs:
           INTEGRATION_NAME: ${{ needs.detect.outputs.name }}
           SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL }}
         run: |
-          bun test "src/test/run-integration.ts" \
+          bun test "src/test/run-integration.test.ts" \
             2>&1 | tee /tmp/test-output.txt
           echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
 
