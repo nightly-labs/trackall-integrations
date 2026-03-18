@@ -17,6 +17,14 @@ export interface GetProgramAccountsRequest {
   filters: ProgramAccountFilter[]
 }
 
+export interface GetTokenAccountsByOwnerRequest {
+  kind: 'getTokenAccountsByOwner'
+  owner: SolanaAddress
+  programId: SolanaAddress
+}
+
+export type ProgramRequest = GetProgramAccountsRequest | GetTokenAccountsByOwnerRequest
+
 export type SolanaAddress = string
 
 export interface SolanaAccount {
@@ -35,7 +43,7 @@ export interface SolanaAccountNotFound {
 export type MaybeSolanaAccount = SolanaAccount | SolanaAccountNotFound
 
 export type AccountsMap = Record<SolanaAddress, MaybeSolanaAccount>
-export type UserPositionsPlan = AsyncGenerator<SolanaAddress[] | GetProgramAccountsRequest, UserDefiPosition[], AccountsMap>
+export type UserPositionsPlan = AsyncGenerator<SolanaAddress[] | ProgramRequest | ProgramRequest[], UserDefiPosition[], AccountsMap>
 
 export interface SolanaIntegration {
   /** Platform identifier. */
