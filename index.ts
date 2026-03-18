@@ -8,6 +8,9 @@ const solanaModules = import.meta.glob<{ default: SolanaIntegration }>('./src/so
 export const solanaIntegrations: SolanaIntegration[] = Object.values(solanaModules).map((m) => m.default)
 export { platforms } from './src/platforms/index'
 export type { PlatformId } from './src/platforms/index'
+export type { Platform } from './src/types/platform'
+export type { UserDefiPosition } from './src/types/position'
+export { runIntegrations } from './src/types/runner'
 
 export { meteoraIntegration } from './src/solana/meteora/index'
 export { createFetchAccounts, createFetchProgramAccounts, fetchAccountsBatch, fetchProgramAccountsBatch } from './src/utils/solana'
