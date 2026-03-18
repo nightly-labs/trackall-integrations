@@ -1,7 +1,6 @@
 import {
   ClockLayout,
   LBCLMM_PROGRAM_IDS,
-  chunkedGetProgramAccounts,
   createProgram,
   decodeAccount,
   getPriceOfBinByBinId,
@@ -12,11 +11,13 @@ import {
 
 const BIN_ARRAY_SIZE = 70 // SDK MAX_BIN_ARRAY_SIZE constant
 import { unpackMint } from '@solana/spl-token'
-import { PublicKey, SYSVAR_CLOCK_PUBKEY } from '@solana/web3.js'
+import type { AccountInfo } from '@solana/web3.js'
+import { Connection, PublicKey, SYSVAR_CLOCK_PUBKEY } from '@solana/web3.js'
 import BN from 'bn.js'
 
 import type {
   ConcentratedRangeLiquidityDefiPosition,
+  SolanaAccount,
   SolanaIntegration,
   SolanaPlugins,
   UserDefiPosition,
@@ -34,16 +35,31 @@ export const meteoraIntegration: SolanaIntegration = {
     defiLlamaId: 'meteora',
   },
 
-  getUserPositions: async function* (address: string, { connection, tokens }: SolanaPlugins): UserPositionsPlan {
+  getUserPositions: async function* (address: string, { endpoint, tokens }: SolanaPlugins): UserPositionsPlan {
     const programId = new PublicKey(LBCLMM_PROGRAM_IDS['mainnet-beta'])
+    const connection = new Connection(endpoint)
     const program = createProgram(connection)
     const walletPubkey = new PublicKey(address)
 
-    // Phase 0: discover positions via getProgramAccounts
-    const rawPositions = await chunkedGetProgramAccounts(connection, programId, [
-      positionV2Filter(),
-      positionOwnerFilter(walletPubkey),
-    ])
+    // Phase 0: discover positions via getProgramAccounts (through runner)
+    const phase0Map = yield {
+      kind: 'getProgramAccounts' as const,
+      programId: LBCLMM_PROGRAM_IDS['mainnet-beta'],
+      filters: [positionV2Filter(), positionOwnerFilter(walletPubkey)],
+    }
+
+    const rawPositions = Object.values(phase0Map)
+      .filter((acc): acc is SolanaAccount => acc.exists)
+      .map((acc) => ({
+        pubkey: new PublicKey(acc.address),
+        account: {
+          data: Buffer.from(acc.data),
+          owner: new PublicKey(acc.programAddress),
+          lamports: Number(acc.lamports),
+          executable: false,
+          rentEpoch: 0,
+        } as AccountInfo<Buffer>,
+      }))
 
     if (rawPositions.length === 0) return []
 

@@ -1,11 +1,20 @@
-import type { Connection } from '@solana/web3.js'
 import type { TokenPlugin } from '../plugin/tokens'
 import type { Platform } from './platform'
 import type { UserDefiPosition } from './position'
 
 export interface SolanaPlugins {
-  connection: Connection
+  endpoint: string
   tokens: TokenPlugin
+}
+
+export type ProgramAccountFilter =
+  | { memcmp: { offset: number; bytes: string; encoding?: 'base58' | 'base64' } }
+  | { dataSize: number }
+
+export interface GetProgramAccountsRequest {
+  kind: 'getProgramAccounts'
+  programId: SolanaAddress
+  filters: ProgramAccountFilter[]
 }
 
 export type SolanaAddress = string
@@ -26,7 +35,7 @@ export interface SolanaAccountNotFound {
 export type MaybeSolanaAccount = SolanaAccount | SolanaAccountNotFound
 
 export type AccountsMap = Record<SolanaAddress, MaybeSolanaAccount>
-export type UserPositionsPlan = AsyncGenerator<SolanaAddress[], UserDefiPosition[], AccountsMap>
+export type UserPositionsPlan = AsyncGenerator<SolanaAddress[] | GetProgramAccountsRequest, UserDefiPosition[], AccountsMap>
 
 export interface SolanaIntegration {
   /** Platform instance. */

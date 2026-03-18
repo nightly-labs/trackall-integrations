@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'bun:test'
-import { Connection, PublicKey } from '@solana/web3.js'
+import { Connection } from '@solana/web3.js'
 
 import { meteoraIntegration } from './index'
 import { createSolanaRpc } from '@solana/kit'
 import { runIntegrations, TokenPlugin } from '../../types/index'
-import type { AccountsMap, MaybeSolanaAccount, SolanaAddress, UserPositionsPlan } from '../../types/index'
+import { fetchAccountsBatch, fetchProgramAccountsBatch } from '../../utils/solana'
+import type { UserPositionsPlan } from '../../types/index'
 
 const solanaRpcUrl = process.env.SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com'
 const wallet = 'D2TKNY5CwCHCTu5YPbpouC9D4DGuoSvFsaYnMyEg7djn'
@@ -16,35 +17,11 @@ const wallets = [
   '7D5ZwmDH9HPJ3konuh5HRtVnWE1f7sKDz1pqyJ9LDcUP',
 ]
 
-async function fetchAccountsBatch(
-  connection: Connection,
-  addresses: SolanaAddress[],
-): Promise<AccountsMap> {
-  if (addresses.length === 0) return {}
-  const pubkeys = addresses.map((a) => new PublicKey(a))
-  const infos = await connection.getMultipleAccountsInfo(pubkeys)
-  const map: AccountsMap = {}
-  addresses.forEach((addr, i) => {
-    const info = infos[i]
-    const entry: MaybeSolanaAccount = info
-      ? {
-          exists: true,
-          address: addr,
-          lamports: BigInt(info.lamports),
-          programAddress: info.owner.toBase58(),
-          data: new Uint8Array(info.data as Buffer),
-        }
-      : { exists: false, address: addr }
-    map[addr] = entry
-  })
-  return map
-}
-
 describe('meteora integration', () => {
   it('fetches user positions from Meteora DLMM', async () => {
     const connection = new Connection(solanaRpcUrl, 'confirmed')
     const tokens = new TokenPlugin(createSolanaRpc(solanaRpcUrl))
-    const plugins = { connection, tokens }
+    const plugins = { endpoint: solanaRpcUrl, tokens }
 
     let totalBatches = 0
     let totalAccounts = 0
@@ -57,6 +34,7 @@ describe('meteora integration', () => {
         console.log(`  batch ${totalBatches}: fetching ${addresses.length} accounts`)
         return fetchAccountsBatch(connection, addresses)
       },
+      (req) => fetchProgramAccountsBatch(connection, req),
     )
 
     if (!positions) throw new Error('No results returned')
@@ -79,7 +57,7 @@ describe('meteora integration', () => {
   it('fetches positions for multiple wallets in batched RPC calls', async () => {
     const connection = new Connection(solanaRpcUrl, 'confirmed')
     const tokens = new TokenPlugin(createSolanaRpc(solanaRpcUrl))
-    const plugins = { connection, tokens }
+    const plugins = { endpoint: solanaRpcUrl, tokens }
 
     let totalBatches = 0
     let totalAccounts = 0
@@ -90,7 +68,7 @@ describe('meteora integration', () => {
       return (async function* (): UserPositionsPlan {
         let step = await plan.next()
         while (!step.done) {
-          naiveTotal += step.value.length
+          if (Array.isArray(step.value)) naiveTotal += step.value.length
           const accounts = yield step.value
           step = await plan.next(accounts)
         }
@@ -106,6 +84,7 @@ describe('meteora integration', () => {
         console.log(`  batch ${totalBatches}: fetching ${addresses.length} accounts`)
         return fetchAccountsBatch(connection, addresses)
       },
+      (req) => fetchProgramAccountsBatch(connection, req),
     )
 
     const totalPositions = results.reduce((sum, p) => sum + p.length, 0)
