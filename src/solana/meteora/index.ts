@@ -24,6 +24,8 @@ import type {
   UserPositionsPlan,
 } from '../../types/index'
 
+export const testAddress = 'D2TKNY5CwCHCTu5YPbpouC9D4DGuoSvFsaYnMyEg7djn'
+
 export const meteoraIntegration: SolanaIntegration = {
   platformId: 'meteora',
 

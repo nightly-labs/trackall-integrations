@@ -1,65 +1,212 @@
 name: CI
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main]
   pull_request:
 
 jobs:
-  validate:
+  detect:
     runs-on: ubuntu-latest
+    outputs:
+      name: ${{ steps.detect.outputs.name }}
+      has_test: ${{ steps.detect.outputs.has_test }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.8
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile
 
       - name: Typecheck
         run: bun run typecheck
 
-      - name: Find affected tests
-        id: affected
+      - name: Detect changed integration
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE=${{ github.event.pull_request.base.sha }}
-            HEAD=${{ github.event.pull_request.head.sha }}
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE="$PR_BASE_SHA"
+            HEAD="$PR_HEAD_SHA"
           else
             BASE=$(git rev-parse HEAD^)
             HEAD=$(git rev-parse HEAD)
           fi
 
           CHANGED=$(git diff --name-only "$BASE" "$HEAD" -- '*.ts')
-
-          TEST_FILES=""
+          INTEGRATION=""
           while IFS= read -r f; do
-            [ -z "$f" ] && continue
-            if echo "$f" | grep -q '\.test\.ts$'; then
-              TEST_FILES="$TEST_FILES $f"
-            else
-              SIBLING="${f%.ts}.test.ts"
-              if [ -f "$SIBLING" ]; then
-                TEST_FILES="$TEST_FILES $SIBLING"
-              fi
+            if [[ "$f" =~ src/solana/([^/]+)/ ]]; then
+              INTEGRATION="${BASH_REMATCH[1]}"
+              break
             fi
           done <<< "$CHANGED"
 
-          # Deduplicate
-          TEST_FILES=$(echo "$TEST_FILES" | tr ' ' '\n' | sort -u | grep -v '^$' | tr '\n' ' ')
-          echo "files=${TEST_FILES}" >> "$GITHUB_OUTPUT"
-          echo "has_tests=$([ -n "$TEST_FILES" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "Affected tests: $TEST_FILES"
+          echo "name=${INTEGRATION}" >> "$GITHUB_OUTPUT"
+          echo "has_test=$([ -n "$INTEGRATION" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
-      - name: Test
-        if: steps.affected.outputs.has_tests == 'true'
-        run: bun test ${{ steps.affected.outputs.files }}
+  test-local:
+    needs: detect
+    if: needs.detect.outputs.has_test == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.8
+
+      - run: bun install --frozen-lockfile
+
+      - name: Run integration test
+        id: test
         env:
+          INTEGRATION_NAME: ${{ needs.detect.outputs.name }}
           SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL }}
+        run: |
+          bun test "src/solana/${INTEGRATION_NAME}/index.test.ts" \
+            2>&1 | tee /tmp/test-output.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Post PR comment
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs')
+            const output = fs.existsSync('/tmp/test-output.txt')
+              ? fs.readFileSync('/tmp/test-output.txt', 'utf8').trim()
+              : '(no output)'
+            const passed = '${{ steps.test.outputs.exit_code }}' === '0'
+            const integration = '${{ needs.detect.outputs.name }}'
+            const status = passed ? '✅ Passed' : '❌ Failed'
+            const marker = '<!-- integration-local-test-result -->'
+
+            const body = [
+              marker,
+              `## 🧪 Integration Test: \`${integration}\``,
+              '',
+              `**Status:** ${status}`,
+              '',
+              '<details>',
+              `<summary>Full output</summary>`,
+              '',
+              '```',
+              output,
+              '```',
+              '',
+              '</details>',
+            ].join('\n')
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            })
+
+            const existing = comments.find(c => c.body?.includes(marker))
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              })
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              })
+            }
+
+  test-generic:
+    needs: detect
+    if: needs.detect.outputs.has_test == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.8
+
+      - run: bun install --frozen-lockfile
+
+      - name: Run generic integration test
+        id: test
+        env:
+          INTEGRATION_NAME: ${{ needs.detect.outputs.name }}
+          SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL }}
+        run: |
+          bun test "src/test/run-integration.test.ts" \
+            2>&1 | tee /tmp/test-output.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Post PR comment
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs')
+            const output = fs.existsSync('/tmp/test-output.txt')
+              ? fs.readFileSync('/tmp/test-output.txt', 'utf8').trim()
+              : '(no output)'
+            const passed = '${{ steps.test.outputs.exit_code }}' === '0'
+            const integration = '${{ needs.detect.outputs.name }}'
+            const status = passed ? '✅ Passed' : '❌ Failed'
+            const marker = '<!-- integration-generic-test-result -->'
+
+            const body = [
+              marker,
+              `## 🧪 Generic Integration Test: \`${integration}\``,
+              '',
+              `**Status:** ${status}`,
+              '',
+              '<details>',
+              `<summary>Full output</summary>`,
+              '',
+              '```',
+              output,
+              '```',
+              '',
+              '</details>',
+            ].join('\n')
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            })
+
+            const existing = comments.find(c => c.body?.includes(marker))
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              })
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              })
+            }
