@@ -16,7 +16,12 @@ export interface PositionValue {
   priceUsd?: string
 }
 
-export type PositionKind = 'lending' | 'staking' | 'liquidity' | 'vesting'
+export type PositionKind =
+  | 'lending'
+  | 'staking'
+  | 'liquidity'
+  | 'vesting'
+  | 'reward'
 
 export interface BaseDefiPosition {
   /** Shared platform identifier from Platform.id. */
