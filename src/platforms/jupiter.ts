@@ -6,7 +6,8 @@ const jupiterLendPlatform = {
   networks: ['solana'],
   name: 'Jupiter Lend',
   image: 'https://jup.ag/favicon.ico',
-  description: 'Jupiter Lend earn — supply assets and track borrow positions on Solana',
+  description:
+    'Jupiter Lend earn — supply assets and track borrow positions on Solana',
   tags: [PlatformTag.Lending],
   defiLlamaId: 'jupiter-lend',
 } satisfies Platform

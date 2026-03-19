@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'bun:test'
-import { Connection } from '@solana/web3.js'
-
-import { meteoraIntegration } from './index'
 import { createSolanaRpc } from '@solana/kit'
-import { runIntegrations, TokenPlugin } from '../../types/index'
-import { fetchAccountsBatch, fetchProgramAccountsBatch } from '../../utils/solana'
+import { Connection } from '@solana/web3.js'
 import type { UserPositionsPlan } from '../../types/index'
+import { runIntegrations, TokenPlugin } from '../../types/index'
+import {
+  fetchAccountsBatch,
+  fetchProgramAccountsBatch,
+} from '../../utils/solana'
+import { meteoraIntegration } from './index'
 
-const solanaRpcUrl = process.env.SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com'
+const solanaRpcUrl =
+  process.env.SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com'
 const wallet = 'D2TKNY5CwCHCTu5YPbpouC9D4DGuoSvFsaYnMyEg7djn'
 const wallets = [
   'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd',
@@ -16,6 +19,9 @@ const wallets = [
   'DixNFxHwEYi2cQJviL6XdZf6534WKyxMugXD5KMKtTbf',
   '7D5ZwmDH9HPJ3konuh5HRtVnWE1f7sKDz1pqyJ9LDcUP',
 ]
+
+const { getUserPositions } = meteoraIntegration
+if (!getUserPositions) throw new Error('getUserPositions not implemented')
 
 describe('meteora integration', () => {
   it('fetches user positions from Meteora DLMM', async () => {
@@ -27,11 +33,13 @@ describe('meteora integration', () => {
     let totalAccounts = 0
 
     const [positions] = await runIntegrations(
-      [meteoraIntegration.getUserPositions!(wallet, plugins)],
+      [getUserPositions(wallet, plugins)],
       async (addresses) => {
         totalBatches++
         totalAccounts += addresses.length
-        console.log(`  batch ${totalBatches}: fetching ${addresses.length} accounts`)
+        console.log(
+          `  batch ${totalBatches}: fetching ${addresses.length} accounts`,
+        )
         return fetchAccountsBatch(connection, addresses)
       },
       (req) => fetchProgramAccountsBatch(connection, req),
@@ -39,16 +47,29 @@ describe('meteora integration', () => {
 
     if (!positions) throw new Error('No results returned')
 
-    const liquidityPositions = positions.filter((p) => p.positionKind === 'liquidity')
+    const liquidityPositions = positions.filter(
+      (p) => p.positionKind === 'liquidity',
+    )
 
     // Warm the token cache for all mints, then the integration uses get() internally
-    const mints = [...new Set(liquidityPositions.flatMap((p) => p.poolTokens.map((t) => t.amount.token)))]
+    const mints = [
+      ...new Set(
+        liquidityPositions.flatMap((p) =>
+          p.poolTokens.map((t) => t.amount.token),
+        ),
+      ),
+    ]
     await Promise.all(mints.map((mint) => tokens.fetch(mint)))
 
     console.log(`\nFound ${positions.length} Meteora DLMM positions`)
-    console.log(`RPC batches: ${totalBatches}, total accounts fetched: ${totalAccounts}`)
+    console.log(
+      `RPC batches: ${totalBatches}, total accounts fetched: ${totalAccounts}`,
+    )
     if (liquidityPositions.length > 0) {
-      console.log('Sample position:', JSON.stringify(liquidityPositions[1] ?? liquidityPositions[0], null, 2))
+      console.log(
+        'Sample position:',
+        JSON.stringify(liquidityPositions[1] ?? liquidityPositions[0], null, 2),
+      )
     }
 
     expect(Array.isArray(positions)).toBe(true)
@@ -77,11 +98,13 @@ describe('meteora integration', () => {
     }
 
     const results = await runIntegrations(
-      wallets.map((w) => trackYields(meteoraIntegration.getUserPositions!(w, plugins))),
+      wallets.map((w) => trackYields(getUserPositions(w, plugins))),
       async (addresses) => {
         totalBatches++
         totalAccounts += addresses.length
-        console.log(`  batch ${totalBatches}: fetching ${addresses.length} accounts`)
+        console.log(
+          `  batch ${totalBatches}: fetching ${addresses.length} accounts`,
+        )
         return fetchAccountsBatch(connection, addresses)
       },
       (req) => fetchProgramAccountsBatch(connection, req),
@@ -90,9 +113,15 @@ describe('meteora integration', () => {
     const totalPositions = results.reduce((sum, p) => sum + p.length, 0)
     const saved = naiveTotal - totalAccounts
     const savedPct = naiveTotal > 0 ? Math.round((saved / naiveTotal) * 100) : 0
-    console.log(`\n${wallets.length} wallets → ${totalPositions} total positions`)
-    console.log(`RPC batches: ${totalBatches}, actual accounts fetched: ${totalAccounts}`)
-    console.log(`Sequential would have fetched: ${naiveTotal} — saved ${saved} (${savedPct}%)`)
+    console.log(
+      `\n${wallets.length} wallets → ${totalPositions} total positions`,
+    )
+    console.log(
+      `RPC batches: ${totalBatches}, actual accounts fetched: ${totalAccounts}`,
+    )
+    console.log(
+      `Sequential would have fetched: ${naiveTotal} — saved ${saved} (${savedPct}%)`,
+    )
     wallets.forEach((w, i) => {
       console.log(`  ${w.slice(0, 8)}…  ${results[i]?.length ?? 0} positions`)
     })

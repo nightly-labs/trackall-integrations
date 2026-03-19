@@ -1,7 +1,7 @@
-import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token'
-import { PublicKey } from '@solana/web3.js'
 import { BorshCoder } from '@coral-xyz/anchor'
 import { AMM_V4, liquidityStateV4Layout } from '@raydium-io/raydium-sdk-v2'
+import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token'
+import { PublicKey } from '@solana/web3.js'
 
 import type {
   ConcentratedRangeLiquidityDefiPosition,
@@ -9,7 +9,7 @@ import type {
   SolanaIntegration,
   SolanaPlugins,
   UserDefiPosition,
-  UserPositionsPlan
+  UserPositionsPlan,
 } from '../../types/index'
 
 import clmmIdl from './idls/amm_v3.json'
@@ -24,15 +24,19 @@ const CP_PROGRAM_ID = cpIdl.address
 // ─── Discriminators (from IDL) ───────────────────────────────────────────────
 function idlDiscriminator(
   idl: { accounts?: Array<{ name: string; discriminator?: number[] }> },
-  accountName: string
+  accountName: string,
 ): number[] {
-  const disc = idl.accounts?.find(a => a.name === accountName)?.discriminator
+  const disc = idl.accounts?.find((a) => a.name === accountName)?.discriminator
   if (!disc) throw new Error(`Missing discriminator for "${accountName}"`)
   return disc
 }
 
-const PERSONAL_POSITION_DISC = Buffer.from(idlDiscriminator(clmmIdl, 'PersonalPositionState'))
-const CP_POOL_DISC_B64 = Buffer.from(idlDiscriminator(cpIdl, 'PoolState')).toString('base64')
+const PERSONAL_POSITION_DISC = Buffer.from(
+  idlDiscriminator(clmmIdl, 'PersonalPositionState'),
+)
+const CP_POOL_DISC_B64 = Buffer.from(
+  idlDiscriminator(cpIdl, 'PoolState'),
+).toString('base64')
 
 // ─── BorshCoder for PersonalPositionState ────────────────────────────────────
 const clmmCoder = new BorshCoder(clmmIdl as never)
@@ -65,12 +69,12 @@ function decodeClmmPool(buf: Buffer) {
   return {
     tokenMint0: readPubkey(buf, 73),
     tokenMint1: readPubkey(buf, 105),
-    mintDecimals0: buf[233]!,
-    mintDecimals1: buf[234]!,
+    mintDecimals0: buf.readUInt8(233),
+    mintDecimals1: buf.readUInt8(234),
     tickSpacing: readU16LE(buf, 235),
     liquidity: readU128LE(buf, 237),
     sqrtPriceX64: readU128LE(buf, 253),
-    tickCurrent: readI32LE(buf, 269)
+    tickCurrent: readI32LE(buf, 269),
   }
 }
 
@@ -82,9 +86,9 @@ function decodeCpPool(buf: Buffer) {
     lpMint: readPubkey(buf, 136),
     token0Mint: readPubkey(buf, 168),
     token1Mint: readPubkey(buf, 200),
-    mintDecimals0: buf[331]!,
-    mintDecimals1: buf[332]!,
-    lpSupply: readU64LE(buf, 333)
+    mintDecimals0: buf.readUInt8(331),
+    mintDecimals1: buf.readUInt8(332),
+    lpSupply: readU64LE(buf, 333),
   }
 }
 
@@ -97,7 +101,7 @@ const Q64 = 1n << 64n
  * We compute this with floating point then convert to Q64.
  */
 function tickToSqrtPriceX64(tick: number): bigint {
-  const sqrtPrice = Math.pow(1.0001, tick / 2)
+  const sqrtPrice = 1.0001 ** (tick / 2)
   // Convert to Q64.64
   return BigInt(Math.round(sqrtPrice * Number(Q64)))
 }
@@ -110,7 +114,7 @@ function computeClmmAmounts(
   tickCurrent: number,
   tickLower: number,
   tickUpper: number,
-  sqrtPriceX64: bigint
+  sqrtPriceX64: bigint,
 ): { amount0: bigint; amount1: bigint } {
   const sqrtPriceLowerX64 = tickToSqrtPriceX64(tickLower)
   const sqrtPriceUpperX64 = tickToSqrtPriceX64(tickUpper)
@@ -129,7 +133,8 @@ function computeClmmAmounts(
   } else {
     // Mixed: current price is in range
     amount0 =
-      (liquidity * Q64 * (sqrtPriceUpperX64 - sqrtPriceX64)) / (sqrtPriceX64 * sqrtPriceUpperX64)
+      (liquidity * Q64 * (sqrtPriceUpperX64 - sqrtPriceX64)) /
+      (sqrtPriceX64 * sqrtPriceUpperX64)
     amount1 = (liquidity * (sqrtPriceX64 - sqrtPriceLowerX64)) / Q64
   }
 
@@ -139,13 +144,21 @@ function computeClmmAmounts(
 /**
  * Compute price from sqrtPriceX64: price = (sqrtPriceX64 / 2^64)^2 * 10^(decimals0 - decimals1)
  */
-function sqrtPriceX64ToPrice(sqrtPriceX64: bigint, decimals0: number, decimals1: number): number {
+function sqrtPriceX64ToPrice(
+  sqrtPriceX64: bigint,
+  decimals0: number,
+  decimals1: number,
+): number {
   const sqrtPrice = Number(sqrtPriceX64) / Number(Q64)
   return sqrtPrice * sqrtPrice * 10 ** (decimals0 - decimals1)
 }
 
-function tickToPrice(tick: number, decimals0: number, decimals1: number): number {
-  return Math.pow(1.0001, tick) * 10 ** (decimals0 - decimals1)
+function tickToPrice(
+  tick: number,
+  decimals0: number,
+  decimals1: number,
+): number {
+  return 1.0001 ** tick * 10 ** (decimals0 - decimals1)
 }
 
 // ─── SPL token account reading ───────────────────────────────────────────────
@@ -174,7 +187,7 @@ export const raydiumIntegration: SolanaIntegration = {
 
   getUserPositions: async function* (
     address: string,
-    { tokens }: SolanaPlugins
+    { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
     const walletPubkey = new PublicKey(address)
 
@@ -183,13 +196,13 @@ export const raydiumIntegration: SolanaIntegration = {
       {
         kind: 'getTokenAccountsByOwner' as const,
         owner: walletPubkey.toBase58(),
-        programId: TOKEN_PROGRAM_ID.toBase58()
+        programId: TOKEN_PROGRAM_ID.toBase58(),
       },
       {
         kind: 'getTokenAccountsByOwner' as const,
         owner: walletPubkey.toBase58(),
-        programId: TOKEN_2022_PROGRAM_ID.toBase58()
-      }
+        programId: TOKEN_2022_PROGRAM_ID.toBase58(),
+      },
     ]
 
     // Build mint → amount map from merged token accounts
@@ -200,10 +213,12 @@ export const raydiumIntegration: SolanaIntegration = {
       const amount = readTokenAccountAmount(acc.data)
       if (mint && amount !== null && amount > 0n) {
         const existing = userMintBalances.get(mint)
-        userMintBalances.set(mint, existing !== undefined ? existing + amount : amount)
+        userMintBalances.set(
+          mint,
+          existing !== undefined ? existing + amount : amount,
+        )
       }
     }
-
 
     if (userMintBalances.size === 0) return []
 
@@ -244,9 +259,15 @@ export const raydiumIntegration: SolanaIntegration = {
         kind: 'getProgramAccounts' as const,
         programId: CP_PROGRAM_ID,
         filters: [
-          { memcmp: { offset: 0, bytes: CP_POOL_DISC_B64, encoding: 'base64' as const } },
-          { memcmp: { offset: CP_LP_MINT_OFFSET, bytes: mint } }
-        ]
+          {
+            memcmp: {
+              offset: 0,
+              bytes: CP_POOL_DISC_B64,
+              encoding: 'base64' as const,
+            },
+          },
+          { memcmp: { offset: CP_LP_MINT_OFFSET, bytes: mint } },
+        ],
       }
 
       for (const acc of Object.values(cpPoolsMap)) {
@@ -263,7 +284,7 @@ export const raydiumIntegration: SolanaIntegration = {
           mintDecimals0: pool.mintDecimals0,
           mintDecimals1: pool.mintDecimals1,
           lpSupply: pool.lpSupply,
-          userLpAmount: amount
+          userLpAmount: amount,
         })
         cpVaultAddresses.push(pool.token0Vault, pool.token1Vault)
       }
@@ -272,7 +293,7 @@ export const raydiumIntegration: SolanaIntegration = {
       const ammV4PoolsMap = yield {
         kind: 'getProgramAccounts' as const,
         programId: AMM_V4.toBase58(),
-        filters: [{ dataSize: 752 }, { memcmp: { offset: 464, bytes: mint } }]
+        filters: [{ dataSize: 752 }, { memcmp: { offset: 464, bytes: mint } }],
       }
 
       for (const acc of Object.values(ammV4PoolsMap)) {
@@ -289,7 +310,7 @@ export const raydiumIntegration: SolanaIntegration = {
           baseDecimal: Number(pool.baseDecimal),
           quoteDecimal: Number(pool.quoteDecimal),
           lpMint: pool.lpMint.toBase58(),
-          userLpAmount: amount
+          userLpAmount: amount,
         })
       }
     }
@@ -309,7 +330,7 @@ export const raydiumIntegration: SolanaIntegration = {
         const mintPubkey = new PublicKey(mint)
         const [pda] = PublicKey.findProgramAddressSync(
           [Buffer.from('position'), mintPubkey.toBuffer()],
-          CLMM_PROGRAM
+          CLMM_PROGRAM,
         )
         clmmPdaEntries.push({ mint, pda: pda.toBase58() })
       } catch {
@@ -319,13 +340,17 @@ export const raydiumIntegration: SolanaIntegration = {
 
     // ── Phase 2: Batch fetch CLMM PDAs + CP vaults ──────────────────────────
     const phase2Addresses = [
-      ...clmmPdaEntries.map(e => e.pda),
+      ...clmmPdaEntries.map((e) => e.pda),
       ...cpVaultAddresses,
       ...ammV4VaultAddresses,
-      ...ammV4LpMintAddresses
+      ...ammV4LpMintAddresses,
     ]
 
-    if (phase2Addresses.length === 0 && cpMatches.length === 0 && ammV4Matches.length === 0)
+    if (
+      phase2Addresses.length === 0 &&
+      cpMatches.length === 0 &&
+      ammV4Matches.length === 0
+    )
       return []
 
     const phase2Map = phase2Addresses.length > 0 ? yield phase2Addresses : {}
@@ -346,17 +371,20 @@ export const raydiumIntegration: SolanaIntegration = {
       if (!acc?.exists) continue
       const buf = Buffer.from(acc.data)
       // Verify discriminator
-      if (buf.length < 8 || !buf.slice(0, 8).equals(PERSONAL_POSITION_DISC)) continue
+      if (buf.length < 8 || !buf.slice(0, 8).equals(PERSONAL_POSITION_DISC))
+        continue
       try {
         const decoded = clmmCoder.accounts.decode('PersonalPositionState', buf)
-        const liquidity = BigInt((decoded.liquidity as any).toString())
+        const liquidity = BigInt(
+          (decoded.liquidity as { toString(): string }).toString(),
+        )
         if (liquidity === 0n) continue
         const poolId = (decoded.pool_id as PublicKey).toBase58()
         clmmPositions.push({
           poolId,
           tickLower: decoded.tick_lower_index as number,
           tickUpper: decoded.tick_upper_index as number,
-          liquidity
+          liquidity,
         })
         uniquePoolIds.add(poolId)
       } catch {
@@ -367,9 +395,15 @@ export const raydiumIntegration: SolanaIntegration = {
     // ── Phase 3: Fetch CLMM pool states ──────────────────────────────────────
     const clmmPoolAddresses = [...uniquePoolIds]
 
-    if (clmmPositions.length === 0 && cpMatches.length === 0 && ammV4Matches.length === 0) return []
+    if (
+      clmmPositions.length === 0 &&
+      cpMatches.length === 0 &&
+      ammV4Matches.length === 0
+    )
+      return []
 
-    const phase3Map = clmmPoolAddresses.length > 0 ? yield clmmPoolAddresses : {}
+    const phase3Map =
+      clmmPoolAddresses.length > 0 ? yield clmmPoolAddresses : {}
 
     const result: UserDefiPosition[] = []
 
@@ -386,16 +420,24 @@ export const raydiumIntegration: SolanaIntegration = {
         pool.tickCurrent,
         pos.tickLower,
         pos.tickUpper,
-        pool.sqrtPriceX64
+        pool.sqrtPriceX64,
       )
 
       const currentPrice = sqrtPriceX64ToPrice(
         pool.sqrtPriceX64,
         pool.mintDecimals0,
-        pool.mintDecimals1
+        pool.mintDecimals1,
       )
-      const lowerPrice = tickToPrice(pos.tickLower, pool.mintDecimals0, pool.mintDecimals1)
-      const upperPrice = tickToPrice(pos.tickUpper, pool.mintDecimals0, pool.mintDecimals1)
+      const lowerPrice = tickToPrice(
+        pos.tickLower,
+        pool.mintDecimals0,
+        pool.mintDecimals1,
+      )
+      const upperPrice = tickToPrice(
+        pos.tickUpper,
+        pool.mintDecimals0,
+        pool.mintDecimals1,
+      )
 
       const token0Info = tokens.get(pool.tokenMint0)
       const token1Info = tokens.get(pool.tokenMint1)
@@ -422,7 +464,8 @@ export const raydiumIntegration: SolanaIntegration = {
         positionKind: 'liquidity',
         liquidityModel: 'concentrated-range',
         platformId: 'raydium',
-        isActive: pos.tickLower <= pool.tickCurrent && pool.tickCurrent < pos.tickUpper,
+        isActive:
+          pos.tickLower <= pool.tickCurrent && pool.tickCurrent < pos.tickUpper,
         lowerPriceUsd: lowerPrice.toString(),
         upperPriceUsd: upperPrice.toString(),
         currentPriceUsd: currentPrice.toString(),
@@ -432,22 +475,26 @@ export const raydiumIntegration: SolanaIntegration = {
             amount: {
               token: pool.tokenMint0,
               amount: amount0.toString(),
-              decimals: pool.mintDecimals0.toString()
+              decimals: pool.mintDecimals0.toString(),
             },
-            ...(token0Info?.priceUsd !== undefined && { priceUsd: token0Info.priceUsd.toString() }),
-            ...(usdValue0 !== undefined && { usdValue: usdValue0.toString() })
+            ...(token0Info?.priceUsd !== undefined && {
+              priceUsd: token0Info.priceUsd.toString(),
+            }),
+            ...(usdValue0 !== undefined && { usdValue: usdValue0.toString() }),
           },
           {
             amount: {
               token: pool.tokenMint1,
               amount: amount1.toString(),
-              decimals: pool.mintDecimals1.toString()
+              decimals: pool.mintDecimals1.toString(),
             },
-            ...(token1Info?.priceUsd !== undefined && { priceUsd: token1Info.priceUsd.toString() }),
-            ...(usdValue1 !== undefined && { usdValue: usdValue1.toString() })
-          }
+            ...(token1Info?.priceUsd !== undefined && {
+              priceUsd: token1Info.priceUsd.toString(),
+            }),
+            ...(usdValue1 !== undefined && { usdValue: usdValue1.toString() }),
+          },
         ],
-        poolAddress: pos.poolId
+        poolAddress: pos.poolId,
       } satisfies ConcentratedRangeLiquidityDefiPosition)
     }
 
@@ -496,23 +543,27 @@ export const raydiumIntegration: SolanaIntegration = {
             amount: {
               token: cp.token0Mint,
               amount: amount0.toString(),
-              decimals: cp.mintDecimals0.toString()
+              decimals: cp.mintDecimals0.toString(),
             },
-            ...(token0Info?.priceUsd !== undefined && { priceUsd: token0Info.priceUsd.toString() }),
-            ...(usdValue0 !== undefined && { usdValue: usdValue0.toString() })
+            ...(token0Info?.priceUsd !== undefined && {
+              priceUsd: token0Info.priceUsd.toString(),
+            }),
+            ...(usdValue0 !== undefined && { usdValue: usdValue0.toString() }),
           },
           {
             amount: {
               token: cp.token1Mint,
               amount: amount1.toString(),
-              decimals: cp.mintDecimals1.toString()
+              decimals: cp.mintDecimals1.toString(),
             },
-            ...(token1Info?.priceUsd !== undefined && { priceUsd: token1Info.priceUsd.toString() }),
-            ...(usdValue1 !== undefined && { usdValue: usdValue1.toString() })
-          }
+            ...(token1Info?.priceUsd !== undefined && {
+              priceUsd: token1Info.priceUsd.toString(),
+            }),
+            ...(usdValue1 !== undefined && { usdValue: usdValue1.toString() }),
+          },
         ],
         lpTokenAmount: cp.userLpAmount.toString(),
-        poolAddress: cp.poolAddress
+        poolAddress: cp.poolAddress,
       } satisfies ConstantProductLiquidityDefiPosition)
     }
 
@@ -521,12 +572,18 @@ export const raydiumIntegration: SolanaIntegration = {
       const baseVaultAcc = phase2Map[amm.baseVault]
       const quoteVaultAcc = phase2Map[amm.quoteVault]
       const lpMintAcc = phase2Map[amm.lpMint]
-      if (!baseVaultAcc?.exists || !quoteVaultAcc?.exists || !lpMintAcc?.exists) continue
+      if (!baseVaultAcc?.exists || !quoteVaultAcc?.exists || !lpMintAcc?.exists)
+        continue
 
       const baseVaultBalance = readTokenAccountAmount(baseVaultAcc.data)
       const quoteVaultBalance = readTokenAccountAmount(quoteVaultAcc.data)
       const lpSupply = readMintSupply(lpMintAcc.data)
-      if (baseVaultBalance === null || quoteVaultBalance === null || lpSupply === null) continue
+      if (
+        baseVaultBalance === null ||
+        quoteVaultBalance === null ||
+        lpSupply === null
+      )
+        continue
       if (lpSupply === 0n) continue
 
       const amount0 = (baseVaultBalance * amm.userLpAmount) / lpSupply
@@ -563,28 +620,32 @@ export const raydiumIntegration: SolanaIntegration = {
             amount: {
               token: amm.baseMint,
               amount: amount0.toString(),
-              decimals: amm.baseDecimal.toString()
+              decimals: amm.baseDecimal.toString(),
             },
-            ...(token0Info?.priceUsd !== undefined && { priceUsd: token0Info.priceUsd.toString() }),
-            ...(usdValue0 !== undefined && { usdValue: usdValue0.toString() })
+            ...(token0Info?.priceUsd !== undefined && {
+              priceUsd: token0Info.priceUsd.toString(),
+            }),
+            ...(usdValue0 !== undefined && { usdValue: usdValue0.toString() }),
           },
           {
             amount: {
               token: amm.quoteMint,
               amount: amount1.toString(),
-              decimals: amm.quoteDecimal.toString()
+              decimals: amm.quoteDecimal.toString(),
             },
-            ...(token1Info?.priceUsd !== undefined && { priceUsd: token1Info.priceUsd.toString() }),
-            ...(usdValue1 !== undefined && { usdValue: usdValue1.toString() })
-          }
+            ...(token1Info?.priceUsd !== undefined && {
+              priceUsd: token1Info.priceUsd.toString(),
+            }),
+            ...(usdValue1 !== undefined && { usdValue: usdValue1.toString() }),
+          },
         ],
         lpTokenAmount: amm.userLpAmount.toString(),
-        poolAddress: amm.poolAddress
+        poolAddress: amm.poolAddress,
       } satisfies ConstantProductLiquidityDefiPosition)
     }
 
     return result
-  }
+  },
 }
 
 export default raydiumIntegration

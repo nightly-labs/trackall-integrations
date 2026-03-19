@@ -1,6 +1,11 @@
-import { Connection, PublicKey } from '@solana/web3.js'
+import { type Connection, PublicKey } from '@solana/web3.js'
 
-import type { AccountsMap, GetProgramAccountsRequest, ProgramRequest, SolanaAddress } from '../types/index'
+import type {
+  AccountsMap,
+  GetProgramAccountsRequest,
+  ProgramRequest,
+  SolanaAddress,
+} from '../types/index'
 
 export async function fetchAccountsBatch(
   connection: Connection,
@@ -69,7 +74,10 @@ async function fetchViaGetProgramAccountsV2(
       error?: { message: string }
     }
 
-    if (json.error) throw new Error(`[getProgramAccountsV2] ${req.programId}: ${json.error.message}`)
+    if (json.error)
+      throw new Error(
+        `[getProgramAccountsV2] ${req.programId}: ${json.error.message}`,
+      )
     if (!json.result) break
 
     for (const entry of json.result.accounts) {
@@ -97,9 +105,12 @@ export async function fetchProgramAccountsBatch(
   req: ProgramRequest,
 ): Promise<AccountsMap> {
   if (req.kind === 'getTokenAccountsByOwner') {
-    const r = await connection.getTokenAccountsByOwner(new PublicKey(req.owner), {
-      programId: new PublicKey(req.programId),
-    })
+    const r = await connection.getTokenAccountsByOwner(
+      new PublicKey(req.owner),
+      {
+        programId: new PublicKey(req.programId),
+      },
+    )
     const map: AccountsMap = {}
     for (const v of r.value) {
       const addr = v.pubkey.toBase58()
@@ -118,7 +129,8 @@ export async function fetchProgramAccountsBatch(
 }
 
 export function createFetchAccounts(connection: Connection) {
-  return (addresses: SolanaAddress[]) => fetchAccountsBatch(connection, addresses)
+  return (addresses: SolanaAddress[]) =>
+    fetchAccountsBatch(connection, addresses)
 }
 
 export function createFetchProgramAccounts(connection: Connection) {

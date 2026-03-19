@@ -1,15 +1,16 @@
 import {
   ClockLayout,
-  LBCLMM_PROGRAM_IDS,
   createProgram,
   decodeAccount,
   getPriceOfBinByBinId,
+  LBCLMM_PROGRAM_IDS,
   positionOwnerFilter,
   positionV2Filter,
   wrapPosition,
 } from '@meteora-ag/dlmm'
 
 const BIN_ARRAY_SIZE = 70 // SDK MAX_BIN_ARRAY_SIZE constant
+
 import { unpackMint } from '@solana/spl-token'
 import type { AccountInfo } from '@solana/web3.js'
 import { Connection, PublicKey, SYSVAR_CLOCK_PUBKEY } from '@solana/web3.js'
@@ -24,12 +25,26 @@ import type {
   UserPositionsPlan,
 } from '../../types/index'
 
+type DecodedLbPair = {
+  tokenXMint: PublicKey
+  tokenYMint: PublicKey
+  activeId: number
+  binStep: number
+}
+
+type DecodedBinArray = {
+  bins: Array<{ amountX: BN; amountY: BN; liquiditySupply: BN } | null>
+}
+
 export const testAddress = 'D2TKNY5CwCHCTu5YPbpouC9D4DGuoSvFsaYnMyEg7djn'
 
 export const meteoraIntegration: SolanaIntegration = {
   platformId: 'meteora',
 
-  getUserPositions: async function* (address: string, { endpoint, tokens }: SolanaPlugins): UserPositionsPlan {
+  getUserPositions: async function* (
+    address: string,
+    { endpoint, tokens }: SolanaPlugins,
+  ): UserPositionsPlan {
     const programId = new PublicKey(LBCLMM_PROGRAM_IDS['mainnet-beta'])
     const connection = new Connection(endpoint)
     const program = createProgram(connection)
@@ -57,7 +72,9 @@ export const meteoraIntegration: SolanaIntegration = {
 
     if (rawPositions.length === 0) return []
 
-    const positions = rawPositions.map((p) => wrapPosition(program, p.pubkey, p.account))
+    const positions = rawPositions.map((p) =>
+      wrapPosition(program, p.pubkey, p.account),
+    )
 
     // Collect unique lb pair keys and all bin array keys; cache coverage keys per position
     const lbPairKeySet = new Set<string>()
@@ -65,7 +82,9 @@ export const meteoraIntegration: SolanaIntegration = {
     const positionCoverageKeys = new Map<(typeof positions)[number], string[]>()
     for (const pos of positions) {
       lbPairKeySet.add(pos.lbPair().toBase58())
-      const keys = pos.getBinArrayKeysCoverage(programId).map((k) => k.toBase58())
+      const keys = pos
+        .getBinArrayKeysCoverage(programId)
+        .map((k) => k.toBase58())
       positionCoverageKeys.set(pos, keys)
       for (const key of keys) binArrayKeySet.add(key)
     }
@@ -80,26 +99,44 @@ export const meteoraIntegration: SolanaIntegration = {
       SYSVAR_CLOCK_PUBKEY.toBase58(),
     ]
 
-    const lbPairMap = new Map<string, any>()
+    const lbPairMap = new Map<string, DecodedLbPair>()
     for (const key of lbPairKeys) {
       const acc = round1[key]
-      if (acc?.exists) lbPairMap.set(key, decodeAccount(program, 'lbPair', Buffer.from(acc.data)))
+      if (acc?.exists)
+        lbPairMap.set(
+          key,
+          decodeAccount(
+            program,
+            'lbPair',
+            Buffer.from(acc.data),
+          ) as DecodedLbPair,
+        )
     }
 
-    const binArrayMap = new Map<string, any>()
+    const binArrayMap = new Map<string, DecodedBinArray>()
     for (const key of binArrayKeys) {
       const acc = round1[key]
-      if (acc?.exists) binArrayMap.set(key, decodeAccount(program, 'binArray', Buffer.from(acc.data)))
+      if (acc?.exists)
+        binArrayMap.set(
+          key,
+          decodeAccount(
+            program,
+            'binArray',
+            Buffer.from(acc.data),
+          ) as DecodedBinArray,
+        )
     }
 
     const clockAcc = round1[SYSVAR_CLOCK_PUBKEY.toBase58()]
-    const clock = clockAcc?.exists ? ClockLayout.decode(Buffer.from(clockAcc.data)) : null
+    const clock = clockAcc?.exists
+      ? ClockLayout.decode(Buffer.from(clockAcc.data))
+      : null
 
     // Collect mint addresses from lb pair data
     const mintKeySet = new Set<string>()
     for (const lbPair of lbPairMap.values()) {
-      mintKeySet.add((lbPair as any).tokenXMint.toBase58())
-      mintKeySet.add((lbPair as any).tokenYMint.toBase58())
+      mintKeySet.add(lbPair.tokenXMint.toBase58())
+      mintKeySet.add(lbPair.tokenYMint.toBase58())
     }
 
     const mintKeys = [...mintKeySet]
@@ -110,12 +147,17 @@ export const meteoraIntegration: SolanaIntegration = {
     const mintMap = new Map<string, ReturnType<typeof unpackMint>>()
     for (const key of mintKeys) {
       const acc = round2[key]
-      if (acc && acc.exists) {
+      if (acc?.exists) {
         mintMap.set(
           key,
           unpackMint(
             new PublicKey(key),
-            { data: Buffer.from(acc.data), owner: new PublicKey(acc.programAddress), lamports: Number(acc.lamports) } as any,
+            {
+              data: Buffer.from(acc.data),
+              owner: new PublicKey(acc.programAddress),
+              lamports: Number(acc.lamports),
+              executable: false,
+            } satisfies AccountInfo<Buffer>,
             new PublicKey(acc.programAddress),
           ),
         )
@@ -127,7 +169,7 @@ export const meteoraIntegration: SolanaIntegration = {
 
     for (const pos of positions) {
       const lbPairKey = pos.lbPair().toBase58()
-      const lbPair = lbPairMap.get(lbPairKey) as any
+      const lbPair = lbPairMap.get(lbPairKey)
       if (!lbPair || !clock) continue
 
       const mintX = mintMap.get(lbPair.tokenXMint.toBase58())
@@ -139,18 +181,24 @@ export const meteoraIntegration: SolanaIntegration = {
       const activeBinId: number = lbPair.activeId
 
       const decimalAdjust = 10 ** (mintX.decimals - mintY.decimals)
-      const lowerPrice = getPriceOfBinByBinId(lowerBinId, lbPair.binStep).mul(decimalAdjust).toString()
-      const upperPrice = getPriceOfBinByBinId(upperBinId, lbPair.binStep).mul(decimalAdjust).toString()
-      const currentPrice = getPriceOfBinByBinId(activeBinId, lbPair.binStep).mul(decimalAdjust).toString()
+      const lowerPrice = getPriceOfBinByBinId(lowerBinId, lbPair.binStep)
+        .mul(decimalAdjust)
+        .toString()
+      const upperPrice = getPriceOfBinByBinId(upperBinId, lbPair.binStep)
+        .mul(decimalAdjust)
+        .toString()
+      const currentPrice = getPriceOfBinByBinId(activeBinId, lbPair.binStep)
+        .mul(decimalAdjust)
+        .toString()
 
       let totalXAmount = new BN(0)
       let totalYAmount = new BN(0)
       const liquidityShares = pos.liquidityShares()
 
       // Pre-build binArrayIndex→data map from cached coverage keys to avoid per-bin PDA derivation
-      const coverageKeys = positionCoverageKeys.get(pos)!
+      const coverageKeys = positionCoverageKeys.get(pos) ?? []
       const startArrayIndex = Math.floor(lowerBinId / BIN_ARRAY_SIZE)
-      const posArrays = new Map<number, any>()
+      const posArrays = new Map<number, DecodedBinArray>()
       coverageKeys.forEach((key, i) => {
         const data = binArrayMap.get(key)
         if (data) posArrays.set(startArrayIndex + i, data)
@@ -169,8 +217,12 @@ export const meteoraIntegration: SolanaIntegration = {
 
         const posShare = liquidityShares[i]
         if (!posShare) continue
-        totalXAmount = totalXAmount.add(posShare.mul(bin.amountX).div(bin.liquiditySupply))
-        totalYAmount = totalYAmount.add(posShare.mul(bin.amountY).div(bin.liquiditySupply))
+        totalXAmount = totalXAmount.add(
+          posShare.mul(bin.amountX).div(bin.liquiditySupply),
+        )
+        totalYAmount = totalYAmount.add(
+          posShare.mul(bin.amountY).div(bin.liquiditySupply),
+        )
       }
 
       const mintXKey = lbPair.tokenXMint.toBase58()
@@ -207,13 +259,25 @@ export const meteoraIntegration: SolanaIntegration = {
         ...(valueUsd !== undefined && { valueUsd }),
         poolTokens: [
           {
-            amount: { token: mintXKey, amount: totalXAmount.toString(), decimals: mintX.decimals.toString() },
-            ...(tokenX?.priceUsd !== undefined && { priceUsd: tokenX.priceUsd.toString() }),
+            amount: {
+              token: mintXKey,
+              amount: totalXAmount.toString(),
+              decimals: mintX.decimals.toString(),
+            },
+            ...(tokenX?.priceUsd !== undefined && {
+              priceUsd: tokenX.priceUsd.toString(),
+            }),
             ...(usdValueX !== undefined && { usdValue: usdValueX.toString() }),
           },
           {
-            amount: { token: mintYKey, amount: totalYAmount.toString(), decimals: mintY.decimals.toString() },
-            ...(tokenY?.priceUsd !== undefined && { priceUsd: tokenY.priceUsd.toString() }),
+            amount: {
+              token: mintYKey,
+              amount: totalYAmount.toString(),
+              decimals: mintY.decimals.toString(),
+            },
+            ...(tokenY?.priceUsd !== undefined && {
+              priceUsd: tokenY.priceUsd.toString(),
+            }),
             ...(usdValueY !== undefined && { usdValue: usdValueY.toString() }),
           },
         ],

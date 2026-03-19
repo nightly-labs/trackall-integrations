@@ -1,5 +1,5 @@
-import type { TokenPlugin } from '../plugin/tokens'
 import type { PlatformId } from '../platforms/index'
+import type { TokenPlugin } from '../plugin/tokens'
 import type { UserDefiPosition } from './position'
 
 export interface SolanaPlugins {
@@ -8,7 +8,9 @@ export interface SolanaPlugins {
 }
 
 export type ProgramAccountFilter =
-  | { memcmp: { offset: number; bytes: string; encoding?: 'base58' | 'base64' } }
+  | {
+      memcmp: { offset: number; bytes: string; encoding?: 'base58' | 'base64' }
+    }
   | { dataSize: number }
 
 export interface GetProgramAccountsRequest {
@@ -23,7 +25,9 @@ export interface GetTokenAccountsByOwnerRequest {
   programId: SolanaAddress
 }
 
-export type ProgramRequest = GetProgramAccountsRequest | GetTokenAccountsByOwnerRequest
+export type ProgramRequest =
+  | GetProgramAccountsRequest
+  | GetTokenAccountsByOwnerRequest
 
 export type SolanaAddress = string
 
@@ -43,7 +47,11 @@ export interface SolanaAccountNotFound {
 export type MaybeSolanaAccount = SolanaAccount | SolanaAccountNotFound
 
 export type AccountsMap = Record<SolanaAddress, MaybeSolanaAccount>
-export type UserPositionsPlan = AsyncGenerator<SolanaAddress[] | ProgramRequest | ProgramRequest[], UserDefiPosition[], AccountsMap>
+export type UserPositionsPlan = AsyncGenerator<
+  SolanaAddress[] | ProgramRequest | ProgramRequest[],
+  UserDefiPosition[],
+  AccountsMap
+>
 
 export interface SolanaIntegration {
   /** Platform identifier. */
@@ -55,5 +63,8 @@ export interface SolanaIntegration {
   /** Get the number of daily active users of the integration. */
   getDailyActiveUsers?: (plugins: SolanaPlugins) => Promise<string>
   /** Get the user positions of the integration. */
-  getUserPositions?: (address: string, plugins: SolanaPlugins) => UserPositionsPlan
+  getUserPositions?: (
+    address: string,
+    plugins: SolanaPlugins,
+  ) => UserPositionsPlan
 }

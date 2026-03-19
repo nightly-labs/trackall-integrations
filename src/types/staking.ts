@@ -1,4 +1,8 @@
-import { BaseDefiPosition, PositionKind, PositionValue } from './positionCommon'
+import type {
+  BaseDefiPosition,
+  PositionKind,
+  PositionValue,
+} from './positionCommon'
 
 export interface StakedAsset extends PositionValue {
   /** Optional claimable rewards tied directly to this staked token. */

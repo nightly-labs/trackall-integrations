@@ -11,7 +11,9 @@
   },
   "scripts": {
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write ."
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1",
@@ -25,6 +27,7 @@
     "bn.js": "^5.2.3"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.8",
     "@types/bn.js": "^5.2.0",
     "bun-types": "latest",
     "typescript": "latest"

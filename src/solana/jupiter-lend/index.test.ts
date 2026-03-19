@@ -1,14 +1,20 @@
 import { describe, expect, it } from 'bun:test'
-import { Connection } from '@solana/web3.js'
-
-import { jupiterLendIntegration, testAddress } from './index'
 import { createSolanaRpc } from '@solana/kit'
-import { runIntegrations, TokenPlugin } from '../../types/index'
-import { fetchAccountsBatch, fetchProgramAccountsBatch } from '../../utils/solana'
+import { Connection } from '@solana/web3.js'
 import type { UserPositionsPlan } from '../../types/index'
+import { runIntegrations, TokenPlugin } from '../../types/index'
+import {
+  fetchAccountsBatch,
+  fetchProgramAccountsBatch,
+} from '../../utils/solana'
+import { jupiterLendIntegration, testAddress } from './index'
 
-const solanaRpcUrl = process.env.SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com'
+const solanaRpcUrl =
+  process.env.SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com'
 const wallets = ['BsYDTmksyvTWpP3DGSWpoAXP7ykFDhikYdKEVspkStc4']
+
+const { getUserPositions } = jupiterLendIntegration
+if (!getUserPositions) throw new Error('getUserPositions not implemented')
 
 describe('jupiter-lend integration', () => {
   it('fetches user supply positions', async () => {
@@ -20,11 +26,13 @@ describe('jupiter-lend integration', () => {
     let totalAccounts = 0
 
     const [positions] = await runIntegrations(
-      [jupiterLendIntegration.getUserPositions!(testAddress, plugins)],
+      [getUserPositions(testAddress, plugins)],
       async (addresses) => {
         totalBatches++
         totalAccounts += addresses.length
-        console.log(`  batch ${totalBatches}: fetching ${addresses.length} accounts`)
+        console.log(
+          `  batch ${totalBatches}: fetching ${addresses.length} accounts`,
+        )
         return fetchAccountsBatch(connection, addresses)
       },
       (req) => fetchProgramAccountsBatch(connection, req),
@@ -32,14 +40,18 @@ describe('jupiter-lend integration', () => {
 
     if (!positions) throw new Error('No results returned')
 
-    const lendingPositions = positions.filter((p) => p.positionKind === 'lending')
+    const lendingPositions = positions.filter(
+      (p) => p.positionKind === 'lending',
+    )
 
     const mints = [
       ...new Set(
         lendingPositions
           .filter((p) => p.positionKind === 'lending')
           .flatMap((p) =>
-            p.positionKind === 'lending' ? (p.supplied ?? []).map((s) => s.amount.token) : [],
+            p.positionKind === 'lending'
+              ? (p.supplied ?? []).map((s) => s.amount.token)
+              : [],
           ),
       ),
     ]
@@ -48,7 +60,9 @@ describe('jupiter-lend integration', () => {
     console.log(
       `\nFound ${positions.length} Jupiter Lend positions for ${testAddress.slice(0, 8)}…`,
     )
-    console.log(`RPC batches: ${totalBatches}, total accounts fetched: ${totalAccounts}`)
+    console.log(
+      `RPC batches: ${totalBatches}, total accounts fetched: ${totalAccounts}`,
+    )
     console.log('Positions:', JSON.stringify(lendingPositions, null, 2))
 
     expect(Array.isArray(positions)).toBe(true)
@@ -76,11 +90,13 @@ describe('jupiter-lend integration', () => {
     }
 
     const results = await runIntegrations(
-      wallets.map((w) => trackYields(jupiterLendIntegration.getUserPositions!(w, plugins))),
+      wallets.map((w) => trackYields(getUserPositions(w, plugins))),
       async (addresses) => {
         totalBatches++
         totalAccounts += addresses.length
-        console.log(`  batch ${totalBatches}: fetching ${addresses.length} accounts`)
+        console.log(
+          `  batch ${totalBatches}: fetching ${addresses.length} accounts`,
+        )
         return fetchAccountsBatch(connection, addresses)
       },
       (req) => fetchProgramAccountsBatch(connection, req),
@@ -89,9 +105,15 @@ describe('jupiter-lend integration', () => {
     const totalPositions = results.reduce((sum, p) => sum + p.length, 0)
     const saved = naiveTotal - totalAccounts
     const savedPct = naiveTotal > 0 ? Math.round((saved / naiveTotal) * 100) : 0
-    console.log(`\n${wallets.length} wallets → ${totalPositions} total positions`)
-    console.log(`RPC batches: ${totalBatches}, actual accounts fetched: ${totalAccounts}`)
-    console.log(`Sequential would have fetched: ${naiveTotal} — saved ${saved} (${savedPct}%)`)
+    console.log(
+      `\n${wallets.length} wallets → ${totalPositions} total positions`,
+    )
+    console.log(
+      `RPC batches: ${totalBatches}, actual accounts fetched: ${totalAccounts}`,
+    )
+    console.log(
+      `Sequential would have fetched: ${naiveTotal} — saved ${saved} (${savedPct}%)`,
+    )
     wallets.forEach((w, i) => {
       console.log(`  ${w.slice(0, 8)}…  ${results[i]?.length ?? 0} positions`)
     })

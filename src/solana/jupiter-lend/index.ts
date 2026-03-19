@@ -1,16 +1,18 @@
+import { BorshCoder } from '@coral-xyz/anchor'
+import { borrowPda } from '@jup-ag/lend'
+import {
+  getRatioAtTick,
+  INIT_TICK,
+  MIN_TICK,
+  ZERO_TICK_SCALED_RATIO,
+} from '@jup-ag/lend/borrow'
 import {
   getAssociatedTokenAddressSync,
   TOKEN_2022_PROGRAM_ID,
-  TOKEN_PROGRAM_ID
+  TOKEN_PROGRAM_ID,
 } from '@solana/spl-token'
 import { PublicKey } from '@solana/web3.js'
-import { borrowPda } from '@jup-ag/lend'
-import { INIT_TICK, MIN_TICK, ZERO_TICK_SCALED_RATIO, getRatioAtTick } from '@jup-ag/lend/borrow'
-import { BorshCoder } from '@coral-xyz/anchor'
 import BN from 'bn.js'
-import lendingIdl from './idls/lending.json'
-import vaultsIdl from './idls/vaults.json'
-
 import type {
   LendingBorrowedAsset,
   LendingDefiPosition,
@@ -18,8 +20,10 @@ import type {
   SolanaIntegration,
   SolanaPlugins,
   UserDefiPosition,
-  UserPositionsPlan
+  UserPositionsPlan,
 } from '../../types/index'
+import lendingIdl from './idls/lending.json'
+import vaultsIdl from './idls/vaults.json'
 
 export const testAddress = 'BsYDTmksyvTWpP3DGSWpoAXP7ykFDhikYdKEVspkStc4'
 
@@ -38,9 +42,11 @@ const vaultsCoder = new BorshCoder(vaultsIdl as never)
 
 function accountDiscriminatorBase64(
   idl: { accounts?: Array<{ name: string; discriminator?: number[] }> },
-  accountName: string
+  accountName: string,
 ): string {
-  const discriminator = idl.accounts?.find(account => account.name === accountName)?.discriminator
+  const discriminator = idl.accounts?.find(
+    (account) => account.name === accountName,
+  )?.discriminator
   if (!discriminator) {
     throw new Error(`Missing discriminator for account "${accountName}"`)
   }
@@ -82,8 +88,13 @@ function readTokenAccountMint(data: Uint8Array): string | null {
  * netDebtRaw = colRaw * getRatioAtTick(tick) / ZERO_TICK_SCALED_RATIO
  * Total debt raw = netDebtRaw + dustDebtAmount.
  */
-function computeNetDebtRaw(supplyAmount: bigint, tick: number, isSupplyOnly: boolean): bigint {
-  if (isSupplyOnly || tick === INIT_TICK_VALUE || tick <= MIN_TICK_VALUE) return 0n
+function computeNetDebtRaw(
+  supplyAmount: bigint,
+  tick: number,
+  isSupplyOnly: boolean,
+): bigint {
+  if (isSupplyOnly || tick === INIT_TICK_VALUE || tick <= MIN_TICK_VALUE)
+    return 0n
   const colBN = new BN(supplyAmount.toString())
   const ratio = getRatioAtTick(tick)
   return BigInt(colBN.mul(ratio).divRound(ZERO_TICK_BN).toString())
@@ -96,7 +107,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
 
   getUserPositions: async function* (
     address: string,
-    { tokens }: SolanaPlugins
+    { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
     const walletPubkey = new PublicKey(address)
 
@@ -104,7 +115,9 @@ export const jupiterLendIntegration: SolanaIntegration = {
     const lendingMap = yield {
       kind: 'getProgramAccounts' as const,
       programId: LENDING_PROGRAM_ID,
-      filters: [{ memcmp: { offset: 0, bytes: LENDING_DISC_B64, encoding: 'base64' } }]
+      filters: [
+        { memcmp: { offset: 0, bytes: LENDING_DISC_B64, encoding: 'base64' } },
+      ],
     }
     const earnPools: {
       mint: string
@@ -121,7 +134,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
           mint: (d.mint as PublicKey).toBase58(),
           fTokenMint: (d.f_token_mint as PublicKey).toBase58(),
           decimals: d.decimals as number,
-          tokenExchangePrice: BigInt((d.token_exchange_price as BN).toString())
+          tokenExchangePrice: BigInt((d.token_exchange_price as BN).toString()),
         })
       } catch {
         // skip accounts that fail to decode
@@ -132,7 +145,10 @@ export const jupiterLendIntegration: SolanaIntegration = {
     const userSplMap = yield {
       kind: 'getProgramAccounts' as const,
       programId: TOKEN_PROGRAM_ID.toBase58(),
-      filters: [{ dataSize: 165 }, { memcmp: { offset: 32, bytes: walletPubkey.toBase58() } }]
+      filters: [
+        { dataSize: 165 },
+        { memcmp: { offset: 32, bytes: walletPubkey.toBase58() } },
+      ],
     }
     // Build mint → amount map for all the user's SPL token accounts
     const userMintBalances = new Map<string, bigint>() // mint → amount
@@ -178,15 +194,20 @@ export const jupiterLendIntegration: SolanaIntegration = {
         kind: 'getProgramAccounts' as const,
         programId: VAULTS_PROGRAM_ID,
         filters: [
-          { memcmp: { offset: 0, bytes: POSITION_DISC_B64, encoding: 'base64' } },
-          { memcmp: { offset: POSITION_MINT_OFFSET, bytes: positionMint } }
-        ]
+          {
+            memcmp: { offset: 0, bytes: POSITION_DISC_B64, encoding: 'base64' },
+          },
+          { memcmp: { offset: POSITION_MINT_OFFSET, bytes: positionMint } },
+        ],
       }
 
       for (const acc of Object.values(positionsByMint)) {
         if (!acc.exists) continue
         try {
-          const d = vaultsCoder.accounts.decode('Position', Buffer.from(acc.data))
+          const d = vaultsCoder.accounts.decode(
+            'Position',
+            Buffer.from(acc.data),
+          )
           const supplyAmount = BigInt((d.supply_amount as BN).toString())
           if (supplyAmount === 0n) continue
 
@@ -201,7 +222,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
             isSupplyOnly: (d.is_supply_only_position as number) !== 0,
             tick: d.tick as number,
             supplyAmount,
-            dustDebtAmount: BigInt((d.dust_debt_amount as BN).toString())
+            dustDebtAmount: BigInt((d.dust_debt_amount as BN).toString()),
           })
           uniqueVaultIds.add(vaultId)
         } catch {
@@ -211,32 +232,40 @@ export const jupiterLendIntegration: SolanaIntegration = {
     }
 
     // ── Phase 1: Small targeted fetch ────────────────────────────────────────
-    const t22ATAs = needsToken22Check.map(fTokenMint =>
-      getAssociatedTokenAddressSync(
-        new PublicKey(fTokenMint),
-        walletPubkey,
-        true,
-        TOKEN_2022_PROGRAM_ID
-      ).toBase58()
+    const t22ATAByMint = new Map(
+      needsToken22Check.map((fTokenMint) => [
+        fTokenMint,
+        getAssociatedTokenAddressSync(
+          new PublicKey(fTokenMint),
+          walletPubkey,
+          true,
+          TOKEN_2022_PROGRAM_ID,
+        ).toBase58(),
+      ]),
     )
 
-    const vaultIds = [...uniqueVaultIds]
-    const vaultConfigAddrs = vaultIds.map(id => borrowPda.getVaultConfig(id).toBase58())
-    const vaultStateAddrs = vaultIds.map(id => borrowPda.getVaultState(id).toBase58())
-    const vaultMetaAddrs = vaultIds.map(id => borrowPda.getVaultMetadata(id).toBase58())
+    const vaults = [...uniqueVaultIds].map((id) => ({
+      id,
+      configAddr: borrowPda.getVaultConfig(id).toBase58(),
+      stateAddr: borrowPda.getVaultState(id).toBase58(),
+      metaAddr: borrowPda.getVaultMetadata(id).toBase58(),
+    }))
 
-    const phase1Map = yield [...t22ATAs, ...vaultConfigAddrs, ...vaultStateAddrs, ...vaultMetaAddrs]
+    const phase1Map = yield [
+      ...t22ATAByMint.values(),
+      ...vaults.map((v) => v.configAddr),
+      ...vaults.map((v) => v.stateAddr),
+      ...vaults.map((v) => v.metaAddr),
+    ]
     const result: UserDefiPosition[] = []
 
     // ── Decode Earn positions ─────────────────────────────────────────────────
-    for (let i = 0; i < earnPools.length; i++) {
-      const pool = earnPools[i]!
-
+    for (const pool of earnPools) {
       let shares = splEarnBalances.get(pool.fTokenMint)
       if (shares === undefined) {
-        const t22Idx = needsToken22Check.indexOf(pool.fTokenMint)
-        if (t22Idx >= 0) {
-          const ataAcc = phase1Map[t22ATAs[t22Idx]!]
+        const ata = t22ATAByMint.get(pool.fTokenMint)
+        if (ata !== undefined) {
+          const ataAcc = phase1Map[ata]
           if (ataAcc?.exists) shares = readTokenAccountAmount(ataAcc.data) ?? 0n
         }
       }
@@ -256,58 +285,77 @@ export const jupiterLendIntegration: SolanaIntegration = {
         amount: {
           token: pool.mint,
           amount: underlying.toString(),
-          decimals: pool.decimals.toString()
+          decimals: pool.decimals.toString(),
         },
         ...(priceUsd !== undefined && { priceUsd: priceUsd.toString() }),
-        ...(usdValue !== undefined && { usdValue })
+        ...(usdValue !== undefined && { usdValue }),
       }
 
       result.push({
         positionKind: 'lending',
         platformId: 'jupiter',
         supplied: [supplied],
-        ...(usdValue !== undefined && { valueUsd: usdValue })
+        ...(usdValue !== undefined && { valueUsd: usdValue }),
       } satisfies LendingDefiPosition)
     }
 
     // ── Decode CDP vault positions ────────────────────────────────────────────
-    const vaultConfigMap = new Map<number, { supplyToken: string; borrowToken: string }>()
+    const vaultConfigMap = new Map<
+      number,
+      { supplyToken: string; borrowToken: string }
+    >()
     const vaultStateMap = new Map<
       number,
       { vaultSupplyExchangePrice: bigint; vaultBorrowExchangePrice: bigint }
     >()
-    const vaultMetaMap = new Map<number, { supplyDecimals: number; borrowDecimals: number }>()
+    const vaultMetaMap = new Map<
+      number,
+      { supplyDecimals: number; borrowDecimals: number }
+    >()
 
-    for (let i = 0; i < vaultIds.length; i++) {
-      const id = vaultIds[i]!
-      const cfgAcc = phase1Map[vaultConfigAddrs[i]!]
-      const stateAcc = phase1Map[vaultStateAddrs[i]!]
-      const metaAcc = phase1Map[vaultMetaAddrs[i]!]
+    for (const vault of vaults) {
+      const { id, configAddr, stateAddr, metaAddr } = vault
+      const cfgAcc = phase1Map[configAddr]
+      const stateAcc = phase1Map[stateAddr]
+      const metaAcc = phase1Map[metaAddr]
 
       if (cfgAcc?.exists) {
         try {
-          const d = vaultsCoder.accounts.decode('VaultConfig', Buffer.from(cfgAcc.data))
+          const d = vaultsCoder.accounts.decode(
+            'VaultConfig',
+            Buffer.from(cfgAcc.data),
+          )
           vaultConfigMap.set(id, {
             supplyToken: (d.supply_token as PublicKey).toBase58(),
-            borrowToken: (d.borrow_token as PublicKey).toBase58()
+            borrowToken: (d.borrow_token as PublicKey).toBase58(),
           })
         } catch {}
       }
       if (stateAcc?.exists) {
         try {
-          const d = vaultsCoder.accounts.decode('VaultState', Buffer.from(stateAcc.data))
+          const d = vaultsCoder.accounts.decode(
+            'VaultState',
+            Buffer.from(stateAcc.data),
+          )
           vaultStateMap.set(id, {
-            vaultSupplyExchangePrice: BigInt((d.vault_supply_exchange_price as BN).toString()),
-            vaultBorrowExchangePrice: BigInt((d.vault_borrow_exchange_price as BN).toString())
+            vaultSupplyExchangePrice: BigInt(
+              (d.vault_supply_exchange_price as BN).toString(),
+            ),
+            vaultBorrowExchangePrice: BigInt(
+              (d.vault_borrow_exchange_price as BN).toString(),
+            ),
           })
         } catch {}
       }
       if (metaAcc?.exists) {
         try {
-          const d = vaultsCoder.accounts.decode('VaultMetadata', Buffer.from(metaAcc.data))
+          const d = vaultsCoder.accounts.decode(
+            'VaultMetadata',
+            Buffer.from(metaAcc.data),
+          )
           vaultMetaMap.set(id, {
             supplyDecimals: d.supply_mint_decimals as number,
-            borrowDecimals: d.borrow_mint_decimals as number
+            borrowDecimals: d.borrow_mint_decimals as number,
           })
         } catch {}
       }
@@ -322,11 +370,17 @@ export const jupiterLendIntegration: SolanaIntegration = {
       const supplyDecimals = meta?.supplyDecimals ?? 6
       const borrowDecimals = meta?.borrowDecimals ?? 6
 
-      const colAmount = (pos.supplyAmount * state.vaultSupplyExchangePrice) / EXCHANGE_PRECISION
+      const colAmount =
+        (pos.supplyAmount * state.vaultSupplyExchangePrice) / EXCHANGE_PRECISION
 
-      const netDebtRaw = computeNetDebtRaw(pos.supplyAmount, pos.tick, pos.isSupplyOnly)
+      const netDebtRaw = computeNetDebtRaw(
+        pos.supplyAmount,
+        pos.tick,
+        pos.isSupplyOnly,
+      )
       const totalDebtRaw = netDebtRaw + pos.dustDebtAmount
-      const debtAmount = (totalDebtRaw * state.vaultBorrowExchangePrice) / EXCHANGE_PRECISION
+      const debtAmount =
+        (totalDebtRaw * state.vaultBorrowExchangePrice) / EXCHANGE_PRECISION
 
       const supplyTokenInfo = tokens.get(cfg.supplyToken)
       const borrowTokenInfo = tokens.get(cfg.borrowToken)
@@ -346,17 +400,19 @@ export const jupiterLendIntegration: SolanaIntegration = {
         amount: {
           token: cfg.supplyToken,
           amount: colAmount.toString(),
-          decimals: supplyDecimals.toString()
+          decimals: supplyDecimals.toString(),
         },
-        ...(supplyPriceUsd !== undefined && { priceUsd: supplyPriceUsd.toString() }),
-        ...(colUsd !== undefined && { usdValue: colUsd.toString() })
+        ...(supplyPriceUsd !== undefined && {
+          priceUsd: supplyPriceUsd.toString(),
+        }),
+        ...(colUsd !== undefined && { usdValue: colUsd.toString() }),
       }
 
       const positionResult: LendingDefiPosition = {
         positionKind: 'lending',
         platformId: 'jupiter',
         supplied: [supplied],
-        ...(colUsd !== undefined && { valueUsd: colUsd.toString() })
+        ...(colUsd !== undefined && { valueUsd: colUsd.toString() }),
       }
 
       if (debtAmount > 0n) {
@@ -364,10 +420,12 @@ export const jupiterLendIntegration: SolanaIntegration = {
           amount: {
             token: cfg.borrowToken,
             amount: debtAmount.toString(),
-            decimals: borrowDecimals.toString()
+            decimals: borrowDecimals.toString(),
           },
-          ...(borrowPriceUsd !== undefined && { priceUsd: borrowPriceUsd.toString() }),
-          ...(debtUsd !== undefined && { usdValue: debtUsd.toString() })
+          ...(borrowPriceUsd !== undefined && {
+            priceUsd: borrowPriceUsd.toString(),
+          }),
+          ...(debtUsd !== undefined && { usdValue: debtUsd.toString() }),
         }
         positionResult.borrowed = [borrowed]
         if (colUsd !== undefined && debtUsd !== undefined) {
@@ -379,7 +437,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
     }
 
     return result
-  }
+  },
 }
 
 export default jupiterLendIntegration

@@ -1,5 +1,10 @@
 import type { UserDefiPosition } from './position'
-import type { AccountsMap, ProgramRequest, SolanaAddress, UserPositionsPlan } from './solanaIntegration'
+import type {
+  AccountsMap,
+  ProgramRequest,
+  SolanaAddress,
+  UserPositionsPlan,
+} from './solanaIntegration'
 
 /**
  * Drives multiple UserPositionsPlan generators in parallel.
@@ -22,8 +27,7 @@ export async function runIntegrations(
     // Map from generator index to its array of getProgramAccounts requests
     const progReqsByIndex = new Map<number, ProgramRequest[]>()
 
-    for (let i = 0; i < steps.length; i++) {
-      const step = steps[i]!
+    for (const [i, step] of steps.entries()) {
       if (step.done) continue
       const val = step.value
       if (Array.isArray(val)) {
@@ -46,19 +50,23 @@ export async function runIntegrations(
 
     // Fire address fetch and all program account fetches in parallel
     const [multiMap, ...progMaps] = await Promise.all([
-      addressSet.size > 0 ? fetchAccounts([...addressSet]) : Promise.resolve<AccountsMap>({}),
+      addressSet.size > 0
+        ? fetchAccounts([...addressSet])
+        : Promise.resolve<AccountsMap>({}),
       ...flatProgReqs.map(({ req }) => fetchProgramAccounts(req)),
     ])
 
     await Promise.all(
-      steps.map(async (step, i) => {
-        if (step.done) return
+      plans.map(async (plan, i) => {
+        const step = steps[i]
+        if (!step || step.done) return
         // Merge all program account results belonging to this generator
         const accounts: AccountsMap = { ...multiMap }
         for (let j = 0; j < flatProgReqs.length; j++) {
-          if (flatProgReqs[j]!.genIndex === i) Object.assign(accounts, progMaps[j])
+          if (flatProgReqs[j]?.genIndex === i)
+            Object.assign(accounts, progMaps[j])
         }
-        steps[i] = await plans[i]!.next(accounts)
+        steps[i] = await plan.next(accounts)
       }),
     )
   }
