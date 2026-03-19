@@ -11,7 +11,7 @@ on:
 
 jobs:
   detect:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     outputs:
       network: ${{ steps.detect.outputs.network }}
       name: ${{ steps.detect.outputs.name }}
