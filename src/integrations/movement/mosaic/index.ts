@@ -55,6 +55,13 @@ interface MosaicPoolStatsResponse {
 
 interface MosaicFarmStatsEntry {
   address: string
+  metadata?: {
+    stake_token: string
+    reward_token: string
+    start_timestamp: number
+    end_timestamp: number
+    reward_per_second: number
+  }
   stats?: {
     total_staked_usd?: number
     apr?: number
@@ -175,8 +182,7 @@ function prorateDecimalValue(
 
   const scale = 1_000_000n
   const scaledTotal = BigInt(Math.round(totalValue * Number(scale)))
-  const prorated =
-    (scaledTotal * BigInt(userAmount)) / BigInt(totalAmount)
+  const prorated = (scaledTotal * BigInt(userAmount)) / BigInt(totalAmount)
 
   return (Number(prorated) / Number(scale)).toString()
 }
@@ -213,8 +219,10 @@ async function queryIndexer<T>(
   if (json.data !== undefined) return json.data
 
   const errorMessage =
-    json.errors?.map((error) => error.message).filter(Boolean).join('; ') ||
-    'unknown indexer error'
+    json.errors
+      ?.map((error) => error.message)
+      .filter(Boolean)
+      .join('; ') || 'unknown indexer error'
   throw new Error(`Mosaic indexer query failed: ${errorMessage}`)
 }
 
@@ -232,7 +240,9 @@ async function view<T>(
   })) as T[]
 }
 
-async function getMosaicPoolStatsMap(): Promise<Map<string, MosaicPoolStatsEntry>> {
+async function getMosaicPoolStatsMap(): Promise<
+  Map<string, MosaicPoolStatsEntry>
+> {
   const response = await fetchJson<MosaicPoolStatsResponse>(
     `${MOSAIC_STATS_API}/pools`,
   )
@@ -243,7 +253,9 @@ async function getMosaicPoolStatsMap(): Promise<Map<string, MosaicPoolStatsEntry
   )
 }
 
-async function getMosaicFarmStatsMap(): Promise<Map<string, MosaicFarmStatsEntry>> {
+async function getMosaicFarmStatsMap(): Promise<
+  Map<string, MosaicFarmStatsEntry>
+> {
   const response = await fetchJson<MosaicFarmStatsResponse>(
     `${MOSAIC_STATS_API}/farms`,
   )
@@ -251,18 +263,6 @@ async function getMosaicFarmStatsMap(): Promise<Map<string, MosaicFarmStatsEntry
 
   return new Map(
     farms.map((farm) => [normalizeAddress(farm.address), farm] as const),
-  )
-}
-
-async function getAllPoolIds(plugins: AptosPlugins): Promise<string[]> {
-  const result = await view<ObjectRef[]>(
-    plugins,
-    `${MOSAIC_AMM}::liquidity_pool::all_pools`,
-    [],
-  )
-
-  return ((result[0] as ObjectRef[] | undefined) ?? []).map((pool) =>
-    normalizeAddress(pool.inner),
   )
 }
 
@@ -281,7 +281,7 @@ async function getPoolViewMap(
       const poolView = viewResult[0]
       return poolView === undefined
         ? null
-        : [normalizeAddress(poolView.pool_addr), poolView] as const
+        : ([normalizeAddress(poolView.pool_addr), poolView] as const)
     }),
   )
 
@@ -318,10 +318,14 @@ async function getUserLpBalances(
     }
   `
 
-  const data = await queryIndexer<MosaicIndexerBalancesResponse>(indexerUrl, query, {
-    owner: address,
-    assetTypes: poolIds,
-  })
+  const data = await queryIndexer<MosaicIndexerBalancesResponse>(
+    indexerUrl,
+    query,
+    {
+      owner: address,
+      assetTypes: poolIds,
+    },
+  )
 
   const balanceMap = new Map<string, string>()
   for (const balance of data.current_fungible_asset_balances ?? []) {
@@ -353,9 +357,13 @@ async function getLpMetadataMap(
     }
   `
 
-  const data = await queryIndexer<MosaicIndexerMetadataResponse>(indexerUrl, query, {
-    assetTypes: lpTokenIds,
-  })
+  const data = await queryIndexer<MosaicIndexerMetadataResponse>(
+    indexerUrl,
+    query,
+    {
+      assetTypes: lpTokenIds,
+    },
+  )
 
   return new Map(
     (data.fungible_asset_metadata ?? []).map((metadata) => [
@@ -365,40 +373,29 @@ async function getLpMetadataMap(
   )
 }
 
-async function getFarmAddressesByLpToken(
-  lpTokenIds: readonly string[],
+async function getUserStakeInfos(
+  farmAddresses: readonly string[],
+  address: string,
   plugins: AptosPlugins,
-): Promise<string[]> {
-  const results = await Promise.allSettled(
-    lpTokenIds.map(async (lpTokenId) => {
-      const viewResult = await view<ObjectRef[]>(
-        plugins,
-        `${MOSAIC_STAKING}::staking_pool::get_pools_by_stake_token`,
-        [lpTokenId],
-      )
+): Promise<MosaicUserStakeInfoView[]> {
+  if (!farmAddresses.length) return []
 
-      return ((viewResult[0] as ObjectRef[] | undefined) ?? []).map((pool) =>
-        normalizeAddress(pool.inner),
-      )
-    }),
+  const userStakeResult = await view<MosaicUserStakeInfoView[]>(
+    plugins,
+    `${MOSAIC_STAKING}::staking_pool::get_user_stake_infos`,
+    [farmAddresses, address],
   )
 
-  return uniqueStrings(
-    results.flatMap((result) =>
-      result.status === 'fulfilled' ? result.value : [],
-    ),
-  )
+  return (userStakeResult[0] as MosaicUserStakeInfoView[] | undefined) ?? []
 }
 
 async function getDirectLiquidityPositions(
-  address: string,
-  poolIds: readonly string[],
+  userLpBalances: ReadonlyMap<string, string>,
   poolViewMap: ReadonlyMap<string, MosaicPoolView>,
   lpMetadataMap: ReadonlyMap<string, MosaicIndexerMetadata>,
   poolStatsMap: ReadonlyMap<string, MosaicPoolStatsEntry>,
   plugins: AptosPlugins,
 ): Promise<ConstantProductLiquidityDefiPosition[]> {
-  const userLpBalances = await getUserLpBalances(address, poolIds, plugins)
   if (!userLpBalances.size) return []
 
   const underlyingTokenIds = uniqueStrings(
@@ -422,20 +419,12 @@ async function getDirectLiquidityPositions(
     const poolTokens = [
       buildPositionValue(
         poolView.token_x,
-        prorateRawAmount(
-          poolView.token_x_reserve,
-          userLpAmount,
-          totalLpSupply,
-        ),
+        prorateRawAmount(poolView.token_x_reserve, userLpAmount, totalLpSupply),
         tokenXDecimals,
       ),
       buildPositionValue(
         poolView.token_y,
-        prorateRawAmount(
-          poolView.token_y_reserve,
-          userLpAmount,
-          totalLpSupply,
-        ),
+        prorateRawAmount(poolView.token_y_reserve, userLpAmount, totalLpSupply),
         tokenYDecimals,
       ),
     ].filter((token) => token.amount.amount !== '0')
@@ -468,23 +457,11 @@ async function getDirectLiquidityPositions(
 }
 
 async function getFarmPositions(
-  poolIds: readonly string[],
-  poolViewMap: ReadonlyMap<string, MosaicPoolView>,
+  userStakeInfos: readonly MosaicUserStakeInfoView[],
   lpMetadataMap: ReadonlyMap<string, MosaicIndexerMetadata>,
-  poolStatsMap: ReadonlyMap<string, MosaicPoolStatsEntry>,
   farmStatsMap: ReadonlyMap<string, MosaicFarmStatsEntry>,
-  address: string,
   plugins: AptosPlugins,
 ): Promise<StakingDefiPosition[]> {
-  const farmAddresses = await getFarmAddressesByLpToken(poolIds, plugins)
-  if (!farmAddresses.length) return []
-
-  const userStakeResult = await view<MosaicUserStakeInfoView[]>(
-    plugins,
-    `${MOSAIC_STAKING}::staking_pool::get_user_stake_infos`,
-    [farmAddresses, address],
-  )
-  const userStakeInfos = (userStakeResult[0] as MosaicUserStakeInfoView[] | undefined) ?? []
   if (!userStakeInfos.length) return []
 
   const activeFarmAddresses = uniqueStrings(
@@ -496,7 +473,8 @@ async function getFarmPositions(
     `${MOSAIC_STAKING}::staking_pool::get_pool_states`,
     [activeFarmAddresses],
   )
-  const poolStates = (poolStatesResult[0] as MosaicFarmPoolStateView[] | undefined) ?? []
+  const poolStates =
+    (poolStatesResult[0] as MosaicFarmPoolStateView[] | undefined) ?? []
 
   const poolStateByFarmAddress = new Map<string, MosaicFarmPoolStateView>()
   poolStates.forEach((poolState, index) => {
@@ -522,15 +500,14 @@ async function getFarmPositions(
 
     const lpTokenId = normalizeAddress(poolState.stake_token.inner)
     const lpMetadata = lpMetadataMap.get(lpTokenId)
-    const poolView = poolViewMap.get(lpTokenId)
-    if (!lpMetadata || !poolView) continue
+    if (!lpMetadata) continue
 
-    const totalLpSupply = rawToString(lpMetadata.supply_v2)
-    const poolStats = poolStatsMap.get(lpTokenId)
+    const totalStakedUsd =
+      farmStatsMap.get(farmAddress)?.stats?.total_staked_usd
     const usdValue = prorateDecimalValue(
-      poolStats?.stats?.tvl_usd,
+      totalStakedUsd,
       stakeInfo.amount,
-      totalLpSupply,
+      poolState.total_staked,
     )
 
     const rewardTokenId = poolState.reward_token.inner
@@ -562,7 +539,9 @@ async function getFarmPositions(
       ...(farmApr !== undefined && {
         apy: farmApr.toString(),
       }),
-      ...(stakeInfo.unlock_time !== '0' && { lockedUntil: stakeInfo.unlock_time }),
+      ...(stakeInfo.unlock_time !== '0' && {
+        lockedUntil: stakeInfo.unlock_time,
+      }),
       ...(rewards !== undefined && { rewards }),
       ...(usdValue !== undefined && { totalStakedUsd: usdValue, usdValue }),
     })
@@ -575,35 +554,55 @@ async function getUserPositions(
   address: string,
   plugins: AptosPlugins,
 ): Promise<UserDefiPosition[]> {
-  const poolIds = await getAllPoolIds(plugins)
-  if (!poolIds.length) return []
+  const [poolStatsMap, farmStatsMap] = await Promise.all([
+    getMosaicPoolStatsMap().catch(
+      () => new Map<string, MosaicPoolStatsEntry>(),
+    ),
+    getMosaicFarmStatsMap().catch(
+      () => new Map<string, MosaicFarmStatsEntry>(),
+    ),
+  ])
 
-  const [poolViewMap, poolStatsMap, farmStatsMap, lpMetadataMap] =
-    await Promise.all([
-      getPoolViewMap(poolIds, plugins),
-      getMosaicPoolStatsMap().catch(() => new Map()),
-      getMosaicFarmStatsMap().catch(() => new Map()),
-      getLpMetadataMap(poolIds, plugins),
-    ])
+  const knownPoolIds = [...poolStatsMap.keys()]
+  const knownFarmAddresses = [...farmStatsMap.keys()]
+
+  const [userLpBalances, userStakeInfos] = await Promise.all([
+    getUserLpBalances(address, knownPoolIds, plugins),
+    getUserStakeInfos(knownFarmAddresses, address, plugins),
+  ])
+
+  if (!userLpBalances.size && !userStakeInfos.length) return []
+
+  const directLpTokenIds = [...userLpBalances.keys()]
+  const stakedLpTokenIds = uniqueStrings(
+    userStakeInfos
+      .map(
+        (stakeInfo) =>
+          farmStatsMap.get(normalizeAddress(stakeInfo.pool_address))?.metadata
+            ?.stake_token,
+      )
+      .filter((tokenId): tokenId is string => tokenId !== undefined)
+      .map(normalizeAddress),
+  )
+  const relevantLpTokenIds = uniqueStrings([
+    ...directLpTokenIds,
+    ...stakedLpTokenIds,
+  ])
+
+  const [poolViewMap, lpMetadataMap] = await Promise.all([
+    getPoolViewMap(directLpTokenIds, plugins),
+    getLpMetadataMap(relevantLpTokenIds, plugins),
+  ])
 
   const [liquidityPositions, farmPositions] = await Promise.all([
     getDirectLiquidityPositions(
-      address,
-      poolIds,
+      userLpBalances,
       poolViewMap,
       lpMetadataMap,
       poolStatsMap,
       plugins,
     ),
-    getFarmPositions(
-      poolIds,
-      poolViewMap,
-      lpMetadataMap,
-      poolStatsMap,
-      farmStatsMap,
-      address,
-      plugins,
-    ),
+    getFarmPositions(userStakeInfos, lpMetadataMap, farmStatsMap, plugins),
   ])
 
   return [...liquidityPositions, ...farmPositions]
