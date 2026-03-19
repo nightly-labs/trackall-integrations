@@ -295,7 +295,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
         positionKind: 'lending',
         platformId: 'jupiter',
         supplied: [supplied],
-        ...(usdValue !== undefined && { valueUsd: usdValue }),
+        ...(usdValue !== undefined && { usdValue: usdValue }),
       } satisfies LendingDefiPosition)
     }
 
@@ -412,7 +412,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
         positionKind: 'lending',
         platformId: 'jupiter',
         supplied: [supplied],
-        ...(colUsd !== undefined && { valueUsd: colUsd.toString() }),
+        ...(colUsd !== undefined && { usdValue: colUsd.toString() }),
       }
 
       if (debtAmount > 0n) {
@@ -429,7 +429,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
         }
         positionResult.borrowed = [borrowed]
         if (colUsd !== undefined && debtUsd !== undefined) {
-          positionResult.valueUsd = (colUsd - debtUsd).toString()
+          positionResult.usdValue = (colUsd - debtUsd).toString()
         }
       }
 

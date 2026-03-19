@@ -614,7 +614,7 @@ export const kaminoIntegration: SolanaIntegration = {
         positionKind: 'lending',
         ...(supplied.length > 0 && { supplied }),
         ...(borrowed.length > 0 && { borrowed }),
-        valueUsd: sfToDecimalString(netValueSf),
+        usdValue: sfToDecimalString(netValueSf),
       }
 
       if (obligation.borrowFactorAdjustedDebtValueSf > 0n) {

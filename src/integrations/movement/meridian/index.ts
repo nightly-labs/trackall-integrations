@@ -510,7 +510,7 @@ async function getLendingPositions(
         platformId: 'meridian',
         ...(supplied.length > 0 && { supplied }),
         ...(borrowed.length > 0 && { borrowed }),
-        ...(netValueUsd !== undefined && { valueUsd: netValueUsd }),
+        ...(netValueUsd !== undefined && { usdValue: netValueUsd }),
         ...(accountHealthFactor !== undefined &&
           borrowed.length > 0 && { healthFactor: accountHealthFactor }),
         ...(rewards.length > 0 && { rewards }),
@@ -645,7 +645,7 @@ async function getPoolLpPositions(
     )
     if (!nonZeroPoolTokens.length) continue
 
-    const valueUsd = sumUsdValues(nonZeroPoolTokens)
+    const usdValue = sumUsdValues(nonZeroPoolTokens)
     const position: ConstantProductLiquidityDefiPosition = {
       positionKind: 'liquidity',
       liquidityModel: 'constant-product',
@@ -654,7 +654,7 @@ async function getPoolLpPositions(
       feeBps: pool.swap_fee_bps,
       lpTokenAmount: userLpAmount,
       poolTokens: nonZeroPoolTokens,
-      ...(valueUsd !== undefined && { valueUsd }),
+      ...(usdValue !== undefined && { usdValue }),
     }
 
     result.push(position)
@@ -957,7 +957,7 @@ async function getClmmPositions(
       ...(stakedRewardMap.get(detail.ownership.tokenObjectAddress) ?? []),
     ].filter((reward): reward is PositionValue => reward !== undefined)
 
-    const valueUsd = sumUsdValues(poolTokens)
+    const usdValue = sumUsdValues(poolTokens)
     result.push({
       positionKind: 'liquidity',
       liquidityModel: 'concentrated-range',
@@ -982,7 +982,7 @@ async function getClmmPositions(
         decimals1,
       ).toString(),
       feeBps: poolResource.swap_fee_bps,
-      ...(valueUsd !== undefined && { valueUsd }),
+      ...(usdValue !== undefined && { usdValue }),
       ...(rewards.length > 0 && { rewards }),
     })
   }

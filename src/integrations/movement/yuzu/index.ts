@@ -428,7 +428,7 @@ async function getUserPositions(
         },
       ],
       ...(totalUsdValue !== undefined && {
-        valueUsd: totalUsdValue.toString(),
+        usdValue: totalUsdValue.toString(),
       }),
       ...(allRewards.length > 0 && { rewards: allRewards }),
     }

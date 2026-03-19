@@ -239,7 +239,7 @@ export const meteoraIntegration: SolanaIntegration = {
           ? (Number(totalYAmount) / 10 ** mintY.decimals) * tokenY.priceUsd
           : undefined
 
-      const valueUsd =
+      const usdValue =
         usdValueX !== undefined && usdValueY !== undefined
           ? (usdValueX + usdValueY).toString()
           : usdValueX !== undefined
@@ -256,7 +256,7 @@ export const meteoraIntegration: SolanaIntegration = {
         lowerPriceUsd: lowerPrice,
         upperPriceUsd: upperPrice,
         currentPriceUsd: currentPrice,
-        ...(valueUsd !== undefined && { valueUsd }),
+        ...(usdValue !== undefined && { usdValue }),
         poolTokens: [
           {
             amount: {

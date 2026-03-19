@@ -22,7 +22,7 @@ export interface BaseDefiPosition {
   /** Shared platform identifier from Platform.id. */
   platformId: string
   /** Optional top-level USD value of the position as a decimal string. */
-  valueUsd?: string
+  usdValue?: string
   /** Reward token amounts for this position. */
   rewards?: PositionValue[]
 }
