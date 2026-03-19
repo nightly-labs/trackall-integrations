@@ -2,6 +2,7 @@ import { type Connection, PublicKey } from '@solana/web3.js'
 
 import type {
   AccountsMap,
+  GetHttpJsonRequest,
   GetProgramAccountsRequest,
   ProgramRequest,
   SolanaAddress,
@@ -131,10 +132,44 @@ async function fetchViaGetProgramAccounts(
   return map
 }
 
+async function fetchViaHttpJson(req: GetHttpJsonRequest): Promise<AccountsMap> {
+  const map: AccountsMap = {}
+
+  const res = await fetch(req.url)
+  const json = (await res.json()) as { data?: unknown }
+  const rows = Array.isArray(json.data) ? json.data : []
+
+  const encoder = new TextEncoder()
+  rows.forEach((row, idx) => {
+    const keyCandidate =
+      req.keyField &&
+      row &&
+      typeof row === 'object' &&
+      req.keyField in row &&
+      typeof (row as Record<string, unknown>)[req.keyField] === 'string'
+        ? ((row as Record<string, unknown>)[req.keyField] as string)
+        : `${req.url}#${idx}`
+
+    map[keyCandidate] = {
+      exists: true,
+      address: keyCandidate,
+      lamports: 0n,
+      programAddress: 'http-json',
+      data: encoder.encode(JSON.stringify(row)),
+    }
+  })
+
+  return map
+}
+
 export async function fetchProgramAccountsBatch(
   connection: Connection,
   req: ProgramRequest,
 ): Promise<AccountsMap> {
+  if (req.kind === 'getHttpJson') {
+    return fetchViaHttpJson(req)
+  }
+
   if (req.kind === 'getTokenAccountsByOwner') {
     const r = await connection.getTokenAccountsByOwner(
       new PublicKey(req.owner),

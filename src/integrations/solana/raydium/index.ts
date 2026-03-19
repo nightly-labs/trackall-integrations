@@ -229,58 +229,20 @@ function readRaydiumPoolLpMint(poolKey: RaydiumPoolKeyItem): string | null {
   )
 }
 
-async function fetchPoolsByLpMints(
-  lpMints: readonly string[],
-): Promise<RaydiumPoolSearchLpItem[]> {
-  if (lpMints.length === 0) return []
-
-  const all: RaydiumPoolSearchLpItem[] = []
-  for (let i = 0; i < lpMints.length; i += LP_QUERY_CHUNK_SIZE) {
-    const chunk = lpMints.slice(i, i + LP_QUERY_CHUNK_SIZE)
-    if (chunk.length === 0) continue
-
+function decodeHttpJsonRows<T>(
+  map: Record<string, { exists: boolean; data?: Uint8Array }>,
+): T[] {
+  const rows: T[] = []
+  for (const acc of Object.values(map)) {
+    if (!acc?.exists || !acc.data) continue
     try {
-      const url = new URL(API_URLS.POOL_SEARCH_LP, API_URLS.BASE_HOST)
-      url.searchParams.set('lps', chunk.join(','))
-      const response = await fetch(url.toString())
-      if (!response.ok) continue
-
-      const json = (await response.json()) as { data?: unknown }
-      if (!Array.isArray(json.data)) continue
-      all.push(...(json.data as RaydiumPoolSearchLpItem[]))
+      const parsed = JSON.parse(Buffer.from(acc.data).toString('utf8')) as T
+      rows.push(parsed)
     } catch {
-      // API-only mode: skip failed chunks instead of falling back to GPA scans.
+      // Skip malformed JSON rows from HTTP adapter.
     }
   }
-
-  return all
-}
-
-async function fetchPoolKeysByIds(
-  poolIds: readonly string[],
-): Promise<RaydiumPoolKeyItem[]> {
-  if (poolIds.length === 0) return []
-
-  const all: RaydiumPoolKeyItem[] = []
-  for (let i = 0; i < poolIds.length; i += POOL_KEYS_QUERY_CHUNK_SIZE) {
-    const chunk = poolIds.slice(i, i + POOL_KEYS_QUERY_CHUNK_SIZE)
-    if (chunk.length === 0) continue
-
-    try {
-      const url = new URL(API_URLS.POOL_KEY_BY_ID, API_URLS.BASE_HOST)
-      url.searchParams.set('ids', chunk.join(','))
-      const response = await fetch(url.toString())
-      if (!response.ok) continue
-
-      const json = (await response.json()) as { data?: unknown }
-      if (!Array.isArray(json.data)) continue
-      all.push(...(json.data as RaydiumPoolKeyItem[]))
-    } catch {
-      // API-only mode: skip failed chunks instead of falling back to GPA scans.
-    }
-  }
-
-  return all
+  return rows
 }
 
 // ─── Integration ─────────────────────────────────────────────────────────────
@@ -386,9 +348,27 @@ export const raydiumIntegration: SolanaIntegration = {
       }
     }
 
-    const discoveredPools = await fetchPoolsByLpMints([
-      ...userMintBalances.keys(),
-    ])
+    const lpMintList = [...userMintBalances.keys()]
+    const lpPoolRequests: Array<{
+      kind: 'getHttpJson'
+      url: string
+      keyField: string
+    }> = []
+    for (let i = 0; i < lpMintList.length; i += LP_QUERY_CHUNK_SIZE) {
+      const chunk = lpMintList.slice(i, i + LP_QUERY_CHUNK_SIZE)
+      if (chunk.length === 0) continue
+      const url = new URL(API_URLS.POOL_SEARCH_LP, API_URLS.BASE_HOST)
+      url.searchParams.set('lps', chunk.join(','))
+      lpPoolRequests.push({
+        kind: 'getHttpJson',
+        url: url.toString(),
+        keyField: 'id',
+      })
+    }
+
+    const lpPoolsMap = lpPoolRequests.length > 0 ? yield lpPoolRequests : {}
+    const discoveredPools =
+      decodeHttpJsonRows<RaydiumPoolSearchLpItem>(lpPoolsMap)
     const cpPoolLpAmountByAddress = new Map<string, bigint>()
     const ammV4PoolLpAmountByAddress = new Map<string, bigint>()
 
@@ -422,7 +402,29 @@ export const raydiumIntegration: SolanaIntegration = {
     const discoveredPoolIds = [
       ...new Set([...cpPoolAddresses, ...ammV4PoolAddresses]),
     ]
-    const discoveredPoolKeys = await fetchPoolKeysByIds(discoveredPoolIds)
+    const poolKeyRequests: Array<{
+      kind: 'getHttpJson'
+      url: string
+      keyField: string
+    }> = []
+    for (
+      let i = 0;
+      i < discoveredPoolIds.length;
+      i += POOL_KEYS_QUERY_CHUNK_SIZE
+    ) {
+      const chunk = discoveredPoolIds.slice(i, i + POOL_KEYS_QUERY_CHUNK_SIZE)
+      if (chunk.length === 0) continue
+      const url = new URL(API_URLS.POOL_KEY_BY_ID, API_URLS.BASE_HOST)
+      url.searchParams.set('ids', chunk.join(','))
+      poolKeyRequests.push({
+        kind: 'getHttpJson',
+        url: url.toString(),
+        keyField: 'id',
+      })
+    }
+    const poolKeysMap = poolKeyRequests.length > 0 ? yield poolKeyRequests : {}
+    const discoveredPoolKeys =
+      decodeHttpJsonRows<RaydiumPoolKeyItem>(poolKeysMap)
     const poolKeyById = new Map<string, RaydiumPoolKeyItem>()
     for (const poolKey of discoveredPoolKeys) {
       if (typeof poolKey.id !== 'string') continue
