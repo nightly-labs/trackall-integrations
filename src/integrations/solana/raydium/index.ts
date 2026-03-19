@@ -1,5 +1,5 @@
 import { BorshCoder } from '@coral-xyz/anchor'
-import { AMM_V4, liquidityStateV4Layout } from '@raydium-io/raydium-sdk-v2'
+import { AMM_V4, API_URLS } from '@raydium-io/raydium-sdk-v2'
 import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { PublicKey } from '@solana/web3.js'
 
@@ -34,9 +34,6 @@ function idlDiscriminator(
 const PERSONAL_POSITION_DISC = Buffer.from(
   idlDiscriminator(clmmIdl, 'PersonalPositionState'),
 )
-const CP_POOL_DISC_B64 = Buffer.from(
-  idlDiscriminator(cpIdl, 'PoolState'),
-).toString('base64')
 
 // ─── BorshCoder for PersonalPositionState ────────────────────────────────────
 const clmmCoder = new BorshCoder(clmmIdl as never)
@@ -75,20 +72,6 @@ function decodeClmmPool(buf: Buffer) {
     liquidity: readU128LE(buf, 237),
     sqrtPriceX64: readU128LE(buf, 253),
     tickCurrent: readI32LE(buf, 269),
-  }
-}
-
-// ─── CP PoolState manual offsets (repr(C, packed), 8-byte discriminator) ─────
-function decodeCpPool(buf: Buffer) {
-  return {
-    token0Vault: readPubkey(buf, 72),
-    token1Vault: readPubkey(buf, 104),
-    lpMint: readPubkey(buf, 136),
-    token0Mint: readPubkey(buf, 168),
-    token1Mint: readPubkey(buf, 200),
-    mintDecimals0: buf.readUInt8(331),
-    mintDecimals1: buf.readUInt8(332),
-    lpSupply: readU64LE(buf, 333),
   }
 }
 
@@ -180,6 +163,126 @@ function readMintSupply(data: Uint8Array): bigint | null {
   return readU64LE(buf, 36)
 }
 
+interface RaydiumPoolSearchLpItem {
+  id?: unknown
+  programId?: unknown
+  lpMint?: unknown
+}
+
+interface RaydiumPoolKeyItem {
+  id?: unknown
+  programId?: unknown
+  mintA?: unknown
+  mintB?: unknown
+  mintLp?: unknown
+  lpMint?: unknown
+  vault?: unknown
+}
+
+function readRaydiumLpMint(pool: RaydiumPoolSearchLpItem): string | null {
+  const lpMint = pool.lpMint
+  if (typeof lpMint === 'string') return lpMint
+  if (lpMint && typeof lpMint === 'object' && 'address' in lpMint) {
+    const address = (lpMint as { address?: unknown }).address
+    if (typeof address === 'string') return address
+  }
+  return null
+}
+
+const LP_QUERY_CHUNK_SIZE = 20
+const POOL_KEYS_QUERY_CHUNK_SIZE = 100
+
+function readRaydiumTokenAddress(token: unknown): string | null {
+  if (typeof token === 'string') return token
+  if (token && typeof token === 'object' && 'address' in token) {
+    const address = (token as { address?: unknown }).address
+    if (typeof address === 'string') return address
+  }
+  return null
+}
+
+function readRaydiumTokenDecimals(token: unknown): number | null {
+  if (token && typeof token === 'object' && 'decimals' in token) {
+    const decimals = (token as { decimals?: unknown }).decimals
+    if (typeof decimals === 'number' && Number.isFinite(decimals))
+      return decimals
+  }
+  return null
+}
+
+function readRaydiumVaultAddress(
+  poolKey: RaydiumPoolKeyItem,
+  side: 'A' | 'B',
+): string | null {
+  const vault = poolKey.vault
+  if (vault && typeof vault === 'object') {
+    const field = (vault as { A?: unknown; B?: unknown })[side]
+    if (typeof field === 'string') return field
+  }
+  return null
+}
+
+function readRaydiumPoolLpMint(poolKey: RaydiumPoolKeyItem): string | null {
+  return (
+    readRaydiumTokenAddress(poolKey.mintLp) ??
+    readRaydiumTokenAddress(poolKey.lpMint)
+  )
+}
+
+async function fetchPoolsByLpMints(
+  lpMints: readonly string[],
+): Promise<RaydiumPoolSearchLpItem[]> {
+  if (lpMints.length === 0) return []
+
+  const all: RaydiumPoolSearchLpItem[] = []
+  for (let i = 0; i < lpMints.length; i += LP_QUERY_CHUNK_SIZE) {
+    const chunk = lpMints.slice(i, i + LP_QUERY_CHUNK_SIZE)
+    if (chunk.length === 0) continue
+
+    try {
+      const url = new URL(API_URLS.POOL_SEARCH_LP, API_URLS.BASE_HOST)
+      url.searchParams.set('lps', chunk.join(','))
+      const response = await fetch(url.toString())
+      if (!response.ok) continue
+
+      const json = (await response.json()) as { data?: unknown }
+      if (!Array.isArray(json.data)) continue
+      all.push(...(json.data as RaydiumPoolSearchLpItem[]))
+    } catch {
+      // API-only mode: skip failed chunks instead of falling back to GPA scans.
+    }
+  }
+
+  return all
+}
+
+async function fetchPoolKeysByIds(
+  poolIds: readonly string[],
+): Promise<RaydiumPoolKeyItem[]> {
+  if (poolIds.length === 0) return []
+
+  const all: RaydiumPoolKeyItem[] = []
+  for (let i = 0; i < poolIds.length; i += POOL_KEYS_QUERY_CHUNK_SIZE) {
+    const chunk = poolIds.slice(i, i + POOL_KEYS_QUERY_CHUNK_SIZE)
+    if (chunk.length === 0) continue
+
+    try {
+      const url = new URL(API_URLS.POOL_KEY_BY_ID, API_URLS.BASE_HOST)
+      url.searchParams.set('ids', chunk.join(','))
+      const response = await fetch(url.toString())
+      if (!response.ok) continue
+
+      const json = (await response.json()) as { data?: unknown }
+      if (!Array.isArray(json.data)) continue
+      all.push(...(json.data as RaydiumPoolKeyItem[]))
+    } catch {
+      // API-only mode: skip failed chunks instead of falling back to GPA scans.
+    }
+  }
+
+  return all
+}
+
 // ─── Integration ─────────────────────────────────────────────────────────────
 
 export const raydiumIntegration: SolanaIntegration = {
@@ -205,8 +308,12 @@ export const raydiumIntegration: SolanaIntegration = {
       },
     ]
 
-    // Build mint → amount map from merged token accounts
+    // Build mint → amount maps from merged token accounts:
+    // - all balances for CP/AMM paths
+    // - Token-2022-only balances for CLMM position NFT PDAs
     const userMintBalances = new Map<string, bigint>()
+    const userToken2022MintBalances = new Map<string, bigint>()
+    const token2022ProgramId = TOKEN_2022_PROGRAM_ID.toBase58()
     for (const acc of Object.values(userTokenMap)) {
       if (!acc.exists) continue
       const mint = readTokenAccountMint(acc.data)
@@ -217,14 +324,20 @@ export const raydiumIntegration: SolanaIntegration = {
           mint,
           existing !== undefined ? existing + amount : amount,
         )
+
+        if (acc.programAddress === token2022ProgramId) {
+          const existingToken2022 = userToken2022MintBalances.get(mint)
+          userToken2022MintBalances.set(
+            mint,
+            existingToken2022 !== undefined
+              ? existingToken2022 + amount
+              : amount,
+          )
+        }
       }
     }
 
     if (userMintBalances.size === 0) return []
-
-    // ── Phase 1: Fetch CP pools matching user's LP mints ───────────────────
-    // lp_mint offset: 8 (disc) + 32 (amm_config) + 32 (pool_creator) + 32 (token_0_vault) + 32 (token_1_vault) = 136
-    const CP_LP_MINT_OFFSET = 136
 
     interface CpPoolMatch {
       poolAddress: string
@@ -232,14 +345,11 @@ export const raydiumIntegration: SolanaIntegration = {
       token1Mint: string
       token0Vault: string
       token1Vault: string
+      lpMint: string
       mintDecimals0: number
       mintDecimals1: number
-      lpSupply: bigint
       userLpAmount: bigint
     }
-
-    const cpMatches: CpPoolMatch[] = []
-    const cpVaultAddresses: string[] = []
 
     interface AmmV4Match {
       poolAddress: string
@@ -252,80 +362,18 @@ export const raydiumIntegration: SolanaIntegration = {
       lpMint: string
       userLpAmount: bigint
     }
+
+    const cpMatches: CpPoolMatch[] = []
     const ammV4Matches: AmmV4Match[] = []
-
-    for (const [mint, amount] of userMintBalances) {
-      const cpPoolsMap = yield {
-        kind: 'getProgramAccounts' as const,
-        programId: CP_PROGRAM_ID,
-        filters: [
-          {
-            memcmp: {
-              offset: 0,
-              bytes: CP_POOL_DISC_B64,
-              encoding: 'base64' as const,
-            },
-          },
-          { memcmp: { offset: CP_LP_MINT_OFFSET, bytes: mint } },
-        ],
-      }
-
-      for (const acc of Object.values(cpPoolsMap)) {
-        if (!acc.exists) continue
-        const buf = Buffer.from(acc.data)
-        if (buf.length < 341) continue
-        const pool = decodeCpPool(buf)
-        cpMatches.push({
-          poolAddress: acc.address,
-          token0Mint: pool.token0Mint,
-          token1Mint: pool.token1Mint,
-          token0Vault: pool.token0Vault,
-          token1Vault: pool.token1Vault,
-          mintDecimals0: pool.mintDecimals0,
-          mintDecimals1: pool.mintDecimals1,
-          lpSupply: pool.lpSupply,
-          userLpAmount: amount,
-        })
-        cpVaultAddresses.push(pool.token0Vault, pool.token1Vault)
-      }
-
-      // AMM v4 (legacy): lpMint at offset 464, account size 752
-      const ammV4PoolsMap = yield {
-        kind: 'getProgramAccounts' as const,
-        programId: AMM_V4.toBase58(),
-        filters: [{ dataSize: 752 }, { memcmp: { offset: 464, bytes: mint } }],
-      }
-
-      for (const acc of Object.values(ammV4PoolsMap)) {
-        if (!acc.exists) continue
-        const buf = Buffer.from(acc.data)
-        if (buf.length < 752) continue
-        const pool = liquidityStateV4Layout.decode(buf)
-        ammV4Matches.push({
-          poolAddress: acc.address,
-          baseMint: pool.baseMint.toBase58(),
-          quoteMint: pool.quoteMint.toBase58(),
-          baseVault: pool.baseVault.toBase58(),
-          quoteVault: pool.quoteVault.toBase58(),
-          baseDecimal: Number(pool.baseDecimal),
-          quoteDecimal: Number(pool.quoteDecimal),
-          lpMint: pool.lpMint.toBase58(),
-          userLpAmount: amount,
-        })
-      }
-    }
-
-    // Collect AMM v4 addresses for phase 2
+    const cpVaultAddresses: string[] = []
+    const cpLpMintAddresses: string[] = []
     const ammV4VaultAddresses: string[] = []
     const ammV4LpMintAddresses: string[] = []
-    for (const m of ammV4Matches) {
-      ammV4VaultAddresses.push(m.baseVault, m.quoteVault)
-      ammV4LpMintAddresses.push(m.lpMint)
-    }
 
-    // Derive CLMM PersonalPositionState PDAs for all user mints
+    // Derive CLMM PDAs only for token-2022 NFT balances (amount == 1).
     const clmmPdaEntries: { mint: string; pda: string }[] = []
-    for (const [mint] of userMintBalances) {
+    for (const [mint, amount] of userToken2022MintBalances) {
+      if (amount !== 1n) continue
       try {
         const mintPubkey = new PublicKey(mint)
         const [pda] = PublicKey.findProgramAddressSync(
@@ -338,22 +386,54 @@ export const raydiumIntegration: SolanaIntegration = {
       }
     }
 
-    // ── Phase 2: Batch fetch CLMM PDAs + CP vaults ──────────────────────────
-    const phase2Addresses = [
-      ...clmmPdaEntries.map((e) => e.pda),
-      ...cpVaultAddresses,
-      ...ammV4VaultAddresses,
-      ...ammV4LpMintAddresses,
+    const discoveredPools = await fetchPoolsByLpMints([
+      ...userMintBalances.keys(),
+    ])
+    const cpPoolLpAmountByAddress = new Map<string, bigint>()
+    const ammV4PoolLpAmountByAddress = new Map<string, bigint>()
+
+    for (const pool of discoveredPools) {
+      if (!pool) {
+        continue
+      }
+      if (typeof pool.id !== 'string' || typeof pool.programId !== 'string') {
+        continue
+      }
+      const lpMint = readRaydiumLpMint(pool)
+
+      if (!lpMint) {
+        continue
+      }
+      const userLpAmount = userMintBalances.get(lpMint)
+
+      if (userLpAmount === undefined || userLpAmount <= 0n) {
+        continue
+      }
+
+      if (pool.programId === CP_PROGRAM_ID) {
+        cpPoolLpAmountByAddress.set(pool.id, userLpAmount)
+      } else if (pool.programId === AMM_V4.toBase58()) {
+        ammV4PoolLpAmountByAddress.set(pool.id, userLpAmount)
+      }
+    }
+
+    const cpPoolAddresses = [...cpPoolLpAmountByAddress.keys()]
+    const ammV4PoolAddresses = [...ammV4PoolLpAmountByAddress.keys()]
+    const discoveredPoolIds = [
+      ...new Set([...cpPoolAddresses, ...ammV4PoolAddresses]),
     ]
+    const discoveredPoolKeys = await fetchPoolKeysByIds(discoveredPoolIds)
+    const poolKeyById = new Map<string, RaydiumPoolKeyItem>()
+    for (const poolKey of discoveredPoolKeys) {
+      if (typeof poolKey.id !== 'string') continue
+      poolKeyById.set(poolKey.id, poolKey)
+    }
 
-    if (
-      phase2Addresses.length === 0 &&
-      cpMatches.length === 0 &&
-      ammV4Matches.length === 0
-    )
-      return []
+    // ── Phase 1: Batch fetch CLMM PDAs ──────────────────────────────────────
+    const phase2Addresses = [...clmmPdaEntries.map((e) => e.pda)]
+    if (phase2Addresses.length === 0) return []
 
-    const phase2Map = phase2Addresses.length > 0 ? yield phase2Addresses : {}
+    const phase2Map = yield phase2Addresses
 
     // Decode CLMM PersonalPositionState accounts
     interface ClmmPosition {
@@ -392,7 +472,87 @@ export const raydiumIntegration: SolanaIntegration = {
       }
     }
 
-    // ── Phase 3: Fetch CLMM pool states ──────────────────────────────────────
+    // Decode discovered CP pools from API registry
+    for (const poolAddress of cpPoolAddresses) {
+      const poolKey = poolKeyById.get(poolAddress)
+      const userLpAmount = cpPoolLpAmountByAddress.get(poolAddress)
+      if (!poolKey || userLpAmount === undefined) continue
+
+      const token0Mint = readRaydiumTokenAddress(poolKey.mintA)
+      const token1Mint = readRaydiumTokenAddress(poolKey.mintB)
+      const token0Vault = readRaydiumVaultAddress(poolKey, 'A')
+      const token1Vault = readRaydiumVaultAddress(poolKey, 'B')
+      const lpMint = readRaydiumPoolLpMint(poolKey)
+      const mintDecimals0 = readRaydiumTokenDecimals(poolKey.mintA)
+      const mintDecimals1 = readRaydiumTokenDecimals(poolKey.mintB)
+
+      if (
+        !token0Mint ||
+        !token1Mint ||
+        !token0Vault ||
+        !token1Vault ||
+        !lpMint ||
+        mintDecimals0 === null ||
+        mintDecimals1 === null
+      )
+        continue
+
+      cpMatches.push({
+        poolAddress,
+        token0Mint,
+        token1Mint,
+        token0Vault,
+        token1Vault,
+        lpMint,
+        mintDecimals0,
+        mintDecimals1,
+        userLpAmount,
+      })
+      cpVaultAddresses.push(token0Vault, token1Vault)
+      cpLpMintAddresses.push(lpMint)
+    }
+
+    // Decode discovered AMM v4 pools from API registry
+    for (const poolAddress of ammV4PoolAddresses) {
+      const poolKey = poolKeyById.get(poolAddress)
+      const userLpAmount = ammV4PoolLpAmountByAddress.get(poolAddress)
+      if (!poolKey || userLpAmount === undefined) continue
+
+      const baseMint = readRaydiumTokenAddress(poolKey.mintA)
+      const quoteMint = readRaydiumTokenAddress(poolKey.mintB)
+      const baseVault = readRaydiumVaultAddress(poolKey, 'A')
+      const quoteVault = readRaydiumVaultAddress(poolKey, 'B')
+      const lpMint = readRaydiumPoolLpMint(poolKey)
+      const baseDecimal = readRaydiumTokenDecimals(poolKey.mintA)
+      const quoteDecimal = readRaydiumTokenDecimals(poolKey.mintB)
+
+      if (
+        !baseMint ||
+        !quoteMint ||
+        !baseVault ||
+        !quoteVault ||
+        !lpMint ||
+        baseDecimal === null ||
+        quoteDecimal === null
+      )
+        continue
+
+      ammV4Matches.push({
+        poolAddress,
+        baseMint,
+        quoteMint,
+        baseVault,
+        quoteVault,
+        baseDecimal,
+        quoteDecimal,
+        lpMint,
+        userLpAmount,
+      })
+      ammV4VaultAddresses.push(baseVault, quoteVault)
+      ammV4LpMintAddresses.push(lpMint)
+    }
+
+    // ── Phase 2: Fetch CLMM pool states + CP/AMM vault states ───────────────
     const clmmPoolAddresses = [...uniquePoolIds]
 
     if (
@@ -402,8 +562,15 @@ export const raydiumIntegration: SolanaIntegration = {
     )
       return []
 
-    const phase3Map =
-      clmmPoolAddresses.length > 0 ? yield clmmPoolAddresses : {}
+    const phase3Addresses = [
+      ...clmmPoolAddresses,
+      ...cpVaultAddresses,
+      ...cpLpMintAddresses,
+      ...ammV4VaultAddresses,
+      ...ammV4LpMintAddresses,
+    ]
+
+    const phase3Map = phase3Addresses.length > 0 ? yield phase3Addresses : {}
 
     const result: UserDefiPosition[] = []
 
@@ -500,17 +667,21 @@ export const raydiumIntegration: SolanaIntegration = {
 
     // ── Build CP swap positions ──────────────────────────────────────────────
     for (const cp of cpMatches) {
-      const vault0Acc = phase2Map[cp.token0Vault]
-      const vault1Acc = phase2Map[cp.token1Vault]
-      if (!vault0Acc?.exists || !vault1Acc?.exists) continue
+      const vault0Acc = phase3Map[cp.token0Vault]
+      const vault1Acc = phase3Map[cp.token1Vault]
+      const lpMintAcc = phase3Map[cp.lpMint]
+      if (!vault0Acc?.exists || !vault1Acc?.exists || !lpMintAcc?.exists)
+        continue
 
       const vault0Balance = readTokenAccountAmount(vault0Acc.data)
       const vault1Balance = readTokenAccountAmount(vault1Acc.data)
-      if (vault0Balance === null || vault1Balance === null) continue
-      if (cp.lpSupply === 0n) continue
+      const lpSupply = readMintSupply(lpMintAcc.data)
+      if (vault0Balance === null || vault1Balance === null || lpSupply === null)
+        continue
+      if (lpSupply === 0n) continue
 
-      const amount0 = (vault0Balance * cp.userLpAmount) / cp.lpSupply
-      const amount1 = (vault1Balance * cp.userLpAmount) / cp.lpSupply
+      const amount0 = (vault0Balance * cp.userLpAmount) / lpSupply
+      const amount1 = (vault1Balance * cp.userLpAmount) / lpSupply
 
       const token0Info = tokens.get(cp.token0Mint)
       const token1Info = tokens.get(cp.token1Mint)
@@ -569,9 +740,9 @@ export const raydiumIntegration: SolanaIntegration = {
 
     // ── Build AMM v4 (legacy) positions ─────────────────────────────────────
     for (const amm of ammV4Matches) {
-      const baseVaultAcc = phase2Map[amm.baseVault]
-      const quoteVaultAcc = phase2Map[amm.quoteVault]
-      const lpMintAcc = phase2Map[amm.lpMint]
+      const baseVaultAcc = phase3Map[amm.baseVault]
+      const quoteVaultAcc = phase3Map[amm.quoteVault]
+      const lpMintAcc = phase3Map[amm.lpMint]
       if (!baseVaultAcc?.exists || !quoteVaultAcc?.exists || !lpMintAcc?.exists)
         continue
 
