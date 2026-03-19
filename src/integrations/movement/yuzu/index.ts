@@ -298,17 +298,14 @@ async function getUserPositions(
     const token0PriceUsd = token0Meta?.priceUsd
     const token1PriceUsd = token1Meta?.priceUsd
 
-    // Price of 1 human token0 in USD at the respective tick
-    const toUsdPrice = (storedTick: number): string => {
-      const adjusted = tickToAdjustedPrice(storedTick, dec0, dec1)
-      return token1PriceUsd !== undefined
-        ? (adjusted * token1PriceUsd).toString()
-        : '0'
-    }
+    // Match the other concentrated-liquidity integrations: these fields carry
+    // the normalized token0/token1 pool price derived from ticks.
+    const toPoolPrice = (storedTick: number): string =>
+      tickToAdjustedPrice(storedTick, dec0, dec1).toString()
 
-    const currentPriceUsd = toUsdPrice(poolView.current_tick)
-    const lowerPriceUsd = toUsdPrice(position.tick_lower)
-    const upperPriceUsd = toUsdPrice(position.tick_upper)
+    const currentPriceUsd = toPoolPrice(poolView.current_tick)
+    const lowerPriceUsd = toPoolPrice(position.tick_lower)
+    const upperPriceUsd = toPoolPrice(position.tick_upper)
 
     // Position is active when current tick is within [tick_lower, tick_upper)
     const isActive =
@@ -325,7 +322,9 @@ async function getUserPositions(
     const totalUsdValue =
       usdValue0 !== undefined && usdValue1 !== undefined
         ? usdValue0 + usdValue1
-        : undefined
+        : usdValue0 !== undefined
+          ? usdValue0
+          : usdValue1
 
     // Pending fee rewards (tokens_owed accumulate as uncollected trading fees)
     const feeRewards = []
