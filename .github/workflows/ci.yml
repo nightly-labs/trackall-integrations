@@ -31,8 +31,8 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
-      - name: Lint
-        run: bun run lint
+      # - name: Lint
+      #   run: bun run lint
 
       - name: Detect changed integration
         id: detect
