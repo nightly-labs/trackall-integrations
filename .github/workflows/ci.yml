@@ -28,7 +28,7 @@ jobs:
         with:
           bun-version-file: ".bun-version"
 
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile  --verbose
 
       - name: Typecheck
         run: bun run typecheck
