@@ -10,7 +10,7 @@ export function testIntegration(
   testAddress?: string,
 ) {
   const rpcUrl =
-    process.env.SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com'
+    process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
 
   describe(`${integration.platformId} integration`, () => {
     const getUserPositions = integration.getUserPositions

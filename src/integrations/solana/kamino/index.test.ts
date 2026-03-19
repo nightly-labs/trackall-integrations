@@ -1,30 +1,24 @@
 import { describe, expect, it } from 'bun:test'
 import { createSolanaRpc } from '@solana/kit'
 import { Connection } from '@solana/web3.js'
-import type { UserPositionsPlan } from '../../types/index'
-import { runIntegrations, TokenPlugin } from '../../types/index'
+import type { UserPositionsPlan } from '../../../types/index'
+import { runIntegrations, TokenPlugin } from '../../../types/index'
 import {
   fetchAccountsBatch,
   fetchProgramAccountsBatch,
-} from '../../utils/solana'
-import { meteoraIntegration } from './index'
+} from '../../../utils/solana'
+import { kaminoIntegration, testAddress } from './index'
 
 const solanaRpcUrl =
-  process.env.SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com'
-const wallet = 'D2TKNY5CwCHCTu5YPbpouC9D4DGuoSvFsaYnMyEg7djn'
-const wallets = [
-  'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd',
-  'D2TKNY5CwCHCTu5YPbpouC9D4DGuoSvFsaYnMyEg7djn',
-  'MWKpvtFpvXWnSbe8Pe5CajXnKFQucD6VDYyBvt7fYEi',
-  'DixNFxHwEYi2cQJviL6XdZf6534WKyxMugXD5KMKtTbf',
-  '7D5ZwmDH9HPJ3konuh5HRtVnWE1f7sKDz1pqyJ9LDcUP',
-]
+  process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
 
-const { getUserPositions } = meteoraIntegration
+const wallets = [testAddress, 'Hs9ioQZ2pCUyvS18anwmBxjQJsZrMPShwTMLySD6Us3V']
+
+const { getUserPositions } = kaminoIntegration
 if (!getUserPositions) throw new Error('getUserPositions not implemented')
 
-describe('meteora integration', () => {
-  it('fetches user positions from Meteora DLMM', async () => {
+describe('kamino integration', () => {
+  it('fetches KLend and KVault positions', async () => {
     const connection = new Connection(solanaRpcUrl, 'confirmed')
     const tokens = new TokenPlugin(createSolanaRpc(solanaRpcUrl))
     const plugins = { endpoint: solanaRpcUrl, tokens }
@@ -33,7 +27,7 @@ describe('meteora integration', () => {
     let totalAccounts = 0
 
     const [positions] = await runIntegrations(
-      [getUserPositions(wallet, plugins)],
+      [getUserPositions(testAddress, plugins)],
       async (addresses) => {
         totalBatches++
         totalAccounts += addresses.length
@@ -47,33 +41,50 @@ describe('meteora integration', () => {
 
     if (!positions) throw new Error('No results returned')
 
-    const liquidityPositions = positions.filter(
-      (p) => p.positionKind === 'liquidity',
+    const lendingPositions = positions.filter(
+      (p) => p.positionKind === 'lending',
+    )
+    const stakingPositions = positions.filter(
+      (p) => p.positionKind === 'staking',
     )
 
-    // Warm the token cache for all mints, then the integration uses get() internally
-    const mints = [
-      ...new Set(
-        liquidityPositions.flatMap((p) =>
-          p.poolTokens.map((t) => t.amount.token),
-        ),
-      ),
-    ]
-    await Promise.all(mints.map((mint) => tokens.fetch(mint)))
-
-    console.log(`\nFound ${positions.length} Meteora DLMM positions`)
+    console.log(`\nFound ${positions.length} Kamino positions`)
+    console.log(`  lending: ${lendingPositions.length}`)
+    console.log(`  staking: ${stakingPositions.length}`)
     console.log(
       `RPC batches: ${totalBatches}, total accounts fetched: ${totalAccounts}`,
     )
-    if (liquidityPositions.length > 0) {
-      console.log(
-        'Sample position:',
-        JSON.stringify(liquidityPositions[1] ?? liquidityPositions[0], null, 2),
-      )
-    }
+    console.log('Sample position:', JSON.stringify(positions, null, 2))
 
     expect(Array.isArray(positions)).toBe(true)
-  }, 60000)
+
+    for (const position of stakingPositions) {
+      if (position.staked !== undefined) {
+        expect(Array.isArray(position.staked)).toBe(true)
+        for (const staked of position.staked) {
+          expect(typeof staked.amount.token).toBe('string')
+          expect(typeof staked.amount.amount).toBe('string')
+          expect(typeof staked.amount.decimals).toBe('string')
+        }
+      }
+      if (position.unbonding !== undefined) {
+        expect(Array.isArray(position.unbonding)).toBe(true)
+        for (const unbonding of position.unbonding) {
+          expect(typeof unbonding.amount.token).toBe('string')
+          expect(typeof unbonding.amount.amount).toBe('string')
+          expect(typeof unbonding.amount.decimals).toBe('string')
+        }
+      }
+      if (position.rewards !== undefined) {
+        expect(Array.isArray(position.rewards)).toBe(true)
+        for (const reward of position.rewards) {
+          expect(typeof reward.amount.token).toBe('string')
+          expect(typeof reward.amount.amount).toBe('string')
+          expect(typeof reward.amount.decimals).toBe('string')
+        }
+      }
+    }
+  }, 90000)
 
   it('fetches positions for multiple wallets in batched RPC calls', async () => {
     const connection = new Connection(solanaRpcUrl, 'confirmed')
@@ -82,9 +93,8 @@ describe('meteora integration', () => {
 
     let totalBatches = 0
     let totalAccounts = 0
-    let naiveTotal = 0 // sum of each generator's yields — what sequential runs would fetch
+    let naiveTotal = 0
 
-    // Wraps a plan to count what it yields per round without affecting behaviour
     function trackYields(plan: UserPositionsPlan): UserPositionsPlan {
       return (async function* (): UserPositionsPlan {
         let step = await plan.next()
@@ -98,7 +108,7 @@ describe('meteora integration', () => {
     }
 
     const results = await runIntegrations(
-      wallets.map((w) => trackYields(getUserPositions(w, plugins))),
+      wallets.map((wallet) => trackYields(getUserPositions(wallet, plugins))),
       async (addresses) => {
         totalBatches++
         totalAccounts += addresses.length
@@ -122,13 +132,10 @@ describe('meteora integration', () => {
     console.log(
       `Sequential would have fetched: ${naiveTotal} — saved ${saved} (${savedPct}%)`,
     )
-    wallets.forEach((w, i) => {
-      console.log(`  ${w.slice(0, 8)}…  ${results[i]?.length ?? 0} positions`)
-    })
 
     expect(results).toHaveLength(wallets.length)
     for (const positions of results) {
       expect(Array.isArray(positions)).toBe(true)
     }
-  }, 60000)
+  }, 120000)
 })

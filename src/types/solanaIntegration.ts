@@ -1,5 +1,5 @@
 import type { PlatformId } from '../platforms/index'
-import type { TokenPlugin } from '../plugin/tokens'
+import type { TokenPlugin } from '../plugin/solana/tokens'
 import type { UserDefiPosition } from './position'
 
 export interface SolanaPlugins {

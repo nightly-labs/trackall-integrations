@@ -23,7 +23,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
-} from '../../types/index'
+} from '../../../types/index'
 
 type DecodedLbPair = {
   tokenXMint: PublicKey
