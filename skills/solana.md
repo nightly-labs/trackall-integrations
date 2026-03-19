@@ -114,7 +114,8 @@ Key rules:
 - Yield `GetProgramAccountsRequest` objects (with `kind: 'getProgramAccounts'`) to discover accounts owned by a program
 - Yield `SolanaAddress[]` to batch-fetch arbitrary accounts
 - The runner returns an `AccountsMap` (`Record<SolanaAddress, MaybeSolanaAccount>`) for each yield
-- Position types available: `ConcentratedRangeLiquidityDefiPosition`, `ConstantProductLiquidityDefiPosition`, `LendingDefiPosition`, `StakingDefiPosition` — all in `src/types/`
+- Position types available: `ConcentratedRangeLiquidityDefiPosition`, `ConstantProductLiquidityDefiPosition`, `LendingDefiPosition`, `StakingDefiPosition`, `VestingDefiPosition`, `RewardDefiPosition` — all in `src/types/`
+- Use nested `rewards` only when rewards belong to a primary position; use top-level `RewardDefiPosition` for standalone claimables like airdrops
 
 ---
 

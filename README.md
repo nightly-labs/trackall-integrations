@@ -9,6 +9,24 @@ DeFi position integrations for Trackall. The package currently contains:
 
 The package entrypoint currently auto-discovers and exports Solana integrations. Movement integrations are implemented and tested in-repo, but are not auto-exported from the package root.
 
+## Shared Position Kinds
+
+Integrations return `UserDefiPosition[]` built from the shared types in `src/types/position.ts`.
+
+Current top-level `positionKind` values:
+
+- `lending` for supplied and borrowed credit positions
+- `staking` for assets actively staked or in unbonding
+- `liquidity` for AMM or concentrated-liquidity pool positions
+- `vesting` for locked token allocations that unlock over time
+- `reward` for standalone claimable distributions such as airdrops or unclaimed incentives
+
+Modeling rules:
+
+- Use the dedicated top-level kind when the position itself is fundamentally lending, staking, liquidity, vesting, or reward-based.
+- Use the shared `rewards` field on a non-reward position only for incentives attached to that primary position.
+- Use `reward` when the claimable asset stands alone and is not naturally attached to a lending, staking, liquidity, or vesting position.
+
 ## Repository Layout
 
 ```text
@@ -115,6 +133,14 @@ Solana integrations use the async-generator batching protocol:
 
 Use `runIntegrations`, `fetchAccountsBatch`, and `fetchProgramAccountsBatch` for tests and local execution. Do not make direct RPC calls inside the integration when the same data can be requested through yielded batch operations.
 
+When building positions, prefer the shared types from `src/types/position.ts`:
+
+- `LendingDefiPosition`
+- `StakingDefiPosition`
+- `LiquidityDefiPosition`
+- `VestingDefiPosition`
+- `RewardDefiPosition`
+
 #### Movement / Aptos-style
 
 Implement `AptosIntegration` from `src/types/aptosIntegration.ts`.
@@ -154,6 +180,12 @@ Movement integrations in this repo currently use:
 - `testAptosIntegration` from `src/test/aptos-integration.ts` for shared test coverage
 
 Use `src/integrations/movement/yuzu/index.ts` as the canonical example.
+
+Use the same shared position taxonomy here:
+
+- emit `vesting` for token unlock schedules
+- emit `reward` for standalone claimable airdrops or incentive balances
+- keep nested `rewards` for incentives attached to another primary position
 
 ### 4. Add a local test entrypoint
 

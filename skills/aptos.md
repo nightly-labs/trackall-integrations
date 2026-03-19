@@ -130,6 +130,8 @@ When implementing protocol logic:
 - normalize addresses when the protocol can return mixed padded and non-padded forms
 - return `UserDefiPosition[]` using the shared position types from `src/types/`
 - keep repo-specific conventions aligned with `yuzu`
+- use `VestingDefiPosition` for token unlock schedules and `RewardDefiPosition` for standalone claimable rewards or airdrops
+- keep nested `rewards` for incentives attached to a primary lending, staking, liquidity, or vesting position
 
 ---
 
