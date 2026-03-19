@@ -3,6 +3,10 @@ import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk'
 import { AptosTokenPlugin } from '../plugin/aptos/tokens'
 import type { AptosIntegration } from '../types/aptosIntegration'
 
+export const MOVEMENT_INDEXER_URL =
+  process.env.MOVEMENT_INDEXER_URL ??
+  'https://indexer.mainnet.movementnetwork.xyz/v1/graphql'
+
 export function testAptosIntegration(
   integration: AptosIntegration,
   testAddress?: string,
@@ -10,13 +14,23 @@ export function testAptosIntegration(
   const rpcUrl =
     process.env.MOVEMENT_RPC_URL ?? 'https://mainnet.movementnetwork.xyz/v1'
 
-  const client = new Aptos(
-    new AptosConfig({
-      network: Network.CUSTOM,
-      fullnode: rpcUrl,
-      clientConfig: { http2: false },
-    }),
-  )
+  const indexerConfig = {
+    indexerUrl: MOVEMENT_INDEXER_URL,
+  } as {
+    indexerUrl: string
+  } as {
+    HEADERS?: Record<string, string | number | boolean>
+  }
+
+  const aptosConfig = {
+    network: Network.CUSTOM,
+    fullnode: rpcUrl,
+    clientConfig: { http2: false },
+    indexerConfig,
+  }
+
+  const client = new Aptos(new AptosConfig(aptosConfig))
+
   const tokens = new AptosTokenPlugin(client)
   const plugins = { client, tokens }
 
