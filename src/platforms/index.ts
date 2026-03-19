@@ -1,4 +1,5 @@
 import type { Platform } from '../types/platform'
+import canopyPlatform from './canopy'
 import jupiterLendPlatform from './jupiter'
 import kaminoPlatform from './kamino'
 import meridianPlatform from './meridian'
@@ -15,6 +16,7 @@ export const platforms = [
   movepositionPlatform,
   raydiumPlatform,
   yuzuPlatform,
+  canopyPlatform,
 ] as const satisfies readonly Platform[]
 
 export type PlatformId = (typeof platforms)[number]['id']
