@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { fetchMaybeMetadataFromSeeds } from '@metaplex-foundation/mpl-token-metadata-kit'
 import { address, type createSolanaRpc } from '@solana/kit'
-import type { SolanaAddress } from '../types/solanaIntegration'
+import type { SolanaAddress } from '../../types/solanaIntegration'
 
 type SolanaRpc = ReturnType<typeof createSolanaRpc>
 

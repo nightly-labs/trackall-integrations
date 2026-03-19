@@ -1,5 +1,5 @@
 export * from '../plugin/aptos/tokens'
-export * from '../plugin/tokens'
+export * from '../plugin/solana/tokens'
 export * from './aptosIntegration'
 export * from './platform'
 export * from './platformTag'

@@ -1,6 +1,6 @@
 import { readdir } from 'node:fs/promises'
 import { testAptosIntegration } from './aptos-integration'
-import { testIntegration } from './integration'
+import { testIntegration } from './solana-integration'
 
 const integrationsDir = new URL('../integrations/', import.meta.url)
 

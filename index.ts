@@ -23,8 +23,12 @@ export { createSolanaRpc } from '@solana/kit'
 export { meteoraIntegration } from './src/integrations/solana/meteora/index'
 export type { PlatformId } from './src/platforms/index'
 export { platforms } from './src/platforms/index'
-export type { TokenCreator, TokenData, TokensMap } from './src/plugin/tokens'
-export { TokenPlugin } from './src/plugin/tokens'
+export type {
+  TokenCreator,
+  TokenData,
+  TokensMap,
+} from './src/plugin/solana/tokens'
+export { TokenPlugin } from './src/plugin/solana/tokens'
 export type { Platform } from './src/types/platform'
 export type { UserDefiPosition } from './src/types/position'
 export { runIntegrations } from './src/types/runner'
