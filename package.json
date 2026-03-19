@@ -16,6 +16,7 @@
     "format": "biome format --write ."
   },
   "dependencies": {
+    "@aptos-labs/ts-sdk": "^6.2.0",
     "@coral-xyz/anchor": "^0.32.1",
     "@jup-ag/lend": "^0.1.8",
     "@metaplex-foundation/mpl-token-metadata-kit": "latest",
