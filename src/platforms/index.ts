@@ -1,5 +1,6 @@
 import type { Platform } from '../types/platform'
 import jupiterLendPlatform from './jupiter'
+import kaminoPlatform from './kamino'
 import meteoraPlatform from './meteora'
 import raydiumPlatform from './raydium'
 import yuzuPlatform from './yuzu'

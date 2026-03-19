@@ -19,6 +19,8 @@
     "@aptos-labs/ts-sdk": "^6.2.0",
     "@coral-xyz/anchor": "^0.32.1",
     "@jup-ag/lend": "^0.1.8",
+    "@kamino-finance/farms-sdk": "^3.2.24",
+    "@kamino-finance/klend-sdk": "^7.3.20",
     "@metaplex-foundation/mpl-token-metadata-kit": "latest",
     "@meteora-ag/dlmm": "^1.9.4",
     "@raydium-io/raydium-sdk-v2": "^0.2.32-alpha",
