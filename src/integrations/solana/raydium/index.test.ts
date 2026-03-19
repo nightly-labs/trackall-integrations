@@ -23,6 +23,8 @@ describe('raydium integration', () => {
 
     let totalBatches = 0
     let totalAccounts = 0
+    let getProgramAccountsCalls = 0
+    let getTokenAccountsByOwnerCalls = 0
 
     const [positions] = await runIntegrations(
       [getUserPositions(wallet, plugins)],
@@ -34,7 +36,14 @@ describe('raydium integration', () => {
         )
         return fetchAccountsBatch(connection, addresses)
       },
-      (req) => fetchProgramAccountsBatch(connection, req),
+      (req) => {
+        if (req.kind === 'getProgramAccounts') {
+          getProgramAccountsCalls++
+        } else if (req.kind === 'getTokenAccountsByOwner') {
+          getTokenAccountsByOwnerCalls++
+        }
+        return fetchProgramAccountsBatch(connection, req)
+      },
     )
 
     if (!positions) throw new Error('No results returned')
@@ -57,8 +66,13 @@ describe('raydium integration', () => {
     console.log(
       `RPC batches: ${totalBatches}, total accounts fetched: ${totalAccounts}`,
     )
+    console.log(
+      `Program requests: getProgramAccounts=${getProgramAccountsCalls}, getTokenAccountsByOwner=${getTokenAccountsByOwnerCalls}`,
+    )
     console.log('Sample position:', JSON.stringify(liquidityPositions, null, 2))
 
     expect(Array.isArray(positions)).toBe(true)
-  }, 120000)
+    expect(getProgramAccountsCalls).toBe(0)
+    expect(getTokenAccountsByOwnerCalls).toBe(2)
+  }, 180000)
 })

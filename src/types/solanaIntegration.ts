@@ -25,9 +25,16 @@ export interface GetTokenAccountsByOwnerRequest {
   programId: SolanaAddress
 }
 
+export interface GetHttpJsonRequest {
+  kind: 'getHttpJson'
+  url: string
+  keyField?: string
+}
+
 export type ProgramRequest =
   | GetProgramAccountsRequest
   | GetTokenAccountsByOwnerRequest
+  | GetHttpJsonRequest
 
 export type SolanaAddress = string
 
