@@ -1,7 +1,7 @@
 import { readdir } from 'node:fs/promises'
 import type { SolanaIntegration } from './src/types/index'
 
-const integrationsDir = new URL('./src/solana/', import.meta.url)
+const integrationsDir = new URL('./src/integrations/solana/', import.meta.url)
 
 const solanaModules = await Promise.all(
   (
@@ -25,7 +25,7 @@ export { platforms } from './src/platforms/index'
 export type { TokenCreator, TokenData, TokensMap } from './src/plugin/tokens'
 export { TokenPlugin } from './src/plugin/tokens'
 
-export { meteoraIntegration } from './src/solana/meteora/index'
+export { meteoraIntegration } from './src/integrations/solana/meteora/index'
 export type { Platform } from './src/types/platform'
 export type { UserDefiPosition } from './src/types/position'
 export { runIntegrations } from './src/types/runner'
