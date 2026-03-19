@@ -111,12 +111,16 @@
         },
         {
           "name": "recipient_token_account_0",
-          "docs": ["The address that receives the collected token_0 protocol fees"],
+          "docs": [
+            "The address that receives the collected token_0 protocol fees"
+          ],
           "writable": true
         },
         {
           "name": "recipient_token_account_1",
-          "docs": ["The address that receives the collected token_1 protocol fees"],
+          "docs": [
+            "The address that receives the collected token_1 protocol fees"
+          ],
           "writable": true
         },
         {
@@ -189,12 +193,16 @@
         },
         {
           "name": "recipient_token_account_0",
-          "docs": ["The address that receives the collected token_0 protocol fees"],
+          "docs": [
+            "The address that receives the collected token_0 protocol fees"
+          ],
           "writable": true
         },
         {
           "name": "recipient_token_account_1",
-          "docs": ["The address that receives the collected token_1 protocol fees"],
+          "docs": [
+            "The address that receives the collected token_1 protocol fees"
+          ],
           "writable": true
         },
         {
@@ -249,7 +257,9 @@
         },
         {
           "name": "reward_token_vault",
-          "docs": ["Reward vault transfer remaining token to founder token account"]
+          "docs": [
+            "Reward vault transfer remaining token to founder token account"
+          ]
         },
         {
           "name": "reward_vault_mint",
@@ -504,15 +514,18 @@
         },
         {
           "name": "tick_array_bitmap",
-          "docs": ["Initialize an account to store if a tick array is initialized."],
+          "docs": [
+            "Initialize an account to store if a tick array is initialized."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  112, 111, 111, 108, 95, 116, 105, 99, 107, 95, 97, 114, 114, 97, 121, 95, 98, 105,
-                  116, 109, 97, 112, 95, 101, 120, 116, 101, 110, 115, 105, 111, 110
+                  112, 111, 111, 108, 95, 116, 105, 99, 107, 95, 97, 114, 114,
+                  97, 121, 95, 98, 105, 116, 109, 97, 112, 95, 101, 120, 116,
+                  101, 110, 115, 105, 111, 110
                 ]
               },
               {
@@ -572,13 +585,17 @@
         },
         {
           "name": "support_mint_associated",
-          "docs": ["Initialize support mint state account to store support mint address and bump."],
+          "docs": [
+            "Initialize support mint state account to store support mint address and bump."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
-                "value": [115, 117, 112, 112, 111, 114, 116, 95, 109, 105, 110, 116]
+                "value": [
+                  115, 117, 112, 112, 111, 114, 116, 95, 109, 105, 110, 116
+                ]
               },
               {
                 "kind": "account",
@@ -1134,7 +1151,8 @@
               {
                 "kind": "const",
                 "value": [
-                  112, 111, 111, 108, 95, 114, 101, 119, 97, 114, 100, 95, 118, 97, 117, 108, 116
+                  112, 111, 111, 108, 95, 114, 101, 119, 97, 114, 100, 95, 118,
+                  97, 117, 108, 116
                 ]
               },
               {
@@ -1222,8 +1240,9 @@
               {
                 "kind": "const",
                 "value": [
-                  6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235, 121, 172, 28,
-                  180, 133, 237, 95, 91, 55, 145, 58, 140, 245, 133, 126, 255, 0, 169
+                  6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206,
+                  235, 121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140,
+                  245, 133, 126, 255, 0, 169
                 ]
               },
               {
@@ -1234,8 +1253,9 @@
             "program": {
               "kind": "const",
               "value": [
-                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142, 13, 131, 11, 90, 19,
-                153, 218, 255, 16, 132, 4, 142, 123, 216, 219, 233, 248, 89
+                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
+                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
+                219, 233, 248, 89
               ]
             }
           }
@@ -1459,8 +1479,9 @@
               {
                 "kind": "const",
                 "value": [
-                  6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235, 121, 172, 28,
-                  180, 133, 237, 95, 91, 55, 145, 58, 140, 245, 133, 126, 255, 0, 169
+                  6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206,
+                  235, 121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140,
+                  245, 133, 126, 255, 0, 169
                 ]
               },
               {
@@ -1471,8 +1492,9 @@
             "program": {
               "kind": "const",
               "value": [
-                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142, 13, 131, 11, 90, 19,
-                153, 218, 255, 16, 132, 4, 142, 123, 216, 219, 233, 248, 89
+                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
+                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
+                219, 233, 248, 89
               ]
             }
           }
@@ -1838,7 +1860,9 @@
         },
         {
           "name": "token_program_2022",
-          "docs": ["Program to create NFT mint/token account and transfer for token22 account"],
+          "docs": [
+            "Program to create NFT mint/token account and transfer for token22 account"
+          ],
           "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
         },
         {
@@ -1910,7 +1934,9 @@
       "accounts": [
         {
           "name": "authority",
-          "docs": ["Address to be set as protocol owner. It pays to create factory state account."],
+          "docs": [
+            "Address to be set as protocol owner. It pays to create factory state account."
+          ],
           "signer": true
         },
         {
@@ -1990,7 +2016,9 @@
         },
         {
           "name": "pool_state",
-          "docs": ["The program account of the pool in which the swap will be performed"],
+          "docs": [
+            "The program account of the pool in which the swap will be performed"
+          ],
           "writable": true
         },
         {
@@ -2015,7 +2043,9 @@
         },
         {
           "name": "observation_state",
-          "docs": ["The program account for the most recent oracle observation"],
+          "docs": [
+            "The program account for the most recent oracle observation"
+          ],
           "writable": true
         },
         {
@@ -2129,7 +2159,9 @@
         },
         {
           "name": "pool_state",
-          "docs": ["The program account of the pool in which the swap will be performed"],
+          "docs": [
+            "The program account of the pool in which the swap will be performed"
+          ],
           "writable": true
         },
         {
@@ -2154,7 +2186,9 @@
         },
         {
           "name": "observation_state",
-          "docs": ["The program account for the most recent oracle observation"],
+          "docs": [
+            "The program account for the most recent oracle observation"
+          ],
           "writable": true
         },
         {
@@ -2719,7 +2753,9 @@
           },
           {
             "name": "trade_fee_rate",
-            "docs": ["The trade fee, denominated in hundredths of a bip (10^-6)"],
+            "docs": [
+              "The trade fee, denominated in hundredths of a bip (10^-6)"
+            ],
             "type": "u32"
           },
           {
@@ -2729,7 +2765,9 @@
           },
           {
             "name": "fund_fee_rate",
-            "docs": ["The fund fee, denominated in hundredths of a bip (10^-6)"],
+            "docs": [
+              "The fund fee, denominated in hundredths of a bip (10^-6)"
+            ],
             "type": "u32"
           },
           {
@@ -2757,27 +2795,37 @@
         "fields": [
           {
             "name": "position_nft_mint",
-            "docs": ["The ID of the token for which underlying tokens were collected"],
+            "docs": [
+              "The ID of the token for which underlying tokens were collected"
+            ],
             "type": "pubkey"
           },
           {
             "name": "recipient_token_account_0",
-            "docs": ["The token account that received the collected token_0 tokens"],
+            "docs": [
+              "The token account that received the collected token_0 tokens"
+            ],
             "type": "pubkey"
           },
           {
             "name": "recipient_token_account_1",
-            "docs": ["The token account that received the collected token_1 tokens"],
+            "docs": [
+              "The token account that received the collected token_1 tokens"
+            ],
             "type": "pubkey"
           },
           {
             "name": "amount_0",
-            "docs": ["The amount of token_0 owed to the position that was collected"],
+            "docs": [
+              "The amount of token_0 owed to the position that was collected"
+            ],
             "type": "u64"
           },
           {
             "name": "amount_1",
-            "docs": ["The amount of token_1 owed to the position that was collected"],
+            "docs": [
+              "The amount of token_1 owed to the position that was collected"
+            ],
             "type": "u64"
           }
         ]
@@ -2785,7 +2833,9 @@
     },
     {
       "name": "CollectProtocolFeeEvent",
-      "docs": ["Emitted when the collected protocol fees are withdrawn by the factory owner"],
+      "docs": [
+        "Emitted when the collected protocol fees are withdrawn by the factory owner"
+      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -2796,12 +2846,16 @@
           },
           {
             "name": "recipient_token_account_0",
-            "docs": ["The address that receives the collected token_0 protocol fees"],
+            "docs": [
+              "The address that receives the collected token_0 protocol fees"
+            ],
             "type": "pubkey"
           },
           {
             "name": "recipient_token_account_1",
-            "docs": ["The address that receives the collected token_1 protocol fees"],
+            "docs": [
+              "The address that receives the collected token_1 protocol fees"
+            ],
             "type": "pubkey"
           },
           {
@@ -2872,7 +2926,9 @@
           },
           {
             "name": "nft_owner",
-            "docs": ["The owner of the position and recipient of any minted liquidity"],
+            "docs": [
+              "The owner of the position and recipient of any minted liquidity"
+            ],
             "type": "pubkey"
           },
           {
@@ -2926,17 +2982,23 @@
           },
           {
             "name": "liquidity",
-            "docs": ["The amount by which liquidity for the position was decreased"],
+            "docs": [
+              "The amount by which liquidity for the position was decreased"
+            ],
             "type": "u128"
           },
           {
             "name": "decrease_amount_0",
-            "docs": ["The amount of token_0 that was paid for the decrease in liquidity"],
+            "docs": [
+              "The amount of token_0 that was paid for the decrease in liquidity"
+            ],
             "type": "u64"
           },
           {
             "name": "decrease_amount_1",
-            "docs": ["The amount of token_1 that was paid for the decrease in liquidity"],
+            "docs": [
+              "The amount of token_1 that was paid for the decrease in liquidity"
+            ],
             "type": "u64"
           },
           {
@@ -2981,17 +3043,23 @@
           },
           {
             "name": "liquidity",
-            "docs": ["The amount by which liquidity for the NFT position was increased"],
+            "docs": [
+              "The amount by which liquidity for the NFT position was increased"
+            ],
             "type": "u128"
           },
           {
             "name": "amount_0",
-            "docs": ["The amount of token_0 that was paid for the increase in liquidity"],
+            "docs": [
+              "The amount of token_0 that was paid for the increase in liquidity"
+            ],
             "type": "u64"
           },
           {
             "name": "amount_1",
-            "docs": ["The amount of token_1 that was paid for the increase in liquidity"],
+            "docs": [
+              "The amount of token_1 that was paid for the increase in liquidity"
+            ],
             "type": "u64"
           },
           {
@@ -3024,7 +3092,9 @@
           },
           {
             "name": "emissions_per_second_x64",
-            "docs": ["Token reward per second are earned per unit of liquidity"],
+            "docs": [
+              "Token reward per second are earned per unit of liquidity"
+            ],
             "type": "u128"
           }
         ]
@@ -3076,12 +3146,16 @@
           },
           {
             "name": "transfer_fee_0",
-            "docs": ["The amount of token_0 transfer fee without trade_fee_amount_0"],
+            "docs": [
+              "The amount of token_0 transfer fee without trade_fee_amount_0"
+            ],
             "type": "u64"
           },
           {
             "name": "transfer_fee_1",
-            "docs": ["The amount of token_1 transfer fee without trade_fee_amount_0"],
+            "docs": [
+              "The amount of token_1 transfer fee without trade_fee_amount_0"
+            ],
             "type": "u64"
           }
         ]
@@ -3089,7 +3163,9 @@
     },
     {
       "name": "LiquidityChangeEvent",
-      "docs": ["Emitted pool liquidity change when increase and decrease liquidity"],
+      "docs": [
+        "Emitted pool liquidity change when increase and decrease liquidity"
+      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -3179,7 +3255,9 @@
           },
           {
             "name": "observation_index",
-            "docs": ["the most-recently updated index of the observations array"],
+            "docs": [
+              "the most-recently updated index of the observations array"
+            ],
             "type": "u16"
           },
           {
@@ -3297,12 +3375,16 @@
           },
           {
             "name": "token_fees_owed_0",
-            "docs": ["The fees owed to the position owner in token_0, as of the last computation"],
+            "docs": [
+              "The fees owed to the position owner in token_0, as of the last computation"
+            ],
             "type": "u64"
           },
           {
             "name": "token_fees_owed_1",
-            "docs": ["The fees owed to the position owner in token_1, as of the last computation"],
+            "docs": [
+              "The fees owed to the position owner in token_1, as of the last computation"
+            ],
             "type": "u64"
           },
           {
@@ -3333,7 +3415,10 @@
     },
     {
       "name": "PoolCreatedEvent",
-      "docs": ["Emitted when a pool is created and initialized with a starting price", ""],
+      "docs": [
+        "Emitted when a pool is created and initialized with a starting price",
+        ""
+      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -3415,7 +3500,9 @@
           },
           {
             "name": "token_mint_0",
-            "docs": ["Token pair of the pool, where token_mint_0 address < token_mint_1 address"],
+            "docs": [
+              "Token pair of the pool, where token_mint_0 address < token_mint_1 address"
+            ],
             "type": "pubkey"
           },
           {
@@ -3457,7 +3544,9 @@
           },
           {
             "name": "sqrt_price_x64",
-            "docs": ["The current price of the pool as a sqrt(token_1/token_0) Q64.64 value"],
+            "docs": [
+              "The current price of the pool as a sqrt(token_1/token_0) Q64.64 value"
+            ],
             "type": "u128"
           },
           {
@@ -3489,7 +3578,9 @@
           },
           {
             "name": "protocol_fees_token_0",
-            "docs": ["The amounts of token_0 and token_1 that are owed to the protocol."],
+            "docs": [
+              "The amounts of token_0 and token_1 that are owed to the protocol."
+            ],
             "type": "u64"
           },
           {
@@ -3674,7 +3765,9 @@
           },
           {
             "name": "reward_growth_inside",
-            "docs": ["The reward growth per unit of liquidity as of the last update to liquidity"],
+            "docs": [
+              "The reward growth per unit of liquidity as of the last update to liquidity"
+            ],
             "type": {
               "array": ["u128", 3]
             }
@@ -3803,7 +3896,9 @@
           },
           {
             "name": "sender",
-            "docs": ["The address that initiated the swap call, and that received the callback"],
+            "docs": [
+              "The address that initiated the swap call, and that received the callback"
+            ],
             "type": "pubkey"
           },
           {
@@ -3824,12 +3919,16 @@
           },
           {
             "name": "amount_0",
-            "docs": ["The real delta amount of the token_0 of the pool or user"],
+            "docs": [
+              "The real delta amount of the token_0 of the pool or user"
+            ],
             "type": "u64"
           },
           {
             "name": "transfer_fee_0",
-            "docs": ["The transfer fee charged by the withheld_amount of the token_0"],
+            "docs": [
+              "The transfer fee charged by the withheld_amount of the token_0"
+            ],
             "type": "u64"
           },
           {
@@ -3839,7 +3938,9 @@
           },
           {
             "name": "transfer_fee_1",
-            "docs": ["The transfer fee charged by the withheld_amount of the token_1"],
+            "docs": [
+              "The transfer fee charged by the withheld_amount of the token_1"
+            ],
             "type": "u64"
           },
           {
@@ -3881,7 +3982,9 @@
           },
           {
             "name": "positive_tick_array_bitmap",
-            "docs": ["Packed initialized tick array state for start_tick_index is positive"],
+            "docs": [
+              "Packed initialized tick array state for start_tick_index is positive"
+            ],
             "type": {
               "array": [
                 {
@@ -3893,7 +3996,9 @@
           },
           {
             "name": "negative_tick_array_bitmap",
-            "docs": ["Packed initialized tick array state for start_tick_index is negitive"],
+            "docs": [
+              "Packed initialized tick array state for start_tick_index is negitive"
+            ],
             "type": {
               "array": [
                 {

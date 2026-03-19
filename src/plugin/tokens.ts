@@ -1,8 +1,8 @@
 import { Database } from 'bun:sqlite'
-import { address, createSolanaRpc } from '@solana/kit'
-import { fetchMaybeMetadataFromSeeds } from '@metaplex-foundation/mpl-token-metadata-kit'
-import { dirname } from 'node:path'
 import { mkdirSync } from 'node:fs'
+import { dirname } from 'node:path'
+import { fetchMaybeMetadataFromSeeds } from '@metaplex-foundation/mpl-token-metadata-kit'
+import { address, type createSolanaRpc } from '@solana/kit'
 import type { SolanaAddress } from '../types/solanaIntegration'
 
 type SolanaRpc = ReturnType<typeof createSolanaRpc>
@@ -51,14 +51,29 @@ export class TokenPlugin {
 
     this.db = new Database(cachePath)
 
-    const tableInfo = this.db.query('PRAGMA table_info(tokens)').all() as Array<{ name: string }>
-    const hasTokenAddress = tableInfo.some((column) => column.name === 'token_address')
-    const hasTokenData = tableInfo.some((column) => column.name === 'token_data')
-    const hasLegacyMintAddress = tableInfo.some((column) => column.name === 'mint_address')
+    const tableInfo = this.db
+      .query('PRAGMA table_info(tokens)')
+      .all() as Array<{ name: string }>
+    const hasTokenAddress = tableInfo.some(
+      (column) => column.name === 'token_address',
+    )
+    const hasTokenData = tableInfo.some(
+      (column) => column.name === 'token_data',
+    )
+    const hasLegacyMintAddress = tableInfo.some(
+      (column) => column.name === 'mint_address',
+    )
     const hasLegacyData = tableInfo.some((column) => column.name === 'data')
 
-    if (!hasTokenAddress && !hasTokenData && hasLegacyMintAddress && hasLegacyData) {
-      this.db.run('ALTER TABLE tokens RENAME COLUMN mint_address TO token_address')
+    if (
+      !hasTokenAddress &&
+      !hasTokenData &&
+      hasLegacyMintAddress &&
+      hasLegacyData
+    ) {
+      this.db.run(
+        'ALTER TABLE tokens RENAME COLUMN mint_address TO token_address',
+      )
       this.db.run('ALTER TABLE tokens RENAME COLUMN data TO token_data')
     }
 
@@ -80,18 +95,25 @@ export class TokenPlugin {
 
     let rows: Array<{ token_address: string; token_data: string }> = []
     try {
-      rows = this.db.query('SELECT token_address, token_data FROM tokens').all() as Array<{
+      rows = this.db
+        .query('SELECT token_address, token_data FROM tokens')
+        .all() as Array<{
         token_address: string
         token_data: string
       }>
     } catch {
       // Backward compatibility for older schema name if present
       try {
-        const legacyRows = this.db.query('SELECT mint_address, data FROM tokens').all() as Array<{
+        const legacyRows = this.db
+          .query('SELECT mint_address, data FROM tokens')
+          .all() as Array<{
           mint_address: string
           data: string
         }>
-        rows = legacyRows.map((row) => ({ token_address: row.mint_address, token_data: row.data }))
+        rows = legacyRows.map((row) => ({
+          token_address: row.mint_address,
+          token_data: row.data,
+        }))
       } catch {
         // Table missing or unreadable — start with empty cache
       }
@@ -144,10 +166,14 @@ export class TokenPlugin {
     return result.get(mint)
   }
 
-  async fetchMany(mints: readonly SolanaAddress[]): Promise<Map<SolanaAddress, TokenData | undefined>> {
+  async fetchMany(
+    mints: readonly SolanaAddress[],
+  ): Promise<Map<SolanaAddress, TokenData | undefined>> {
     const uniqueMints = [...new Set(mints)]
     if (uniqueMints.length > MAX_ACCOUNT_FETCH_SIZE) {
-      throw new Error(`fetchMany supports at most ${MAX_ACCOUNT_FETCH_SIZE} mints per call`)
+      throw new Error(
+        `fetchMany supports at most ${MAX_ACCOUNT_FETCH_SIZE} mints per call`,
+      )
     }
 
     const result = new Map<SolanaAddress, TokenData | undefined>()
@@ -164,7 +190,10 @@ export class TokenPlugin {
 
     if (uncachedMints.length === 0) return result
 
-    const accountFetchTargets: Array<{ mint: SolanaAddress; address: ReturnType<typeof address> }> = []
+    const accountFetchTargets: Array<{
+      mint: SolanaAddress
+      address: ReturnType<typeof address>
+    }> = []
     for (const mint of uncachedMints) {
       try {
         accountFetchTargets.push({ mint, address: address(mint) })
@@ -188,7 +217,11 @@ export class TokenPlugin {
         const target = accountFetchTargets[index]
         if (!target) return
 
-        if (!accountInfo || !accountInfo.data || !Array.isArray(accountInfo.data)) {
+        if (
+          !accountInfo ||
+          !accountInfo.data ||
+          !Array.isArray(accountInfo.data)
+        ) {
           result.set(target.mint, undefined)
           return
         }
@@ -218,7 +251,9 @@ export class TokenPlugin {
     await Promise.all(
       allTokens.map(async ({ tokenData }) => {
         try {
-          const metadataAccount = await fetchMaybeMetadataFromSeeds(this.rpc, { mint: address(tokenData.mintAddress) })
+          const metadataAccount = await fetchMaybeMetadataFromSeeds(this.rpc, {
+            mint: address(tokenData.mintAddress),
+          })
           if (!metadataAccount.exists) return
 
           const metadata = metadataAccount.data
@@ -238,11 +273,14 @@ export class TokenPlugin {
 
           if (metadata.uri) {
             try {
-              const offChain = (await fetch(metadata.uri).then((r) => r.json())) as {
+              const offChain = (await fetch(metadata.uri).then((r) =>
+                r.json(),
+              )) as {
                 description?: string
                 image?: string
               }
-              if (offChain.description) tokenData.description = offChain.description
+              if (offChain.description)
+                tokenData.description = offChain.description
               if (offChain.image) tokenData.image = offChain.image
             } catch {
               // Off-chain metadata fetch failed — proceed without it

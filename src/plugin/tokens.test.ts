@@ -1,14 +1,18 @@
-import { describe, expect, it } from 'bun:test'
-import { address, createSolanaRpc } from '@solana/kit'
-import { join } from 'node:path'
 import { Database } from 'bun:sqlite'
+import { describe, expect, it } from 'bun:test'
+import { join } from 'node:path'
+import { address, createSolanaRpc } from '@solana/kit'
 
-import { TokenPlugin, type TokenData } from './tokens'
+import { type TokenData, TokenPlugin } from './tokens'
 
-const RPC_URL = process.env.SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com'
+const RPC_URL =
+  process.env.SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com'
 const rpc = createSolanaRpc(RPC_URL)
 const TARGET_TOKEN_COUNT = 100
-const RAYDIUM_CACHE_FILE = new URL('./raydium-token-addresses.json', import.meta.url)
+const RAYDIUM_CACHE_FILE = new URL(
+  './raydium-token-addresses.json',
+  import.meta.url,
+)
 let cachedRaydiumAddresses: string[] | null = null
 
 async function loadRaydiumTokenAddresses(): Promise<string[]> {
@@ -18,7 +22,9 @@ async function loadRaydiumTokenAddresses(): Promise<string[]> {
   cachedRaydiumAddresses = [
     ...new Set(
       cached
-        .filter((item): item is string => typeof item === 'string' && item.length > 0)
+        .filter(
+          (item): item is string => typeof item === 'string' && item.length > 0,
+        )
         .filter((tokenAddress): tokenAddress is string => {
           try {
             address(tokenAddress)
@@ -33,7 +39,11 @@ async function loadRaydiumTokenAddresses(): Promise<string[]> {
 }
 
 function testDbPath(name: string): string {
-  return join(process.cwd(), '.cache', `${name}-${Date.now()}-${Math.random().toString(16).slice(2)}.sqlite`)
+  return join(
+    process.cwd(),
+    '.cache',
+    `${name}-${Date.now()}-${Math.random().toString(16).slice(2)}.sqlite`,
+  )
 }
 
 function createTokensTable(db: Database): void {
@@ -45,10 +55,14 @@ function createTokensTable(db: Database): void {
   `)
 }
 
-function queryRows(dbPath: string): Array<{ token_address: string; token_data: string }> {
+function queryRows(
+  dbPath: string,
+): Array<{ token_address: string; token_data: string }> {
   const db = new Database(dbPath, { strict: true })
   try {
-    return db.query('SELECT token_address, token_data FROM tokens').all() as Array<{
+    return db
+      .query('SELECT token_address, token_data FROM tokens')
+      .all() as Array<{
       token_address: string
       token_data: string
     }>
@@ -71,7 +85,9 @@ describe('TokenPlugin', () => {
     it('accepts exactly 100 addresses and rejects 101', async () => {
       const tokenAddresses = await loadRaydiumTokenAddresses()
       if (tokenAddresses.length < TARGET_TOKEN_COUNT + 1) {
-        throw new Error(`Expected at least ${TARGET_TOKEN_COUNT + 1} token addresses, got ${tokenAddresses.length}`)
+        throw new Error(
+          `Expected at least ${TARGET_TOKEN_COUNT + 1} token addresses, got ${tokenAddresses.length}`,
+        )
       }
 
       const plugin = new TokenPlugin(rpc)
@@ -99,15 +115,16 @@ describe('TokenPlugin', () => {
         symbol: 'SOL',
       }
 
-      const validInsert = db.prepare('INSERT INTO tokens (token_address, token_data) VALUES (?, ?)')
-      validInsert.run(validToken.mintAddress, JSON.stringify(validToken))
-      db.prepare('INSERT INTO tokens (token_address, token_data) VALUES (?, ?)').run(
-        'BadAddress',
-        '{ this is: not json }',
+      const validInsert = db.prepare(
+        'INSERT INTO tokens (token_address, token_data) VALUES (?, ?)',
       )
+      validInsert.run(validToken.mintAddress, JSON.stringify(validToken))
+      db.prepare(
+        'INSERT INTO tokens (token_address, token_data) VALUES (?, ?)',
+      ).run('BadAddress', '{ this is: not json }')
       db.close()
 
-      const plugin = new TokenPlugin(({} as unknown) as never, dbPath)
+      const plugin = new TokenPlugin({} as unknown as never, dbPath)
       await plugin.load()
 
       expect(plugin.get(validToken.mintAddress)).toEqual(validToken)
@@ -127,13 +144,12 @@ describe('TokenPlugin', () => {
         name: 'Old Token B',
         symbol: 'BTOK',
       }
-      db.prepare('INSERT INTO tokens (token_address, token_data) VALUES (?, ?)').run(
-        initialToken.mintAddress,
-        JSON.stringify(initialToken),
-      )
+      db.prepare(
+        'INSERT INTO tokens (token_address, token_data) VALUES (?, ?)',
+      ).run(initialToken.mintAddress, JSON.stringify(initialToken))
       db.close()
 
-      const plugin = new TokenPlugin(({} as unknown) as never, dbPath)
+      const plugin = new TokenPlugin({} as unknown as never, dbPath)
       await plugin.load()
 
       const pluginAny = plugin as unknown as { map: Map<string, TokenData> }
@@ -158,13 +174,16 @@ describe('TokenPlugin', () => {
       expect(rows).toHaveLength(2)
 
       const tokenARow = rows.find((r) => r.token_address === tokenA.mintAddress)
-      const tokenBRow = rows.find((r) => r.token_address === initialToken.mintAddress)
+      const tokenBRow = rows.find(
+        (r) => r.token_address === initialToken.mintAddress,
+      )
 
       expect(tokenARow).toBeDefined()
       expect(tokenBRow).toBeDefined()
+      if (!tokenARow || !tokenBRow) throw new Error('rows not found')
 
-      const loadedTokenA = JSON.parse(tokenARow!.token_data) as TokenData
-      const loadedTokenB = JSON.parse(tokenBRow!.token_data) as TokenData
+      const loadedTokenA = JSON.parse(tokenARow.token_data) as TokenData
+      const loadedTokenB = JSON.parse(tokenBRow.token_data) as TokenData
 
       expect(loadedTokenA).toEqual(tokenA)
       expect(loadedTokenB).toEqual(initialToken)
@@ -174,7 +193,7 @@ describe('TokenPlugin', () => {
 
     it('persists full map when save is called without specific addresses', async () => {
       const dbPath = testDbPath('tokens-save-full')
-      const plugin = new TokenPlugin(({} as unknown) as never, dbPath)
+      const plugin = new TokenPlugin({} as unknown as never, dbPath)
       const pluginAny = plugin as unknown as { map: Map<string, TokenData> }
 
       const token: TokenData = {
@@ -189,7 +208,9 @@ describe('TokenPlugin', () => {
       const rows = queryRows(dbPath)
 
       expect(rows).toHaveLength(1)
-      expect(JSON.parse(rows[0]!.token_data)).toEqual(token)
+      const row = rows[0]
+      if (!row) throw new Error('row not found')
+      expect(JSON.parse(row.token_data)).toEqual(token)
 
       closeAndDeleteDb(plugin, dbPath)
     })

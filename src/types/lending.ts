@@ -1,4 +1,8 @@
-import { BaseDefiPosition, PositionKind, PositionValue } from './positionCommon'
+import type {
+  BaseDefiPosition,
+  PositionKind,
+  PositionValue,
+} from './positionCommon'
 
 export interface LendingSuppliedAsset extends PositionValue {
   /** Collateral factor for this supplied token, decimal string. */

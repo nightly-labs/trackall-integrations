@@ -33,8 +33,9 @@
               {
                 "kind": "const",
                 "value": [
-                  118, 97, 117, 108, 116, 95, 97, 110, 100, 95, 108, 112, 95, 109, 105, 110, 116,
-                  95, 97, 117, 116, 104, 95, 115, 101, 101, 100
+                  118, 97, 117, 108, 116, 95, 97, 110, 100, 95, 108, 112, 95,
+                  109, 105, 110, 116, 95, 97, 117, 116, 104, 95, 115, 101, 101,
+                  100
                 ]
               }
             ]
@@ -125,8 +126,9 @@
               {
                 "kind": "const",
                 "value": [
-                  118, 97, 117, 108, 116, 95, 97, 110, 100, 95, 108, 112, 95, 109, 105, 110, 116,
-                  95, 97, 117, 116, 104, 95, 115, 101, 101, 100
+                  118, 97, 117, 108, 116, 95, 97, 110, 100, 95, 108, 112, 95,
+                  109, 105, 110, 116, 95, 97, 117, 116, 104, 95, 115, 101, 101,
+                  100
                 ]
               }
             ]
@@ -161,12 +163,16 @@
         },
         {
           "name": "recipient_token_0_account",
-          "docs": ["The address that receives the collected token_0 protocol fees"],
+          "docs": [
+            "The address that receives the collected token_0 protocol fees"
+          ],
           "writable": true
         },
         {
           "name": "recipient_token_1_account",
-          "docs": ["The address that receives the collected token_1 protocol fees"],
+          "docs": [
+            "The address that receives the collected token_1 protocol fees"
+          ],
           "writable": true
         },
         {
@@ -286,8 +292,9 @@
               {
                 "kind": "const",
                 "value": [
-                  118, 97, 117, 108, 116, 95, 97, 110, 100, 95, 108, 112, 95, 109, 105, 110, 116,
-                  95, 97, 117, 116, 104, 95, 115, 101, 101, 100
+                  118, 97, 117, 108, 116, 95, 97, 110, 100, 95, 108, 112, 95,
+                  109, 105, 110, 116, 95, 97, 117, 116, 104, 95, 115, 101, 101,
+                  100
                 ]
               }
             ]
@@ -394,8 +401,9 @@
               {
                 "kind": "const",
                 "value": [
-                  118, 97, 117, 108, 116, 95, 97, 110, 100, 95, 108, 112, 95, 109, 105, 110, 116,
-                  95, 97, 117, 116, 104, 95, 115, 101, 101, 100
+                  118, 97, 117, 108, 116, 95, 97, 110, 100, 95, 108, 112, 95,
+                  109, 105, 110, 116, 95, 97, 117, 116, 104, 95, 115, 101, 101,
+                  100
                 ]
               }
             ]
@@ -432,7 +440,9 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [112, 111, 111, 108, 95, 108, 112, 95, 109, 105, 110, 116]
+                "value": [
+                  112, 111, 111, 108, 95, 108, 112, 95, 109, 105, 110, 116
+                ]
               },
               {
                 "kind": "account",
@@ -464,8 +474,9 @@
               {
                 "kind": "const",
                 "value": [
-                  6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235, 121, 172, 28,
-                  180, 133, 237, 95, 91, 55, 145, 58, 140, 245, 133, 126, 255, 0, 169
+                  6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206,
+                  235, 121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140,
+                  245, 133, 126, 255, 0, 169
                 ]
               },
               {
@@ -476,8 +487,9 @@
             "program": {
               "kind": "const",
               "value": [
-                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142, 13, 131, 11, 90, 19,
-                153, 218, 255, 16, 132, 4, 142, 123, 216, 219, 233, 248, 89
+                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
+                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
+                219, 233, 248, 89
               ]
             }
           }
@@ -615,8 +627,9 @@
               {
                 "kind": "const",
                 "value": [
-                  118, 97, 117, 108, 116, 95, 97, 110, 100, 95, 108, 112, 95, 109, 105, 110, 116,
-                  95, 97, 117, 116, 104, 95, 115, 101, 101, 100
+                  118, 97, 117, 108, 116, 95, 97, 110, 100, 95, 108, 112, 95,
+                  109, 105, 110, 116, 95, 97, 117, 116, 104, 95, 115, 101, 101,
+                  100
                 ]
               }
             ]
@@ -628,7 +641,9 @@
         },
         {
           "name": "pool_state",
-          "docs": ["The program account of the pool in which the swap will be performed"],
+          "docs": [
+            "The program account of the pool in which the swap will be performed"
+          ],
           "writable": true
         },
         {
@@ -669,7 +684,9 @@
         },
         {
           "name": "observation_state",
-          "docs": ["The program account for the most recent oracle observation"],
+          "docs": [
+            "The program account for the most recent oracle observation"
+          ],
           "writable": true
         }
       ],
@@ -710,8 +727,9 @@
               {
                 "kind": "const",
                 "value": [
-                  118, 97, 117, 108, 116, 95, 97, 110, 100, 95, 108, 112, 95, 109, 105, 110, 116,
-                  95, 97, 117, 116, 104, 95, 115, 101, 101, 100
+                  118, 97, 117, 108, 116, 95, 97, 110, 100, 95, 108, 112, 95,
+                  109, 105, 110, 116, 95, 97, 117, 116, 104, 95, 115, 101, 101,
+                  100
                 ]
               }
             ]
@@ -723,7 +741,9 @@
         },
         {
           "name": "pool_state",
-          "docs": ["The program account of the pool in which the swap will be performed"],
+          "docs": [
+            "The program account of the pool in which the swap will be performed"
+          ],
           "writable": true
         },
         {
@@ -764,7 +784,9 @@
         },
         {
           "name": "observation_state",
-          "docs": ["The program account for the most recent oracle observation"],
+          "docs": [
+            "The program account for the most recent oracle observation"
+          ],
           "writable": true
         }
       ],
@@ -878,8 +900,9 @@
               {
                 "kind": "const",
                 "value": [
-                  118, 97, 117, 108, 116, 95, 97, 110, 100, 95, 108, 112, 95, 109, 105, 110, 116,
-                  95, 97, 117, 116, 104, 95, 115, 101, 101, 100
+                  118, 97, 117, 108, 116, 95, 97, 110, 100, 95, 108, 112, 95,
+                  109, 105, 110, 116, 95, 97, 117, 116, 104, 95, 115, 101, 101,
+                  100
                 ]
               }
             ]
@@ -1065,7 +1088,9 @@
           },
           {
             "name": "trade_fee_rate",
-            "docs": ["The trade fee, denominated in hundredths of a bip (10^-6)"],
+            "docs": [
+              "The trade fee, denominated in hundredths of a bip (10^-6)"
+            ],
             "type": "u64"
           },
           {
@@ -1075,7 +1100,9 @@
           },
           {
             "name": "fund_fee_rate",
-            "docs": ["The fund fee, denominated in hundredths of a bip (10^-6)"],
+            "docs": [
+              "The fund fee, denominated in hundredths of a bip (10^-6)"
+            ],
             "type": "u64"
           },
           {
@@ -1202,7 +1229,9 @@
           },
           {
             "name": "observation_index",
-            "docs": ["the most-recently updated index of the observations array"],
+            "docs": [
+              "the most-recently updated index of the observations array"
+            ],
             "type": "u16"
           },
           {
@@ -1330,7 +1359,9 @@
           },
           {
             "name": "protocol_fees_token_0",
-            "docs": ["The amounts of token_0 and token_1 that are owed to the liquidity provider."],
+            "docs": [
+              "The amounts of token_0 and token_1 that are owed to the liquidity provider."
+            ],
             "type": "u64"
           },
           {

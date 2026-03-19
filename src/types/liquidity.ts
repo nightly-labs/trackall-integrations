@@ -1,4 +1,8 @@
-import { BaseDefiPosition, PositionKind, PositionValue } from './positionCommon'
+import type {
+  BaseDefiPosition,
+  PositionKind,
+  PositionValue,
+} from './positionCommon'
 
 export type LiquidityModel = 'constant-product' | 'concentrated-range'
 
@@ -17,14 +21,16 @@ export interface BaseLiquidityDefiPosition extends BaseDefiPosition {
   feeBps?: string
 }
 
-export interface ConstantProductLiquidityDefiPosition extends BaseLiquidityDefiPosition {
+export interface ConstantProductLiquidityDefiPosition
+  extends BaseLiquidityDefiPosition {
   /** Liquidity model marker for this subtype. */
   liquidityModel: Extract<LiquidityModel, 'constant-product'>
   /** Optional total LP token amount for this position (decimal string). */
   lpTokenAmount?: string
 }
 
-export interface ConcentratedRangeLiquidityDefiPosition extends BaseLiquidityDefiPosition {
+export interface ConcentratedRangeLiquidityDefiPosition
+  extends BaseLiquidityDefiPosition {
   /** Liquidity model marker for this subtype. */
   liquidityModel: Extract<LiquidityModel, 'concentrated-range'>
   /** Explicit activity status for this liquidity position. */
