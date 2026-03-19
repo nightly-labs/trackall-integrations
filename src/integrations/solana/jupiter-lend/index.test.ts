@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'bun:test'
 import { createSolanaRpc } from '@solana/kit'
 import { Connection } from '@solana/web3.js'
-import type { UserPositionsPlan } from '../../types/index'
-import { runIntegrations, TokenPlugin } from '../../types/index'
+import type { UserPositionsPlan } from '../../../types/index'
+import { runIntegrations, TokenPlugin } from '../../../types/index'
 import {
   fetchAccountsBatch,
   fetchProgramAccountsBatch,
-} from '../../utils/solana'
+} from '../../../utils/solana'
 import { jupiterLendIntegration, testAddress } from './index'
 
 const solanaRpcUrl =
-  process.env.SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com'
+  process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
 const wallets = ['BsYDTmksyvTWpP3DGSWpoAXP7ykFDhikYdKEVspkStc4']
 
 const { getUserPositions } = jupiterLendIntegration

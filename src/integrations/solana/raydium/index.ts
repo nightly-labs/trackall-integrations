@@ -10,7 +10,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
-} from '../../types/index'
+} from '../../../types/index'
 
 import clmmIdl from './idls/amm_v3.json'
 import cpIdl from './idls/raydium_cp_swap.json'

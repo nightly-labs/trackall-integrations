@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'bun:test'
 import { createSolanaRpc } from '@solana/kit'
 import { Connection } from '@solana/web3.js'
-import { runIntegrations, TokenPlugin } from '../../types/index'
+import { runIntegrations, TokenPlugin } from '../../../types/index'
 import {
   fetchAccountsBatch,
   fetchProgramAccountsBatch,
-} from '../../utils/solana'
+} from '../../../utils/solana'
 import { raydiumIntegration } from './index'
 
 const solanaRpcUrl =
-  process.env.SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com'
+  process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
 const wallet = '93PSyNrS7zBhrXaHHfU1ZtfegcKq5SaCYc35ZwPVrK3K'
 
 const { getUserPositions } = raydiumIntegration

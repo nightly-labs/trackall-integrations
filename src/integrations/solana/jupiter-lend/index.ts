@@ -21,7 +21,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
-} from '../../types/index'
+} from '../../../types/index'
 import lendingIdl from './idls/lending.json'
 import vaultsIdl from './idls/vaults.json'
 

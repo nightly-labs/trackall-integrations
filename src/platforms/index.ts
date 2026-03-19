@@ -8,6 +8,7 @@ import yuzuPlatform from './yuzu'
 export const platforms = [
   meteoraPlatform,
   jupiterLendPlatform,
+  kaminoPlatform,
   raydiumPlatform,
   yuzuPlatform,
 ] as const satisfies readonly Platform[]

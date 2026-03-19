@@ -4,7 +4,7 @@ import { AptosTokenPlugin } from '../plugin/aptos/tokens'
 import type { AptosIntegration } from '../types/aptosIntegration'
 
 export const MOVEMENT_INDEXER_URL =
-  process.env.MOVEMENT_INDEXER_URL ??
+  process.env.MOVEMENT_INDEXER_URL ||
   'https://indexer.mainnet.movementnetwork.xyz/v1/graphql'
 
 export function testAptosIntegration(
@@ -12,7 +12,7 @@ export function testAptosIntegration(
   testAddress?: string,
 ) {
   const rpcUrl =
-    process.env.MOVEMENT_RPC_URL ?? 'https://mainnet.movementnetwork.xyz/v1'
+    process.env.MOVEMENT_RPC_URL || 'https://mainnet.movementnetwork.xyz/v1'
 
   const indexerConfig = {
     indexerUrl: MOVEMENT_INDEXER_URL,

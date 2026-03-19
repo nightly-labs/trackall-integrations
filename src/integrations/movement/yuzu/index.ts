@@ -9,6 +9,9 @@ import type { UserDefiPosition } from '../../../types/position'
 const YUZU_CONTRACT =
   '0x46566b4a16a1261ab400ab5b9067de84ba152b5eb4016b217187f2a2ca980c5a' as const
 
+export const testAddress =
+  '0xdd284fb30311654251f1bc7ee9293962e1f28177534a56185ad5a553a72ed911'
+
 // NFT manager account — all positions are stored in the liquidity_pool under this address
 const NFT_MANAGER =
   '0x1d0434ae92598710f5ccbfbf51cf66cf2fe8ba8e77381bed92f45bb32d237bc2' as const
@@ -166,15 +169,19 @@ async function getUserPositions(
   }
 
   // 1. Discover user's Yuzu position NFTs via the indexer (fast, single query)
-  const indexerUrl = (client.config.indexerConfig as {
-    indexerUrl: string
-  } | null | undefined)?.indexerUrl
+  const indexerUrl = (
+    client.config.indexerConfig as
+      | {
+          indexerUrl: string
+        }
+      | null
+      | undefined
+  )?.indexerUrl
 
   if (indexerUrl === undefined) return []
 
-  const nftPositions = await runTimed(
-    'fetchUserNftPositions',
-    () => fetchUserNftPositions(address, indexerUrl),
+  const nftPositions = await runTimed('fetchUserNftPositions', () =>
+    fetchUserNftPositions(address, indexerUrl),
   )
   if (!nftPositions.length) return []
 
@@ -220,16 +227,14 @@ async function getUserPositions(
               },
             }),
         ),
-        runTimed(
-          `client.view/get_position_token_amounts:${positionId}`,
-          () =>
-            client.view({
-              payload: {
-                function: `${YUZU_CONTRACT}::position_nft_manager::get_position_token_amounts`,
-                typeArguments: [],
-                functionArguments: [poolAddress, positionId.toString()],
-              },
-            }),
+        runTimed(`client.view/get_position_token_amounts:${positionId}`, () =>
+          client.view({
+            payload: {
+              function: `${YUZU_CONTRACT}::position_nft_manager::get_position_token_amounts`,
+              typeArguments: [],
+              functionArguments: [poolAddress, positionId.toString()],
+            },
+          }),
         ),
       ])
 
@@ -271,9 +276,8 @@ async function getUserPositions(
   if (!validPositions.length) return []
 
   // 5. Fetch all token metadata in one batch
-  const tokenMetadataMap = await runTimed(
-    'tokens.fetchMany',
-    () => tokens.fetchMany([...tokenIds]),
+  const tokenMetadataMap = await runTimed('tokens.fetchMany', () =>
+    tokens.fetchMany([...tokenIds]),
   )
 
   // 6. Build ConcentratedRangeLiquidityDefiPosition for each valid position
@@ -458,3 +462,5 @@ export const yuzuIntegration: AptosIntegration = {
   platformId: 'yuzu',
   getUserPositions,
 }
+
+export default yuzuIntegration
