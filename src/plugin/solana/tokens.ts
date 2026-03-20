@@ -302,6 +302,19 @@ export class TokenPlugin {
     return result
   }
 
+  /** Update priceUsd for tokens present in the prices map. */
+  updatePrices(prices: Map<string, number>): string[] {
+    const updated: string[] = []
+    for (const [address, price] of prices) {
+      const token = this.map.get(address)
+      if (token) {
+        token.priceUsd = price
+        updated.push(address)
+      }
+    }
+    return updated
+  }
+
   /** Read-only view of the full in-memory map. */
   get tokens(): ReadonlyMap<SolanaAddress, TokenData> {
     return this.map
