@@ -3,9 +3,9 @@ import type {
   AptosPlugins,
 } from '../../../types/aptosIntegration'
 import type {
+  LendingBorrowedAsset,
   LendingDefiPosition,
   LendingSuppliedAsset,
-  LendingBorrowedAsset,
 } from '../../../types/lending'
 import type { UserDefiPosition } from '../../../types/position'
 
@@ -77,10 +77,7 @@ function decimalStringToFraction(value: string): {
   }
 }
 
-function multiplyRawAmount(
-  rawAmount: string,
-  exchangeRate: number,
-): string {
+function multiplyRawAmount(rawAmount: string, exchangeRate: number): string {
   const { numerator, denominator } = decimalStringToFraction(
     exchangeRate.toString(),
   )
@@ -111,7 +108,9 @@ async function fetchJson<T>(
 
   if (response.status === 404) return null
   if (!response.ok) {
-    throw new Error(`MovePosition API request failed: ${response.status} ${path}`)
+    throw new Error(
+      `MovePosition API request failed: ${response.status} ${path}`,
+    )
   }
 
   return (await response.json()) as T
@@ -152,7 +151,10 @@ function buildBorrowedAsset(
   leg: MovePositionPortfolioLeg,
   broker: MovePositionBrokerResponse,
 ): LendingBorrowedAsset {
-  const underlyingAmount = multiplyRawAmount(leg.amount, broker.loanNoteExchangeRate)
+  const underlyingAmount = multiplyRawAmount(
+    leg.amount,
+    broker.loanNoteExchangeRate,
+  )
   const priceUsd = broker.underlyingAsset.price
   const usdValue = buildUsdValue(
     underlyingAmount,

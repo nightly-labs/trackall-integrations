@@ -3,6 +3,7 @@ import jupiterLendPlatform from './jupiter'
 import kaminoPlatform from './kamino'
 import meridianPlatform from './meridian'
 import meteoraPlatform from './meteora'
+import mosaicPlatform from './mosaic'
 import movepositionPlatform from './moveposition'
 import raydiumPlatform from './raydium'
 import yuzuPlatform from './yuzu'
@@ -12,6 +13,7 @@ export const platforms = [
   jupiterLendPlatform,
   kaminoPlatform,
   meridianPlatform,
+  mosaicPlatform,
   movepositionPlatform,
   raydiumPlatform,
   yuzuPlatform,
