@@ -3,19 +3,12 @@ import type {
   AptosPlugins,
 } from '../../../types/aptosIntegration'
 import type {
-  LendingBorrowedAsset,
-  LendingDefiPosition,
-  LendingSuppliedAsset,
-} from '../../../types/lending'
-import type {
   ConcentratedRangeLiquidityDefiPosition,
   ConstantProductLiquidityDefiPosition,
 } from '../../../types/liquidity'
 import type { UserDefiPosition } from '../../../types/position'
 import type { PositionValue } from '../../../types/positionCommon'
 
-const MERIDIAN_LENDING =
-  '0x6a01d5761d43a5b5a0ccbfc42edf2d02c0611464aae99a2ea0e0d4819f0550b5' as const
 const MERIDIAN_POOL_LENS =
   '0xf501748b0da7a1bde3e040566f1ea0eea1540a28264078a9ee596c0a5fa7bd94' as const
 const MERIDIAN_CL_POOL =
@@ -24,7 +17,6 @@ const MERIDIAN_CL_FARMING =
   '0x4c5da52eaa510af14e93e7b16dddf3c5d6a9b3f847d18dc8e7499fc71a5a0a24' as const
 
 const MERIDIAN_CL_COLLECTION_DESCRIPTION = 'MeridianCL position collection'
-const MOVE_METADATA = '0xa' as const
 const CLMM_PAGE_SIZE = 50
 
 export const testAddress =
@@ -32,10 +24,6 @@ export const testAddress =
 
 interface ObjectRef {
   inner: string
-}
-
-interface FixedPoint64 {
-  v: string
 }
 
 interface SignedBits {
@@ -50,31 +38,6 @@ interface MeridianPoolInfo {
   assets_metadata: ObjectRef[]
   balances: string[]
   swap_fee_bps: string
-}
-
-interface MeridianFarmingRewardRecord {
-  key: string
-  value: {
-    reward_amount: string
-    reward_name: string
-  }
-}
-
-interface MeridianFarmingPoolRecord {
-  key: string
-  value: {
-    farming_identifier: string
-    rewards: {
-      data: MeridianFarmingRewardRecord[]
-    }
-    stake_amount: string
-  }
-}
-
-interface MeridianFarmingStaker {
-  user_pools?: {
-    data?: MeridianFarmingPoolRecord[]
-  }
 }
 
 interface MeridianClOwnership {
@@ -122,11 +85,6 @@ function normalizeAddress(address: string): string {
 function normalizeHexPrefix(address: string): string {
   if (!address.startsWith('0x')) return address.toLowerCase()
   return `0x${address.slice(2).toLowerCase()}`
-}
-
-function fixedPoint64ToNumber(value: FixedPoint64 | string): number {
-  const raw = typeof value === 'string' ? value : value.v
-  return Number(raw) / 2 ** 64
 }
 
 function decodeSignedTick(value: SignedBits | string | number): number {
@@ -215,21 +173,6 @@ function prorateRawAmount(
   ).toString()
 }
 
-function rewardNameToTokenId(rewardName: string): string {
-  if (rewardName.toLowerCase() === 'move coin') return MOVE_METADATA
-  return rewardName
-}
-
-function isOnchainTokenId(tokenId: string): boolean {
-  return tokenId.startsWith('0x') || tokenId.includes('::')
-}
-
-function extractMarketAddress(identifier: string): string | undefined {
-  const match = identifier.match(/0x[0-9a-fA-F]+/)
-  if (!match) return undefined
-  return normalizeAddress(match[0])
-}
-
 function uniqueStrings(values: readonly string[]): string[] {
   return [...new Set(values)]
 }
@@ -247,286 +190,6 @@ async function view<T>(
     },
   })) as T[]
 }
-
-async function getLendingRewardMap(
-  address: string,
-  plugins: AptosPlugins,
-): Promise<Map<string, PositionValue[]>> {
-  let resource: MeridianFarmingStaker | undefined
-
-  try {
-    resource = await plugins.client.getAccountResource<MeridianFarmingStaker>({
-      accountAddress: address as `0x${string}`,
-      resourceType: `${MERIDIAN_LENDING}::farming::Staker`,
-    })
-  } catch {
-    return new Map()
-  }
-
-  const rewardItems = (resource.user_pools?.data ?? []).flatMap((pool) => {
-    const marketAddress = extractMarketAddress(pool.value.farming_identifier)
-    if (!marketAddress) return []
-
-    return (pool.value.rewards.data ?? [])
-      .filter((reward) => reward.value.reward_amount !== '0')
-      .map((reward) => ({
-        marketAddress,
-        tokenId: rewardNameToTokenId(reward.value.reward_name || reward.key),
-        amount: reward.value.reward_amount,
-      }))
-  })
-
-  if (!rewardItems.length) return new Map()
-
-  const tokenMetadata = await plugins.tokens.fetchMany(
-    uniqueStrings(
-      rewardItems
-        .map((reward) => reward.tokenId)
-        .filter((tokenId) => isOnchainTokenId(tokenId)),
-    ),
-  )
-
-  const rewardMap = new Map<string, Map<string, PositionValue>>()
-
-  for (const reward of rewardItems) {
-    const tokenInfo = tokenMetadata.get(reward.tokenId)
-    const decimals = tokenInfo?.decimals ?? 8
-    const priceUsd = tokenInfo?.priceUsd
-    const key = `${reward.tokenId}:${decimals}`
-    const byToken = rewardMap.get(reward.marketAddress) ?? new Map()
-    const existing = byToken.get(key)
-    const totalAmount = (
-      BigInt(existing?.amount.amount ?? '0') + BigInt(reward.amount)
-    ).toString()
-
-    byToken.set(
-      key,
-      buildPositionValue(reward.tokenId, totalAmount, decimals, priceUsd),
-    )
-    rewardMap.set(reward.marketAddress, byToken)
-  }
-
-  return new Map(
-    [...rewardMap.entries()].map(([marketAddress, byToken]) => [
-      marketAddress,
-      [...byToken.values()],
-    ]),
-  )
-}
-
-async function getLendingPositions(
-  address: string,
-  plugins: AptosPlugins,
-): Promise<LendingDefiPosition[]> {
-  const [collateralMarketsResult, liabilityMarketsResult, rewardMap] =
-    await Promise.all([
-      view<ObjectRef[]>(
-        plugins,
-        `${MERIDIAN_LENDING}::lending::account_collateral_markets`,
-        [address],
-      ),
-      view<ObjectRef[]>(
-        plugins,
-        `${MERIDIAN_LENDING}::lending::account_liability_markets`,
-        [address],
-      ),
-      getLendingRewardMap(address, plugins),
-    ])
-
-  const collateralMarkets = collateralMarketsResult[0] ?? []
-  const liabilityMarkets = liabilityMarketsResult[0] ?? []
-
-  const marketAddressMap = new Map<string, string>()
-  for (const market of [...collateralMarkets, ...liabilityMarkets]) {
-    marketAddressMap.set(normalizeAddress(market.inner), market.inner)
-  }
-
-  if (!marketAddressMap.size && rewardMap.size === 0) return []
-
-  let accountHealthFactor: string | undefined
-  if (liabilityMarkets.length > 0) {
-    try {
-      const [liabilityValueResult, liquidationThresholdResult] =
-        await Promise.all([
-          view<FixedPoint64>(
-            plugins,
-            `${MERIDIAN_LENDING}::lending::account_liability_value`,
-            [address],
-          ),
-          view<FixedPoint64>(
-            plugins,
-            `${MERIDIAN_LENDING}::lending::account_liquidation_threshold`,
-            [address],
-          ),
-        ])
-
-      const liabilityValue = fixedPoint64ToNumber(
-        liabilityValueResult[0] ?? '0',
-      )
-      const liquidationThreshold = fixedPoint64ToNumber(
-        liquidationThresholdResult[0] ?? '0',
-      )
-      if (liabilityValue > 0) {
-        accountHealthFactor = (liquidationThreshold / liabilityValue).toString()
-      }
-    } catch {
-      // Health factor is optional; keep positions even if the account-level view fails.
-    }
-  }
-
-  const positions = await Promise.allSettled(
-    [...marketAddressMap.entries()].map(async ([normalizedMarket, market]) => {
-      const [
-        sharesResult,
-        liabilityResult,
-        assetPriceResult,
-        isCoinResult,
-        collateralFactorResult,
-        liquidationThresholdResult,
-        supplyRateResult,
-      ] = await Promise.all([
-        view<string>(plugins, `${MERIDIAN_LENDING}::lending::account_shares`, [
-          address,
-          market,
-        ]),
-        view<string>(
-          plugins,
-          `${MERIDIAN_LENDING}::lending::account_liability`,
-          [address, market],
-        ),
-        view<FixedPoint64>(
-          plugins,
-          `${MERIDIAN_LENDING}::lending::asset_price`,
-          [market],
-        ),
-        view<boolean>(plugins, `${MERIDIAN_LENDING}::lending::market_is_coin`, [
-          market,
-        ]),
-        view<string>(
-          plugins,
-          `${MERIDIAN_LENDING}::lending::market_collateral_factor_bps`,
-          [market],
-        ),
-        view<string>(
-          plugins,
-          `${MERIDIAN_LENDING}::lending::market_liquidation_threshold_bps`,
-          [market],
-        ),
-        view<FixedPoint64>(
-          plugins,
-          `${MERIDIAN_LENDING}::lending::supply_interest_rate`,
-          [market],
-        ),
-      ])
-
-      const shares = String(sharesResult[0] ?? '0')
-      const liability = String(liabilityResult[0] ?? '0')
-      const hasSupply = shares !== '0'
-      const hasBorrow = liability !== '0'
-      const rewards = rewardMap.get(normalizedMarket) ?? []
-
-      if (!hasSupply && !hasBorrow && rewards.length === 0) return undefined
-
-      const marketIsCoin = Boolean(isCoinResult[0])
-      const [tokenResult, suppliedAmountResult, borrowRateResult] =
-        await Promise.all([
-          marketIsCoin
-            ? view<string>(
-                plugins,
-                `${MERIDIAN_LENDING}::lending::market_coin`,
-                [market],
-              )
-            : view<ObjectRef>(
-                plugins,
-                `${MERIDIAN_LENDING}::lending::market_asset_metadata`,
-                [market],
-              ),
-          hasSupply
-            ? view<string>(
-                plugins,
-                `${MERIDIAN_LENDING}::lending::shares_to_coins`,
-                [market, shares],
-              )
-            : Promise.resolve(['0'] as string[]),
-          hasBorrow
-            ? view<FixedPoint64>(
-                plugins,
-                `${MERIDIAN_LENDING}::lending::borrow_interest_rate`,
-                [market],
-              )
-            : Promise.resolve([] as FixedPoint64[]),
-        ])
-
-      const tokenId = marketIsCoin
-        ? String(tokenResult[0])
-        : (tokenResult[0] as ObjectRef).inner
-
-      const tokenInfo = await plugins.tokens.fetch(tokenId)
-      const decimals = tokenInfo?.decimals ?? 8
-      const priceUsd = fixedPoint64ToNumber(assetPriceResult[0] ?? '0')
-      const suppliedAmount = String(suppliedAmountResult[0] ?? '0')
-
-      const supplied: LendingSuppliedAsset[] = []
-      const borrowed: LendingBorrowedAsset[] = []
-
-      if (hasSupply && suppliedAmount !== '0') {
-        supplied.push({
-          ...buildPositionValue(tokenId, suppliedAmount, decimals, priceUsd),
-          collateralFactor: (
-            Number(collateralFactorResult[0] ?? '0') / 10_000
-          ).toString(),
-          supplyRate: fixedPoint64ToNumber(
-            supplyRateResult[0] ?? '0',
-          ).toString(),
-        })
-      }
-
-      if (hasBorrow) {
-        const borrowedAsset: LendingBorrowedAsset = {
-          ...buildPositionValue(tokenId, liability, decimals, priceUsd),
-          maintenanceRatio: (
-            Number(liquidationThresholdResult[0] ?? '0') / 10_000
-          ).toString(),
-        }
-
-        if (borrowRateResult.length > 0) {
-          borrowedAsset.borrowRate = fixedPoint64ToNumber(
-            borrowRateResult[0] ?? '0',
-          ).toString()
-        }
-
-        borrowed.push(borrowedAsset)
-      }
-
-      const suppliedUsd = sumUsdValues(supplied)
-      const borrowedUsd = sumUsdValues(borrowed)
-      const netValueUsd =
-        suppliedUsd !== undefined && borrowedUsd !== undefined
-          ? (Number(suppliedUsd) - Number(borrowedUsd)).toString()
-          : suppliedUsd
-
-      const position: LendingDefiPosition = {
-        positionKind: 'lending',
-        platformId: 'meridian',
-        ...(supplied.length > 0 && { supplied }),
-        ...(borrowed.length > 0 && { borrowed }),
-        ...(netValueUsd !== undefined && { usdValue: netValueUsd }),
-        ...(accountHealthFactor !== undefined &&
-          borrowed.length > 0 && { healthFactor: accountHealthFactor }),
-        ...(rewards.length > 0 && { rewards }),
-      }
-
-      return position
-    }),
-  )
-
-  return positions.flatMap((position) =>
-    position.status === 'fulfilled' && position.value !== undefined
-      ? [position.value]
-      : [],
-  )
-}
-
 async function findPoolsByLpMetadata(
   plugins: AptosPlugins,
   lpMetadataAddresses: readonly string[],
@@ -994,13 +657,12 @@ async function getUserPositions(
   address: string,
   plugins: AptosPlugins,
 ): Promise<UserDefiPosition[]> {
-  const [lendingPositions, lpPositions, clmmPositions] = await Promise.all([
-    getLendingPositions(address, plugins),
+  const [lpPositions, clmmPositions] = await Promise.all([
     getPoolLpPositions(address, plugins),
     getClmmPositions(address, plugins),
   ])
 
-  return [...lendingPositions, ...lpPositions, ...clmmPositions]
+  return [...lpPositions, ...clmmPositions]
 }
 
 export const meridianIntegration: AptosIntegration = {
