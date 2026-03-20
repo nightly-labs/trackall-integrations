@@ -1,38 +1,64 @@
 import { readdir } from 'node:fs/promises'
-import type { SolanaIntegration } from './src/types/index'
+import type { AptosIntegration } from './src/types/aptosIntegration'
+import type { SolanaIntegration } from './src/types/solanaIntegration'
 
-const integrationsDir = new URL('./src/integrations/solana/', import.meta.url)
+const solanaDir = new URL('./src/integrations/solana/', import.meta.url)
+const movementDir = new URL('./src/integrations/movement/', import.meta.url)
 
-const solanaModules = await Promise.all(
-  (
-    await readdir(integrationsDir, {
-      withFileTypes: true,
-    })
+async function loadIntegrations(dir: URL) {
+  const entries = await readdir(dir, { withFileTypes: true })
+  return Promise.all(
+    entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => import(new URL(`${entry.name}/index.ts`, dir).href)),
   )
-    .filter((entry) => entry.isDirectory())
-    .map(
-      (entry) =>
-        import(new URL(`${entry.name}/index.ts`, integrationsDir).href),
-    ),
-)
+}
+
+const [solanaModules, movementModules] = await Promise.all([
+  loadIntegrations(solanaDir),
+  loadIntegrations(movementDir),
+])
 
 export const solanaIntegrations: SolanaIntegration[] = solanaModules.map(
-  (module) => module.default,
+  (m) => m.default,
 )
-export { createSolanaRpc } from '@solana/kit'
-export { meteoraIntegration } from './src/integrations/solana/meteora/index'
+export const movementIntegrations: AptosIntegration[] = movementModules.map(
+  (m) => m.default,
+)
+
+// Types
+export type {
+  AptosAddress,
+  AptosAccountsMap,
+  AptosIntegration,
+  AptosPlugins,
+  AptosResource,
+} from './src/types/aptosIntegration'
+export type { SolanaIntegration, SolanaPlugins } from './src/types/solanaIntegration'
+export type {
+  AccountsMap,
+  MaybeSolanaAccount,
+  ProgramAccountFilter,
+  ProgramRequest,
+  SolanaAccount,
+  SolanaAccountNotFound,
+  SolanaAddress,
+  UserPositionsPlan,
+} from './src/types/solanaIntegration'
+export type { Platform } from './src/types/platform'
+export type { UserDefiPosition } from './src/types/position'
 export type { PlatformId } from './src/platforms/index'
-export { platforms } from './src/platforms/index'
 export type {
   TokenCreator,
   TokenData,
   TokensMap,
 } from './src/plugin/solana/tokens'
+
+// Utilities
+export { createSolanaRpc } from '@solana/kit'
+export { platforms } from './src/platforms/index'
 export { TokenPlugin } from './src/plugin/solana/tokens'
-export type { Platform } from './src/types/platform'
-export type { UserDefiPosition } from './src/types/position'
 export { runIntegrations } from './src/types/runner'
-export type { SolanaPlugins } from './src/types/solanaIntegration'
 export {
   createFetchAccounts,
   createFetchProgramAccounts,
