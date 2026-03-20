@@ -45,8 +45,28 @@ export type {
   SolanaAddress,
   UserPositionsPlan,
 } from './src/types/solanaIntegration'
-export type { Platform } from './src/types/platform'
-export type { UserDefiPosition } from './src/types/position'
+export type { Platform, PlatformLinks } from './src/types/platform'
+export { PlatformTag } from './src/types/platformTag'
+export type {
+  UserDefiPosition,
+  LendingDefiPosition,
+  LendingSuppliedAsset,
+  LendingBorrowedAsset,
+  StakingDefiPosition,
+  StakedAsset,
+  LiquidityDefiPosition,
+  BaseLiquidityDefiPosition,
+  ConstantProductLiquidityDefiPosition,
+  ConcentratedRangeLiquidityDefiPosition,
+  LiquidityModel,
+  VestingDefiPosition,
+  VestingAsset,
+  RewardDefiPosition,
+  BaseDefiPosition,
+  PositionKind,
+  PositionValue,
+  TokenAmount,
+} from './src/types/position'
 export type { PlatformId } from './src/platforms/index'
 export type {
   TokenCreator,
@@ -56,7 +76,11 @@ export type {
 
 // Utilities
 export { AptosTokenPlugin } from './src/plugin/aptos/tokens'
-export type { AptosTokenData } from './src/plugin/aptos/tokens'
+export type {
+  AptosTokenData,
+  AptosTokenIdentifier,
+  AptosTokenStandard,
+} from './src/plugin/aptos/tokens'
 export { createSolanaRpc } from '@solana/kit'
 export { platforms } from './src/platforms/index'
 export { TokenPlugin } from './src/plugin/solana/tokens'
