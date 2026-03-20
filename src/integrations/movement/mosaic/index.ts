@@ -146,14 +146,23 @@ function buildPositionValue(
   token: string,
   rawAmount: string,
   decimals: number,
+  priceUsd?: number,
 ): PositionValue {
-  return {
+  const value: PositionValue = {
     amount: {
       token,
       amount: rawAmount,
       decimals: decimals.toString(),
     },
   }
+  if (priceUsd !== undefined) {
+    value.priceUsd = priceUsd.toString()
+    const usd = (Number(rawAmount) / 10 ** decimals) * priceUsd
+    if (Number.isFinite(usd) && usd > 0) {
+      value.usdValue = usd.toString()
+    }
+  }
+  return value
 }
 
 function prorateRawAmount(
@@ -413,19 +422,23 @@ async function getDirectLiquidityPositions(
     const totalLpSupply = rawToString(lpMetadata.supply_v2)
     if (totalLpSupply === '0') continue
 
-    const tokenXDecimals = tokenMetadata.get(poolView.token_x)?.decimals ?? 8
-    const tokenYDecimals = tokenMetadata.get(poolView.token_y)?.decimals ?? 8
+    const tokenXData = tokenMetadata.get(poolView.token_x)
+    const tokenYData = tokenMetadata.get(poolView.token_y)
+    const tokenXDecimals = tokenXData?.decimals ?? 8
+    const tokenYDecimals = tokenYData?.decimals ?? 8
 
     const poolTokens = [
       buildPositionValue(
         poolView.token_x,
         prorateRawAmount(poolView.token_x_reserve, userLpAmount, totalLpSupply),
         tokenXDecimals,
+        tokenXData?.priceUsd,
       ),
       buildPositionValue(
         poolView.token_y,
         prorateRawAmount(poolView.token_y_reserve, userLpAmount, totalLpSupply),
         tokenYDecimals,
+        tokenYData?.priceUsd,
       ),
     ].filter((token) => token.amount.amount !== '0')
 
@@ -511,7 +524,8 @@ async function getFarmPositions(
     )
 
     const rewardTokenId = poolState.reward_token.inner
-    const rewardDecimals = rewardTokenMetadata.get(rewardTokenId)?.decimals ?? 8
+    const rewardTokenData = rewardTokenMetadata.get(rewardTokenId)
+    const rewardDecimals = rewardTokenData?.decimals ?? 8
     const farmApr = farmStatsMap.get(farmAddress)?.stats?.apr
     const rewards =
       stakeInfo.pending_rewards === '0'
@@ -521,6 +535,7 @@ async function getFarmPositions(
               rewardTokenId,
               stakeInfo.pending_rewards,
               rewardDecimals,
+              rewardTokenData?.priceUsd,
             ),
           ]
 
