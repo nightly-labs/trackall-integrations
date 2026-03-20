@@ -55,6 +55,8 @@ export type {
 } from './src/plugin/solana/tokens'
 
 // Utilities
+export { AptosTokenPlugin } from './src/plugin/aptos/tokens'
+export type { AptosTokenData } from './src/plugin/aptos/tokens'
 export { createSolanaRpc } from '@solana/kit'
 export { platforms } from './src/platforms/index'
 export { TokenPlugin } from './src/plugin/solana/tokens'
