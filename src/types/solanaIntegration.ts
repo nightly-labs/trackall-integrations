@@ -17,18 +17,21 @@ export interface GetProgramAccountsRequest {
   kind: 'getProgramAccounts'
   programId: SolanaAddress
   filters: ProgramAccountFilter[]
+  cacheTtlMs?: number
 }
 
 export interface GetTokenAccountsByOwnerRequest {
   kind: 'getTokenAccountsByOwner'
   owner: SolanaAddress
   programId: SolanaAddress
+  cacheTtlMs?: number
 }
 
 export interface GetHttpJsonRequest {
   kind: 'getHttpJson'
   url: string
   keyField?: string
+  cacheTtlMs?: number
 }
 
 export type ProgramRequest =

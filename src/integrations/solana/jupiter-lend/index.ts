@@ -46,6 +46,7 @@ const MIN_TICK_VALUE = MIN_TICK // -16383
 
 const lendingCoder = new BorshCoder(lendingIdl as never)
 const vaultsCoder = new BorshCoder(vaultsIdl as never)
+const JUPITER_LENDING_POOLS_TTL_MS = 5 * 60 * 1000
 
 function accountDiscriminatorBase64(
   idl: { accounts?: Array<{ name: string; discriminator?: number[] }> },
@@ -122,16 +123,23 @@ export const jupiterLendIntegration: SolanaIntegration = {
     const lendingMap = yield {
       kind: 'getProgramAccounts' as const,
       programId: LENDING_PROGRAM_ID,
+      cacheTtlMs: JUPITER_LENDING_POOLS_TTL_MS,
       filters: [
-        { memcmp: { offset: 0, bytes: LENDING_DISC_B64, encoding: 'base64' } },
+        {
+          memcmp: {
+            offset: 0,
+            bytes: LENDING_DISC_B64,
+            encoding: 'base64',
+          },
+        },
       ],
     }
-    const earnPools: {
+    const earnPools: Array<{
       mint: string
       fTokenMint: string
       decimals: number
       tokenExchangePrice: bigint
-    }[] = []
+    }> = []
 
     for (const acc of Object.values(lendingMap)) {
       if (!acc.exists) continue

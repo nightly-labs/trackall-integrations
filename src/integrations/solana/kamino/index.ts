@@ -32,6 +32,7 @@ const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
 const KVAULT_SHARES_MINT_OFFSET = 184
 const SF_DENOMINATOR = 1n << 60n
 const FARMS_WAD = 10n ** 18n
+const KLEND_RESERVES_TTL_MS = 5 * 60 * 1000
 
 interface KlendDeposit {
   depositReserve: string
@@ -366,7 +367,7 @@ export const kaminoIntegration: SolanaIntegration = {
       ],
     }))
 
-    const phase1Map = yield [
+    const phase1Requests = [
       {
         kind: 'getProgramAccounts' as const,
         programId: KLEND_PROGRAM_ID,
@@ -389,6 +390,7 @@ export const kaminoIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: KLEND_PROGRAM_ID,
+        cacheTtlMs: KLEND_RESERVES_TTL_MS,
         filters: [
           {
             memcmp: {
@@ -423,6 +425,7 @@ export const kaminoIntegration: SolanaIntegration = {
       },
       ...kvaultRequests,
     ]
+    const phase1Map = yield phase1Requests
 
     const obligations: KlendObligationDecoded[] = []
     const reserveAddressSet = new Set<string>()
