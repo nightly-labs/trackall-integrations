@@ -51,16 +51,6 @@ describe('raydium integration', () => {
       (p) => p.positionKind === 'liquidity',
     )
 
-    // Warm the token cache for all mints, then the integration uses get() internally
-    const mints = [
-      ...new Set(
-        liquidityPositions.flatMap((p) =>
-          p.poolTokens.map((t) => t.amount.token),
-        ),
-      ),
-    ]
-    await Promise.all(mints.map((mint) => tokens.fetch(mint)))
-
     console.log(`\nFound ${positions.length} Raydium positions`)
     console.log(
       `RPC batches: ${totalBatches}, total accounts fetched: ${totalAccounts}`,

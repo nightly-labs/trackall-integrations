@@ -43,19 +43,6 @@ describe('jupiter-lend integration', () => {
       (p) => p.positionKind === 'lending',
     )
 
-    const mints = [
-      ...new Set(
-        lendingPositions
-          .filter((p) => p.positionKind === 'lending')
-          .flatMap((p) =>
-            p.positionKind === 'lending'
-              ? (p.supplied ?? []).map((s) => s.amount.token)
-              : [],
-          ),
-      ),
-    ]
-    await Promise.all(mints.map((mint) => tokens.fetch(mint)))
-
     console.log(
       `\nFound ${positions.length} Jupiter Lend positions for ${testAddress.slice(0, 8)}…`,
     )

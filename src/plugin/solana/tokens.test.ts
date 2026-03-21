@@ -1,39 +1,7 @@
 import { Database } from 'bun:sqlite'
 import { describe, expect, it } from 'bun:test'
 import { join } from 'node:path'
-import { address } from '@solana/kit'
-
 import { type TokenData, TokenPlugin } from './tokens'
-
-const TARGET_TOKEN_COUNT = 100
-const RAYDIUM_CACHE_FILE = new URL(
-  './raydium-token-addresses.json',
-  import.meta.url,
-)
-let cachedRaydiumAddresses: string[] | null = null
-
-async function loadRaydiumTokenAddresses(): Promise<string[]> {
-  if (cachedRaydiumAddresses != null) return cachedRaydiumAddresses
-
-  const cached = (await Bun.file(RAYDIUM_CACHE_FILE).json()) as string[]
-  cachedRaydiumAddresses = [
-    ...new Set(
-      cached
-        .filter(
-          (item): item is string => typeof item === 'string' && item.length > 0,
-        )
-        .filter((tokenAddress): tokenAddress is string => {
-          try {
-            address(tokenAddress)
-            return true
-          } catch {
-            return false
-          }
-        }),
-    ),
-  ]
-  return cachedRaydiumAddresses
-}
 
 function testDbPath(name: string): string {
   return join(
