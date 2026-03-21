@@ -468,7 +468,7 @@ export const raydiumIntegration: SolanaIntegration = {
           ? (Number(amount1) / 10 ** pool.mintDecimals1) * token1Info.priceUsd
           : undefined
 
-      const valueUsd =
+      const usdValue =
         usdValue0 !== undefined && usdValue1 !== undefined
           ? (usdValue0 + usdValue1).toString()
           : usdValue0 !== undefined
@@ -486,7 +486,7 @@ export const raydiumIntegration: SolanaIntegration = {
         lowerPriceUsd: lowerPrice.toString(),
         upperPriceUsd: upperPrice.toString(),
         currentPriceUsd: currentPrice.toString(),
-        ...(valueUsd !== undefined && { valueUsd }),
+        ...(usdValue !== undefined && { usdValue }),
         poolTokens: [
           {
             amount: {
@@ -541,7 +541,7 @@ export const raydiumIntegration: SolanaIntegration = {
           ? (Number(amount1) / 10 ** cp.mintDecimals1) * token1Info.priceUsd
           : undefined
 
-      const valueUsd =
+      const usdValue =
         usdValue0 !== undefined && usdValue1 !== undefined
           ? (usdValue0 + usdValue1).toString()
           : usdValue0 !== undefined
@@ -554,7 +554,7 @@ export const raydiumIntegration: SolanaIntegration = {
         positionKind: 'liquidity',
         liquidityModel: 'constant-product',
         platformId: 'raydium',
-        ...(valueUsd !== undefined && { valueUsd }),
+        ...(usdValue !== undefined && { usdValue }),
         poolTokens: [
           {
             amount: {
@@ -618,7 +618,7 @@ export const raydiumIntegration: SolanaIntegration = {
           ? (Number(amount1) / 10 ** amm.quoteDecimal) * token1Info.priceUsd
           : undefined
 
-      const valueUsd =
+      const usdValue =
         usdValue0 !== undefined && usdValue1 !== undefined
           ? (usdValue0 + usdValue1).toString()
           : usdValue0 !== undefined
@@ -631,7 +631,7 @@ export const raydiumIntegration: SolanaIntegration = {
         positionKind: 'liquidity',
         liquidityModel: 'constant-product',
         platformId: 'raydium',
-        ...(valueUsd !== undefined && { valueUsd }),
+        ...(usdValue !== undefined && { usdValue }),
         poolTokens: [
           {
             amount: {
