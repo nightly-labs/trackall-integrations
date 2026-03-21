@@ -31,6 +31,13 @@ export const testAddress = 'BsYDTmksyvTWpP3DGSWpoAXP7ykFDhikYdKEVspkStc4'
 const LENDING_PROGRAM_ID = lendingIdl.address
 const VAULTS_PROGRAM_ID = vaultsIdl.address
 
+export const JUPITER_LEND_INDEXED_PROGRAMS = [
+  LENDING_PROGRAM_ID,
+  VAULTS_PROGRAM_ID,
+  TOKEN_PROGRAM_ID.toBase58(),
+  TOKEN_2022_PROGRAM_ID.toBase58(),
+] as const
+
 // ─── Exchange precision (1e12) ────────────────────────────────────────────────
 const EXCHANGE_PRECISION = BigInt('1000000000000')
 const ZERO_TICK_BN = ZERO_TICK_SCALED_RATIO

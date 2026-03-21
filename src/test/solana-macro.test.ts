@@ -19,6 +19,9 @@ type RpcRequestFn = (
   methodName: string,
   args: Array<unknown>,
 ) => Promise<unknown>
+type ConnectionWithRpcRequest = Connection & {
+  _rpcRequest: RpcRequestFn
+}
 
 function preview(value: unknown, limit = 160): string {
   const text = JSON.stringify(value)
@@ -61,11 +64,10 @@ describe('solana integrations getUserPositions macro', () => {
 
     it(`calls getUserPositions for ${integration.name}`, async () => {
       const connection = new Connection(rpcUrl, 'confirmed')
-      const rpcRequest = (connection as { _rpcRequest: RpcRequestFn })._rpcRequest.bind(
-        connection,
-      )
+      const connectionWithRpcRequest = connection as unknown as ConnectionWithRpcRequest
+      const rpcRequest = connectionWithRpcRequest._rpcRequest.bind(connection)
 
-      ;(connection as { _rpcRequest: RpcRequestFn })._rpcRequest = async (
+      connectionWithRpcRequest._rpcRequest = async (
         methodName,
         params,
       ) => {
@@ -117,6 +119,9 @@ describe('solana integrations getUserPositions macro', () => {
           return fetchProgramAccountsBatch(connection, req)
         },
       )
+      if (!positions) {
+        throw new Error(`[${integration.name}] No positions array returned`)
+      }
 
       console.log(
         `\n[${integration.name}] getUserPositions → ${positions.length} positions (${totalBatches} batches, ${totalAccounts} accounts)`,

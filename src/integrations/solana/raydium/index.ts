@@ -21,6 +21,12 @@ export const testAddress = '93PSyNrS7zBhrXaHHfU1ZtfegcKq5SaCYc35ZwPVrK3K'
 const CLMM_PROGRAM = new PublicKey(clmmIdl.address)
 const CP_PROGRAM_ID = cpIdl.address
 
+export const RAYDIUM_INDEXED_PROGRAMS = [
+  CLMM_PROGRAM.toBase58(),
+  TOKEN_PROGRAM_ID.toBase58(),
+  TOKEN_2022_PROGRAM_ID.toBase58(),
+] as const
+
 // ─── Discriminators (from IDL) ───────────────────────────────────────────────
 function idlDiscriminator(
   idl: { accounts?: Array<{ name: string; discriminator?: number[] }> },

@@ -14,6 +14,16 @@ async function loadIntegrations(dir: URL) {
   )
 }
 
+function getIndexedProgramsFromModule(
+  module: Record<string, unknown>,
+): readonly string[] {
+  return Object.entries(module).flatMap(([exportName, value]) => {
+    if (!exportName.endsWith('_INDEXED_PROGRAMS')) return []
+    if (!Array.isArray(value)) return []
+    return value.filter((item): item is string => typeof item === 'string')
+  })
+}
+
 const [solanaModules, movementModules] = await Promise.all([
   loadIntegrations(solanaDir),
   loadIntegrations(movementDir),
@@ -25,6 +35,9 @@ export const solanaIntegrations: SolanaIntegration[] = solanaModules.map(
 export const movementIntegrations: AptosIntegration[] = movementModules.map(
   (m) => m.default,
 )
+export const solanaIndexedPrograms = [
+  ...new Set(solanaModules.flatMap((module) => getIndexedProgramsFromModule(module))),
+]
 
 // Types
 export type {
