@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'bun:test'
-import { createSolanaRpc } from '@solana/kit'
 import { Connection } from '@solana/web3.js'
 import { runIntegrations, TokenPlugin } from '../../../types/index'
 import {
@@ -18,7 +17,7 @@ if (!getUserPositions) throw new Error('getUserPositions not implemented')
 describe('raydium integration', () => {
   it('fetches user positions from Raydium CLMM + CP', async () => {
     const connection = new Connection(solanaRpcUrl, 'confirmed')
-    const tokens = new TokenPlugin(createSolanaRpc(solanaRpcUrl))
+    const tokens = new TokenPlugin()
     const plugins = { endpoint: solanaRpcUrl, tokens }
 
     let totalBatches = 0

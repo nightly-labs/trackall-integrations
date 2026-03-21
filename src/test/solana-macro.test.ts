@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test'
 import { readdir } from 'node:fs/promises'
-import { createSolanaRpc } from '@solana/kit'
 import { Connection } from '@solana/web3.js'
 import type { SolanaIntegration } from '../types/index'
 import { runIntegrations, TokenPlugin } from '../types/index'
@@ -94,7 +93,7 @@ describe('solana integrations getUserPositions macro', () => {
         }
       }
 
-      const tokens = new TokenPlugin(createSolanaRpc(rpcUrl))
+      const tokens = new TokenPlugin()
       const plugins = { endpoint: rpcUrl, tokens }
 
       let totalBatches = 0

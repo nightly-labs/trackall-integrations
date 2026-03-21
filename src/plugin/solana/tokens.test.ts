@@ -1,13 +1,10 @@
 import { Database } from 'bun:sqlite'
 import { describe, expect, it } from 'bun:test'
 import { join } from 'node:path'
-import { address, createSolanaRpc } from '@solana/kit'
+import { address } from '@solana/kit'
 
 import { type TokenData, TokenPlugin } from './tokens'
 
-const RPC_URL =
-  process.env.SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com'
-const rpc = createSolanaRpc(RPC_URL)
 const TARGET_TOKEN_COUNT = 100
 const RAYDIUM_CACHE_FILE = new URL(
   './raydium-token-addresses.json',
@@ -81,27 +78,6 @@ function closeAndDeleteDb(plugin: TokenPlugin, dbPath: string): void {
 }
 
 describe('TokenPlugin', () => {
-  describe('fetchMany()', () => {
-    it('accepts exactly 100 addresses and rejects 101', async () => {
-      const tokenAddresses = await loadRaydiumTokenAddresses()
-      if (tokenAddresses.length < TARGET_TOKEN_COUNT + 1) {
-        throw new Error(
-          `Expected at least ${TARGET_TOKEN_COUNT + 1} token addresses, got ${tokenAddresses.length}`,
-        )
-      }
-
-      const plugin = new TokenPlugin(rpc)
-      const exactlyLimit = tokenAddresses.slice(0, TARGET_TOKEN_COUNT)
-      await expect(plugin.fetchMany(exactlyLimit)).resolves.toBeInstanceOf(Map)
-
-      const tooMany = tokenAddresses.slice(0, TARGET_TOKEN_COUNT + 1)
-      const uncachedCheckPlugin = new TokenPlugin(rpc)
-      await expect(uncachedCheckPlugin.fetchMany(tooMany)).rejects.toThrow(
-        `fetchMany supports at most ${TARGET_TOKEN_COUNT} mints per call`,
-      )
-    }, 30_000)
-  })
-
   describe('SQLite cache', () => {
     it('loads valid token rows and skips malformed rows', async () => {
       const dbPath = testDbPath('tokens-load')
@@ -124,7 +100,7 @@ describe('TokenPlugin', () => {
       ).run('BadAddress', '{ this is: not json }')
       db.close()
 
-      const plugin = new TokenPlugin({} as unknown as never, dbPath)
+      const plugin = new TokenPlugin(dbPath)
       await plugin.load()
 
       expect(plugin.get(validToken.mintAddress)).toEqual(validToken)
@@ -149,7 +125,7 @@ describe('TokenPlugin', () => {
       ).run(initialToken.mintAddress, JSON.stringify(initialToken))
       db.close()
 
-      const plugin = new TokenPlugin({} as unknown as never, dbPath)
+      const plugin = new TokenPlugin(dbPath)
       await plugin.load()
 
       const pluginAny = plugin as unknown as { map: Map<string, TokenData> }
@@ -193,7 +169,7 @@ describe('TokenPlugin', () => {
 
     it('persists full map when save is called without specific addresses', async () => {
       const dbPath = testDbPath('tokens-save-full')
-      const plugin = new TokenPlugin({} as unknown as never, dbPath)
+      const plugin = new TokenPlugin(dbPath)
       const pluginAny = plugin as unknown as { map: Map<string, TokenData> }
 
       const token: TokenData = {

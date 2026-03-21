@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'bun:test'
-import { createSolanaRpc } from '@solana/kit'
 import { Connection } from '@solana/web3.js'
 import type { UserPositionsPlan } from '../../../types/index'
 import { runIntegrations, TokenPlugin } from '../../../types/index'
@@ -26,7 +25,7 @@ if (!getUserPositions) throw new Error('getUserPositions not implemented')
 describe('meteora integration', () => {
   it('fetches user positions from Meteora DLMM', async () => {
     const connection = new Connection(solanaRpcUrl, 'confirmed')
-    const tokens = new TokenPlugin(createSolanaRpc(solanaRpcUrl))
+    const tokens = new TokenPlugin()
     const plugins = { endpoint: solanaRpcUrl, tokens }
 
     let totalBatches = 0
@@ -77,7 +76,7 @@ describe('meteora integration', () => {
 
   it('fetches positions for multiple wallets in batched RPC calls', async () => {
     const connection = new Connection(solanaRpcUrl, 'confirmed')
-    const tokens = new TokenPlugin(createSolanaRpc(solanaRpcUrl))
+    const tokens = new TokenPlugin()
     const plugins = { endpoint: solanaRpcUrl, tokens }
 
     let totalBatches = 0

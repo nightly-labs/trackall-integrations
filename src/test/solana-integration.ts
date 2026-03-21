@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'bun:test'
-import { createSolanaRpc } from '@solana/kit'
 import { Connection } from '@solana/web3.js'
 import type { SolanaIntegration } from '../types/index'
 import { runIntegrations, TokenPlugin } from '../types/index'
@@ -17,7 +16,7 @@ export function testIntegration(
     if (getUserPositions && testAddress) {
       it('getUserPositions', async () => {
         const connection = new Connection(rpcUrl, 'confirmed')
-        const tokens = new TokenPlugin(createSolanaRpc(rpcUrl))
+        const tokens = new TokenPlugin()
         const plugins = { endpoint: rpcUrl, tokens }
 
         let totalBatches = 0
@@ -51,7 +50,7 @@ export function testIntegration(
 
     if (integration.getTvl) {
       it('getTvl', async () => {
-        const tokens = new TokenPlugin(createSolanaRpc(rpcUrl))
+        const tokens = new TokenPlugin()
         const plugins = { endpoint: rpcUrl, tokens }
         const tvl = await integration.getTvl?.(plugins)
         console.log(`\n✓ getTvl → ${tvl}`)
@@ -61,7 +60,7 @@ export function testIntegration(
 
     if (integration.getVolume) {
       it('getVolume', async () => {
-        const tokens = new TokenPlugin(createSolanaRpc(rpcUrl))
+        const tokens = new TokenPlugin()
         const plugins = { endpoint: rpcUrl, tokens }
         const vol = await integration.getVolume?.(plugins)
         console.log(`\n✓ getVolume → ${vol}`)
@@ -71,7 +70,7 @@ export function testIntegration(
 
     if (integration.getDailyActiveUsers) {
       it('getDailyActiveUsers', async () => {
-        const tokens = new TokenPlugin(createSolanaRpc(rpcUrl))
+        const tokens = new TokenPlugin()
         const plugins = { endpoint: rpcUrl, tokens }
         const dau = await integration.getDailyActiveUsers?.(plugins)
         console.log(`\n✓ getDailyActiveUsers → ${dau}`)

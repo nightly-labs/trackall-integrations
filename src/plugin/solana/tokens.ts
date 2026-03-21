@@ -1,15 +1,7 @@
 import { Database } from 'bun:sqlite'
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { fetchMaybeMetadataFromSeeds } from '@metaplex-foundation/mpl-token-metadata-kit'
-import { address, type createSolanaRpc } from '@solana/kit'
 import type { SolanaAddress } from '../../types/solanaIntegration'
-
-type SolanaRpc = ReturnType<typeof createSolanaRpc>
-
-// SPL Token mint layout: mint_authority (36 bytes) + supply (8 bytes) + decimals (1 byte)
-const MINT_DECIMALS_OFFSET = 44
-const MAX_ACCOUNT_FETCH_SIZE = 100
 
 export interface TokenCreator {
   address: SolanaAddress
@@ -38,12 +30,10 @@ export type TokensMap = Map<SolanaAddress, TokenData>
 
 export class TokenPlugin {
   private map: TokensMap = new Map()
-  private rpc: SolanaRpc
   private db: Database
   private upsertTokenStmt: ReturnType<Database['prepare']>
 
-  constructor(rpc: SolanaRpc, cachePath = '.cache/tokens.sqlite') {
-    this.rpc = rpc
+  constructor(cachePath = '.cache/tokens.sqlite') {
     const directory = dirname(cachePath)
     if (directory !== '.') {
       mkdirSync(directory, { recursive: true })
@@ -160,146 +150,16 @@ export class TokenPlugin {
     return this.map.get(mint)
   }
 
-  /** Fetch full metadata for a mint, update in-memory and disk cache. Returns undefined if mint account does not exist. */
-  async fetch(mint: SolanaAddress): Promise<TokenData | undefined> {
-    const result = await this.fetchMany([mint])
-    return result.get(mint)
+  /** Add a single token to the in-memory cache. */
+  set(mint: SolanaAddress, data: TokenData): void {
+    this.map.set(mint, data)
   }
 
-  async fetchMany(
-    mints: readonly SolanaAddress[],
-  ): Promise<Map<SolanaAddress, TokenData | undefined>> {
-    const uniqueMints = [...new Set(mints)]
-    if (uniqueMints.length > MAX_ACCOUNT_FETCH_SIZE) {
-      throw new Error(
-        `fetchMany supports at most ${MAX_ACCOUNT_FETCH_SIZE} mints per call`,
-      )
+  /** Batch add tokens to the in-memory cache. */
+  setMany(entries: ReadonlyMap<SolanaAddress, TokenData>): void {
+    for (const [mint, data] of entries) {
+      this.map.set(mint, data)
     }
-
-    const result = new Map<SolanaAddress, TokenData | undefined>()
-
-    const uncachedMints: SolanaAddress[] = []
-    for (const mint of uniqueMints) {
-      const cached = this.map.get(mint)
-      if (cached) {
-        result.set(mint, cached)
-      } else {
-        uncachedMints.push(mint)
-      }
-    }
-
-    if (uncachedMints.length === 0) return result
-
-    const accountFetchTargets: Array<{
-      mint: SolanaAddress
-      address: ReturnType<typeof address>
-    }> = []
-    for (const mint of uncachedMints) {
-      try {
-        accountFetchTargets.push({ mint, address: address(mint) })
-      } catch {
-        result.set(mint, undefined)
-      }
-    }
-
-    if (accountFetchTargets.length === 0) return result
-
-    const allTokens: Array<{ mint: SolanaAddress; tokenData: TokenData }> = []
-    try {
-      const accountInfos = await this.rpc
-        .getMultipleAccounts(
-          accountFetchTargets.map((target) => target.address),
-          { encoding: 'base64' },
-        )
-        .send()
-
-      accountInfos.value.forEach((accountInfo, index) => {
-        const target = accountFetchTargets[index]
-        if (!target) return
-
-        if (
-          !accountInfo ||
-          !accountInfo.data ||
-          !Array.isArray(accountInfo.data)
-        ) {
-          result.set(target.mint, undefined)
-          return
-        }
-
-        const mintData = Buffer.from(accountInfo.data[0] as string, 'base64')
-        if (mintData.length < MINT_DECIMALS_OFFSET + 1) {
-          result.set(target.mint, undefined)
-          return
-        }
-
-        const decimals = mintData[MINT_DECIMALS_OFFSET]
-        if (decimals === undefined) {
-          result.set(target.mint, undefined)
-          return
-        }
-
-        const tokenData: TokenData = { mintAddress: target.mint, decimals }
-        result.set(target.mint, tokenData)
-        allTokens.push({ mint: target.mint, tokenData })
-      })
-    } catch {
-      accountFetchTargets.forEach((target) => {
-        result.set(target.mint, undefined)
-      })
-    }
-
-    await Promise.all(
-      allTokens.map(async ({ tokenData }) => {
-        try {
-          const metadataAccount = await fetchMaybeMetadataFromSeeds(this.rpc, {
-            mint: address(tokenData.mintAddress),
-          })
-          if (!metadataAccount.exists) return
-
-          const metadata = metadataAccount.data
-          tokenData.name = metadata.name
-          tokenData.symbol = metadata.symbol
-          tokenData.uri = metadata.uri
-          tokenData.updateAuthority = String(metadata.updateAuthority)
-          tokenData.isMutable = metadata.isMutable
-
-          if (metadata.creators.__option === 'Some') {
-            tokenData.creators = metadata.creators.value.map((creator) => ({
-              address: creator.address as SolanaAddress,
-              verified: creator.verified,
-              share: creator.share,
-            }))
-          }
-
-          if (metadata.uri) {
-            try {
-              const offChain = (await fetch(metadata.uri).then((r) =>
-                r.json(),
-              )) as {
-                description?: string
-                image?: string
-              }
-              if (offChain.description)
-                tokenData.description = offChain.description
-              if (offChain.image) tokenData.image = offChain.image
-            } catch {
-              // Off-chain metadata fetch failed — proceed without it
-            }
-          }
-        } catch {
-          // Metadata lookup failed for this mint — keep base data
-        }
-      }),
-    )
-
-    if (allTokens.length > 0) {
-      allTokens.forEach(({ mint, tokenData }) => {
-        this.map.set(mint, tokenData)
-      })
-      await this.save(allTokens.map((entry) => entry.mint))
-    }
-
-    return result
   }
 
   /** Update priceUsd for tokens present in the prices map. */
