@@ -7,51 +7,61 @@ import type {
   UserPositionsPlan,
 } from '../../../types/index'
 
-// Rate-X deployed programs
-// Program 1: SOL LST markets (JitoSOL, bbSOL, BNSOL, INF, ...)
-// Program 2: JLP markets
-const RATEX_PROGRAM_1 = 'RAtEwzA1rerjeWip6uMuheQtzykxYCrEQRaSFCCrf2D'
-const RATEX_PROGRAM_2 = 'RATEuvat8kBBvomUgsbGDS2EV4KjKCoMKCP3DpxYmF8'
-const PROGRAMS = [RATEX_PROGRAM_1, RATEX_PROGRAM_2] as const
+// RateX trader programs from the official contracts page.
+const PROGRAMS = [
+  'RAtEwzA1rerjeWip6uMuheQtzykxYCrEQRaSFCCrf2D',
+  'RATEuvat8kBBvomUgsbGDS2EV4KjKCoMKCP3DpxYmF8',
+  'RAtEjoYMC6U3fWrbxcuda1N4hcgDbgqQN8MFCsA7ge2',
+  'rAtEti4KRfAtVTYhcdYbVznJkbt8yTAXebwHEAr31xr',
+  'ratEH6tibNBomaJtiFtivmPk7pxcPPvRg3mEt8vZiEK',
+  'rATeLFtHiGs6Q1rz4VNsp62vc3B8dLsDrNFm2NzKHSR',
+  'rATEA6NzH5jVXbJkAwPsknuvviVrSnSpARNATkG2ZJ6',
+  'RaTEiNdQ31benKiF11k1kzv48EeK69HHNadvQXiFq6Z',
+  'raTeSRo3LFRvsrcXFKgu1P8F4DLE39h6b1zeT2HfwAq',
+  'RAtegmyRsp72GuTVFrg68KC4EryqHYp5tWNdm9qJ3ub',
+  'raTeSq8Ebeb1JR3xRgSz7i2DP35Fyz5zsszkijgnXKm',
+  'rAtERVnFCEdaY3BqP7w1wdMJFphHz9m8uTyLjRkw8Fu',
+  'RaTeUhvvohYGErSb2Sy3RA5EdMv9A9jtiJe8FHTg7uK',
+  'rAtewzmMSgn1QGewCM8PHdoW49bbuzrDQi4ftFoTFWo',
+] as const
 
 // Account discriminators (from ratex-earn-sdk IDL)
 const USER_DISCRIMINATOR = Buffer.from([159, 117, 95, 227, 239, 151, 58, 236])
-const USER_STATS_DISCRIMINATOR = Buffer.from([176, 223, 136, 27, 122, 79, 32, 227])
+const USER_STATS_DISCRIMINATOR = Buffer.from([
+  176, 223, 136, 27, 122, 79, 32, 227,
+])
 
 // UserStats layout
 const USER_STATS_NUM_CREATED_OFFSET = 74 // u16: number_of_sub_accounts_created
 
 // User account layout
-const USER_MARGIN_POSITIONS_OFFSET = 40   // [MarginPosition; 2], 48 bytes each
-const USER_YIELD_POSITIONS_OFFSET = 3720  // [YieldPosition; 8], 64 bytes each
+const USER_MARGIN_POSITIONS_OFFSET = 40 // [MarginPosition; 2], 48 bytes each
+const USER_YIELD_POSITIONS_OFFSET = 3720 // [YieldPosition; 8], 64 bytes each
 const MARGIN_POSITION_SIZE = 48
 const YIELD_POSITION_SIZE = 64
 const MAX_MARGIN_POSITIONS = 2
 const MAX_YIELD_POSITIONS = 8
 
 // MarginPosition field offsets (within each 48-byte slot)
-const MP_BALANCE = 0      // i64: deposited collateral amount
+const MP_BALANCE = 0 // i64: deposited collateral amount
 const MP_MARKET_INDEX = 8 // u32: which MarginMarket
-const MP_DECIMALS = 12    // u32: collateral token decimals
+const MP_DECIMALS = 12 // u32: collateral token decimals
 
 // YieldPosition field offsets (within each 64-byte slot)
-const YP_BASE_AMOUNT = 0   // i64: YT exposure (positive = long yield)
+const YP_BASE_AMOUNT = 0 // i64: YT exposure (positive = long yield)
 const YP_MARKET_INDEX = 24 // u32: which YieldMarket
 
 // MarginMarket layout
-const MARGIN_MARKET_MINT_OFFSET = 40      // pubkey: SPL token mint
+const MARGIN_MARKET_MINT_OFFSET = 40 // pubkey: SPL token mint
 const MARGIN_MARKET_DECIMALS_OFFSET = 176 // u32: token decimals
-// Pre-fetch margin market indices 0–2 per program (covers all known collateral types)
-const PREFETCH_MARGIN_INDICES = [0, 1, 2]
-
 // YieldMarket layout
-const YIELD_MARKET_NAME_OFFSET = 72    // [u8; 32]: human-readable name (e.g. "JitoSOL-2506")
+const YIELD_MARKET_NAME_OFFSET = 72 // [u8; 32]: human-readable name (e.g. "JitoSOL-2506")
 const YIELD_MARKET_EXPIRE_OFFSET = 864 // i64: market expiry Unix timestamp
 const YIELD_MARKET_MARGIN_OFFSET = 908 // u32: margin_index referencing collateral MarginMarket
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
-export const RATEX_INDEXED_PROGRAMS = [RATEX_PROGRAM_1, RATEX_PROGRAM_2] as const
+export const RATEX_INDEXED_PROGRAMS = PROGRAMS
 
 function checkDiscriminator(data: Uint8Array, expected: Buffer): boolean {
   if (data.length < 8) return false
@@ -71,7 +81,9 @@ function readU16(data: Uint8Array, offset: number): number {
 }
 
 function readPubkey(data: Uint8Array, offset: number): string {
-  return new PublicKey(Buffer.from(data).subarray(offset, offset + 32)).toBase58()
+  return new PublicKey(
+    Buffer.from(data).subarray(offset, offset + 32),
+  ).toBase58()
 }
 
 function readName(data: Uint8Array, offset: number): string {
@@ -90,7 +102,11 @@ function deriveUserStatsPda(authority: PublicKey, programId: string): string {
   return pda.toBase58()
 }
 
-function deriveUserPda(authority: PublicKey, subId: number, programId: string): string {
+function deriveUserPda(
+  authority: PublicKey,
+  subId: number,
+  programId: string,
+): string {
   const subIdBuf = Buffer.alloc(2)
   subIdBuf.writeUInt16LE(subId)
   const [pda] = PublicKey.findProgramAddressSync(
@@ -120,6 +136,18 @@ function deriveYieldMarketPda(index: number, programId: string): string {
   return pda.toBase58()
 }
 
+function getOrCreateIndexSet(
+  map: Map<number, Set<number>>,
+  programIndex: number,
+): Set<number> {
+  let set = map.get(programIndex)
+  if (!set) {
+    set = new Set()
+    map.set(programIndex, set)
+  }
+  return set
+}
+
 export const ratexIntegration: SolanaIntegration = {
   platformId: 'ratex',
 
@@ -129,14 +157,20 @@ export const ratexIntegration: SolanaIntegration = {
   ): UserPositionsPlan {
     const authority = new PublicKey(address)
 
-    // Phase 0: fetch UserStats for both programs to learn sub-account counts
-    const userStatsPdas = PROGRAMS.map((prog) => deriveUserStatsPda(authority, prog))
+    // Phase 0: fetch UserStats for every supported RateX trader program.
+    const userStatsPdas = PROGRAMS.map((prog) =>
+      deriveUserStatsPda(authority, prog),
+    )
     const userStatsMap = yield userStatsPdas
 
     const subAccountCounts = PROGRAMS.map((_, i) => {
       const pda = userStatsPdas[i]
       const acc = pda !== undefined ? userStatsMap[pda] : undefined
-      if (!acc?.exists || !checkDiscriminator(acc.data, USER_STATS_DISCRIMINATOR)) return 0
+      if (
+        !acc?.exists ||
+        !checkDiscriminator(acc.data, USER_STATS_DISCRIMINATOR)
+      )
+        return 0
       if (acc.data.length < USER_STATS_NUM_CREATED_OFFSET + 2) return 0
       return readU16(acc.data, USER_STATS_NUM_CREATED_OFFSET)
     })
@@ -146,24 +180,39 @@ export const ratexIntegration: SolanaIntegration = {
     for (const [pi, progId] of PROGRAMS.entries()) {
       const count = Math.max(subAccountCounts[pi] ?? 0, 1)
       for (let si = 0; si < count; si++) {
-        userEntries.push({ pda: deriveUserPda(authority, si, progId), programIndex: pi })
+        userEntries.push({
+          pda: deriveUserPda(authority, si, progId),
+          programIndex: pi,
+        })
       }
     }
 
     const userAccounts = yield userEntries.map((e) => e.pda)
 
     // Parse User accounts to collect active margin and yield positions
-    type MarginPos = { balance: bigint; marketIndex: number; decimals: number; programIndex: number }
-    type YieldPos = { baseAmount: bigint; marketIndex: number; programIndex: number }
+    type MarginPos = {
+      balance: bigint
+      marketIndex: number
+      decimals: number
+      programIndex: number
+    }
+    type YieldPos = {
+      baseAmount: bigint
+      marketIndex: number
+      programIndex: number
+    }
 
     const marginPositions: MarginPos[] = []
     const yieldPositions: YieldPos[] = []
+    const marginMarketsByProgram = new Map<number, Set<number>>() // programIndex -> Set<marketIndex>
     const yieldMarketsByProgram = new Map<number, Set<number>>() // programIndex -> Set<marketIndex>
 
-    const minUserSize = USER_YIELD_POSITIONS_OFFSET + YIELD_POSITION_SIZE * MAX_YIELD_POSITIONS
+    const minUserSize =
+      USER_YIELD_POSITIONS_OFFSET + YIELD_POSITION_SIZE * MAX_YIELD_POSITIONS
     for (const { pda, programIndex } of userEntries) {
       const acc = userAccounts[pda]
-      if (!acc?.exists || !checkDiscriminator(acc.data, USER_DISCRIMINATOR)) continue
+      if (!acc?.exists || !checkDiscriminator(acc.data, USER_DISCRIMINATOR))
+        continue
       if (acc.data.length < minUserSize) continue
 
       for (let i = 0; i < MAX_MARGIN_POSITIONS; i++) {
@@ -173,6 +222,9 @@ export const ratexIntegration: SolanaIntegration = {
         const marketIndex = readU32(acc.data, base + MP_MARKET_INDEX)
         const decimals = readU32(acc.data, base + MP_DECIMALS)
         marginPositions.push({ balance, marketIndex, decimals, programIndex })
+        getOrCreateIndexSet(marginMarketsByProgram, programIndex).add(
+          marketIndex,
+        )
       }
 
       for (let i = 0; i < MAX_YIELD_POSITIONS; i++) {
@@ -181,27 +233,27 @@ export const ratexIntegration: SolanaIntegration = {
         if (baseAmount === 0n) continue
         const marketIndex = readU32(acc.data, base + YP_MARKET_INDEX)
         yieldPositions.push({ baseAmount, marketIndex, programIndex })
-        let set = yieldMarketsByProgram.get(programIndex)
-        if (!set) {
-          set = new Set()
-          yieldMarketsByProgram.set(programIndex, set)
-        }
-        set.add(marketIndex)
+        getOrCreateIndexSet(yieldMarketsByProgram, programIndex).add(
+          marketIndex,
+        )
       }
     }
 
     if (marginPositions.length === 0 && yieldPositions.length === 0) return []
 
-    // Phase 2: fetch MarginMarket accounts (fixed small set) and YieldMarket accounts
+    // Phase 2: fetch directly referenced MarginMarket accounts plus the active YieldMarket accounts.
     const phase2Pdas = new Map<string, string>() // key -> address
 
-    for (const [pi, progId] of PROGRAMS.entries()) {
-      for (const idx of PREFETCH_MARGIN_INDICES) {
+    for (const [pi, indices] of marginMarketsByProgram) {
+      const progId = PROGRAMS[pi]
+      if (!progId) continue
+      for (const idx of indices) {
         phase2Pdas.set(`m:${pi}:${idx}`, deriveMarginMarketPda(idx, progId))
       }
     }
     for (const [pi, indices] of yieldMarketsByProgram) {
-      const progId = PROGRAMS[pi as 0 | 1]
+      const progId = PROGRAMS[pi]
+      if (!progId) continue
       for (const idx of indices) {
         phase2Pdas.set(`y:${pi}:${idx}`, deriveYieldMarketPda(idx, progId))
       }
@@ -210,13 +262,17 @@ export const ratexIntegration: SolanaIntegration = {
     const phase2Map = yield [...new Set(phase2Pdas.values())]
 
     // Build margin market info lookup
-    const marginMarketInfo = new Map<string, { mint: string; decimals: number }>()
-    for (let pi = 0; pi < PROGRAMS.length; pi++) {
-      for (const idx of PREFETCH_MARGIN_INDICES) {
+    const marginMarketInfo = new Map<
+      string,
+      { mint: string; decimals: number }
+    >()
+    for (const [pi, indices] of marginMarketsByProgram) {
+      for (const idx of indices) {
         const addr = phase2Pdas.get(`m:${pi}:${idx}`)
         if (!addr) continue
         const acc = phase2Map[addr]
-        if (!acc?.exists || acc.data.length < MARGIN_MARKET_DECIMALS_OFFSET + 4) continue
+        if (!acc?.exists || acc.data.length < MARGIN_MARKET_DECIMALS_OFFSET + 4)
+          continue
         const mint = readPubkey(acc.data, MARGIN_MARKET_MINT_OFFSET)
         const decimals = readU32(acc.data, MARGIN_MARKET_DECIMALS_OFFSET)
         marginMarketInfo.set(`${pi}:${idx}`, { mint, decimals })
@@ -224,25 +280,62 @@ export const ratexIntegration: SolanaIntegration = {
     }
 
     // Build yield market info lookup
-    type YieldMarketInfo = { name: string; expireTs: bigint; marginIndex: number }
+    type YieldMarketInfo = {
+      name: string
+      expireTs: bigint
+      marginIndex: number
+    }
     const yieldMarketInfo = new Map<string, YieldMarketInfo>()
     for (const [pi, indices] of yieldMarketsByProgram) {
       for (const idx of indices) {
         const addr = phase2Pdas.get(`y:${pi}:${idx}`)
         if (!addr) continue
         const acc = phase2Map[addr]
-        if (!acc?.exists || acc.data.length < YIELD_MARKET_MARGIN_OFFSET + 4) continue
+        if (!acc?.exists || acc.data.length < YIELD_MARKET_MARGIN_OFFSET + 4)
+          continue
         const name = readName(acc.data, YIELD_MARKET_NAME_OFFSET)
         const expireTs = readI64(acc.data, YIELD_MARKET_EXPIRE_OFFSET)
         const marginIndex = readU32(acc.data, YIELD_MARKET_MARGIN_OFFSET)
+        getOrCreateIndexSet(marginMarketsByProgram, pi).add(marginIndex)
         yieldMarketInfo.set(`${pi}:${idx}`, { name, expireTs, marginIndex })
+      }
+    }
+
+    // Phase 3: fetch any collateral MarginMarkets referenced by YieldMarkets that were not part of
+    // the user's direct margin balances. Newer RateX markets use high market indices, so assuming
+    // a small fixed range here misses live positions entirely.
+    const phase3Pdas = new Map<string, string>()
+    for (const [pi, indices] of marginMarketsByProgram) {
+      const progId = PROGRAMS[pi]
+      if (!progId) continue
+      for (const idx of indices) {
+        const key = `${pi}:${idx}`
+        if (marginMarketInfo.has(key)) continue
+        phase3Pdas.set(key, deriveMarginMarketPda(idx, progId))
+      }
+    }
+
+    if (phase3Pdas.size > 0) {
+      const phase3Map = yield [...new Set(phase3Pdas.values())]
+      for (const [key, addr] of phase3Pdas) {
+        const acc = phase3Map[addr]
+        if (!acc?.exists || acc.data.length < MARGIN_MARKET_DECIMALS_OFFSET + 4)
+          continue
+        const mint = readPubkey(acc.data, MARGIN_MARKET_MINT_OFFSET)
+        const decimals = readU32(acc.data, MARGIN_MARKET_DECIMALS_OFFSET)
+        marginMarketInfo.set(key, { mint, decimals })
       }
     }
 
     const result: UserDefiPosition[] = []
 
     // Margin positions — deposited collateral backing yield trades
-    for (const { balance, marketIndex, decimals, programIndex } of marginPositions) {
+    for (const {
+      balance,
+      marketIndex,
+      decimals,
+      programIndex,
+    } of marginPositions) {
       const info = marginMarketInfo.get(`${programIndex}:${marketIndex}`)
       if (!info) continue
 
@@ -257,8 +350,14 @@ export const ratexIntegration: SolanaIntegration = {
         positionKind: 'staking',
         staked: [
           {
-            amount: { token: info.mint, amount: balance.toString(), decimals: decimals.toString() },
-            ...(token?.priceUsd !== undefined && { priceUsd: token.priceUsd.toString() }),
+            amount: {
+              token: info.mint,
+              amount: balance.toString(),
+              decimals: decimals.toString(),
+            },
+            ...(token?.priceUsd !== undefined && {
+              priceUsd: token.priceUsd.toString(),
+            }),
             ...(usdValue !== undefined && { usdValue }),
           },
         ],
@@ -270,13 +369,18 @@ export const ratexIntegration: SolanaIntegration = {
     // Yield positions — leveraged yield token (YT) trading exposure
     for (const { baseAmount, marketIndex, programIndex } of yieldPositions) {
       const yInfo = yieldMarketInfo.get(`${programIndex}:${marketIndex}`)
-      const mInfo = yInfo ? marginMarketInfo.get(`${programIndex}:${yInfo.marginIndex}`) : undefined
+      const mInfo = yInfo
+        ? marginMarketInfo.get(`${programIndex}:${yInfo.marginIndex}`)
+        : undefined
 
       const token = mInfo ? tokens.get(mInfo.mint) : undefined
       const absAmount = baseAmount < 0n ? -baseAmount : baseAmount
       const usdValue =
         token?.priceUsd !== undefined && mInfo !== undefined
-          ? ((Number(absAmount) / 10 ** mInfo.decimals) * token.priceUsd).toString()
+          ? (
+              (Number(absAmount) / 10 ** mInfo.decimals) *
+              token.priceUsd
+            ).toString()
           : undefined
 
       const position: StakingDefiPosition = {
@@ -290,7 +394,9 @@ export const ratexIntegration: SolanaIntegration = {
                 amount: absAmount.toString(),
                 decimals: mInfo.decimals.toString(),
               },
-              ...(token?.priceUsd !== undefined && { priceUsd: token.priceUsd.toString() }),
+              ...(token?.priceUsd !== undefined && {
+                priceUsd: token.priceUsd.toString(),
+              }),
               ...(usdValue !== undefined && { usdValue }),
             },
           ],
@@ -300,7 +406,9 @@ export const ratexIntegration: SolanaIntegration = {
           yieldPosition: {
             direction: baseAmount > 0n ? 'long' : 'short',
             marketName: yInfo?.name ?? `market-${marketIndex}`,
-            ...(yInfo?.expireTs !== undefined && { expiresAt: yInfo.expireTs.toString() }),
+            ...(yInfo?.expireTs !== undefined && {
+              expiresAt: yInfo.expireTs.toString(),
+            }),
           },
         },
       }
