@@ -10,6 +10,7 @@ import type {
   SolanaAccount,
   SolanaIntegration,
   SolanaPlugins,
+  TradingAccountMetrics,
   TradingDefiPosition,
   TradingOrder,
   UserDefiPosition,
@@ -179,6 +180,33 @@ function buildMarketOrderLookup(market: Market) {
 
 function buildOrderUsdValue(order: TradingOrder): string | undefined {
   return order.value?.usdValue ?? order.size.usdValue
+}
+
+function compareDecimalStrings(a: string, b: string): number {
+  return Number.parseFloat(a) - Number.parseFloat(b)
+}
+
+function sortTradingOrders(orders: TradingOrder[], side: TradingOrder['side']) {
+  orders.sort((left, right) => {
+    const leftPrice = left.limitPrice ?? '0'
+    const rightPrice = right.limitPrice ?? '0'
+    const comparison = compareDecimalStrings(leftPrice, rightPrice)
+
+    if (comparison !== 0) {
+      return side === 'buy' ? comparison * -1 : comparison
+    }
+
+    return compareDecimalStrings(
+      left.size.amount.amount,
+      right.size.amount.amount,
+    )
+  })
+}
+
+function buildSpotAccountMetrics(): TradingAccountMetrics {
+  return {
+    leverage: '1',
+  }
 }
 
 export const manifestIntegration: SolanaIntegration = {
@@ -351,9 +379,13 @@ export const manifestIntegration: SolanaIntegration = {
         continue
       }
 
+      sortTradingOrders(buyOrders, 'buy')
+      sortTradingOrders(sellOrders, 'sell')
+
       const position: TradingDefiPosition = {
         platformId: 'manifest',
         positionKind: 'trading',
+        account: buildSpotAccountMetrics(),
         ...(deposited.length > 0 && { deposited }),
         ...(buyOrders.length > 0 && { buyOrders }),
         ...(sellOrders.length > 0 && { sellOrders }),
@@ -367,6 +399,8 @@ export const manifestIntegration: SolanaIntegration = {
         })(),
         meta: {
           manifest: {
+            marketType: 'spot',
+            marginEnabled: false,
             hasDeposits: deposited.length > 0,
             buyOrderCount: buyOrders.length,
             sellOrderCount: sellOrders.length,
