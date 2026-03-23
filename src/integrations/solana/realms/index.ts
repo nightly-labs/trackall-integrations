@@ -32,7 +32,6 @@ export const PROGRAM_IDS = [
   'hgovkRU6Ghe1Qoyb54HdSLdqN7VtxaifBzRmh9jtd3S',
   'jdaoDN37BrVRvxuXSeyR7xE5Z9CAoQApexGrQJbnj6V',
   'jtogvBNH3WBSWDYD5FJfQP2ZxNTuf82zL8GkEhPeaJx',
-  'pytGY6tWRgGinSCvRLnSv4fHfBTMoiDGiCsesmHWM6U',
 ] as const
 
 const TOKEN_OWNER_RECORD_V1 = 2
