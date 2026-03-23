@@ -105,6 +105,8 @@ export type {
   TradingOrder,
   TradingPositionStatus,
   TradingSide,
+  TradingTrigger,
+  TradingTriggerCondition,
   UserDefiPosition,
   VestingAsset,
   VestingDefiPosition,

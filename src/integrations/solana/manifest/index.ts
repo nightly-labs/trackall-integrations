@@ -33,12 +33,10 @@ type ManifestOrder = {
 }
 
 type WrapperOrder = {
-  clientOrderId: unknown
   orderSequenceNumber: unknown
   numBaseAtoms: unknown
   isBid: boolean
   price: number
-  orderType: OrderType
 }
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
@@ -180,7 +178,7 @@ function buildMarketOrderLookup(market: Market) {
 }
 
 function buildOrderUsdValue(order: TradingOrder): string | undefined {
-  return order.selling.usdValue
+  return order.value?.usdValue ?? order.size.usdValue
 }
 
 export const manifestIntegration: SolanaIntegration = {
@@ -314,36 +312,26 @@ export const manifestIntegration: SolanaIntegration = {
               : BigInt(Math.ceil(Number(numBaseAtoms) * order.price))
 
           const isBid = marketOrder?.isBid ?? order.isBid
-          const sellingMint = isBid ? quoteMint : baseMint
-          const buyingMint = isBid ? baseMint : quoteMint
-          const sellingDecimals = isBid ? quoteDecimals : baseDecimals
-          const buyingDecimals = isBid ? baseDecimals : quoteDecimals
-          const sellingToken = isBid ? quoteToken : baseToken
-          const buyingToken = isBid ? baseToken : quoteToken
-          const sellingAtoms = isBid ? quoteAtoms : numBaseAtoms
-          const buyingAtoms = isBid ? numBaseAtoms : quoteAtoms
-          const selling = buildPositionValue(
-            sellingMint,
-            sellingAtoms,
-            sellingDecimals,
-            sellingToken?.priceUsd,
+          const size = buildPositionValue(
+            baseMint,
+            numBaseAtoms,
+            baseDecimals,
+            baseToken?.priceUsd,
           )
-          const buying = buildPositionValue(
-            buyingMint,
-            buyingAtoms,
-            buyingDecimals,
-            buyingToken?.priceUsd,
+          const value = buildPositionValue(
+            quoteMint,
+            quoteAtoms,
+            quoteDecimals,
+            quoteToken?.priceUsd,
           )
-          const { priceQuotePerBase, priceBasePerQuote } =
+          const { priceQuotePerBase } =
             buildTokenRateStrings(priceRaw, baseDecimals, quoteDecimals)
 
           const tradingOrder: TradingOrder = {
-            selling,
-            buying,
             side: isBid ? 'buy' : 'sell',
-            limitPrice: isBid ? priceBasePerQuote : priceQuotePerBase,
-            clientOrderId: toBigInt(order.clientOrderId).toString(),
-            orderSequenceNumber,
+            size,
+            value,
+            limitPrice: priceQuotePerBase,
             status: 'open',
           }
 
@@ -366,7 +354,6 @@ export const manifestIntegration: SolanaIntegration = {
       const position: TradingDefiPosition = {
         platformId: 'manifest',
         positionKind: 'trading',
-        marketAddress,
         ...(deposited.length > 0 && { deposited }),
         ...(buyOrders.length > 0 && { buyOrders }),
         ...(sellOrders.length > 0 && { sellOrders }),

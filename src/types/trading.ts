@@ -14,21 +14,28 @@ export type TradingSide = 'buy' | 'sell'
 
 export type TradingExposureSide = 'long' | 'short'
 
+export type TradingTriggerCondition = 'above' | 'below'
+
+export interface TradingTrigger {
+  /** Trigger price that activates the order. */
+  price: string
+  /** Whether the trigger fires when price moves above or below the threshold. */
+  condition: TradingTriggerCondition
+}
+
 export interface TradingOrder {
-  /** Asset currently reserved/sold by the order. */
-  selling: PositionValue
-  /** Asset expected from the order if fully filled. */
-  buying: PositionValue
-  /** Fraction of the order filled, as a decimal string from 0 to 1. */
-  filledFraction?: string
   /** Side of the active order from the user's perspective. */
   side: TradingSide
-  /** Limit price expressed in units of buying per selling. */
+  /** Base asset or contract size targeted by the order. */
+  size: PositionValue
+  /** Optional quote-side notional or reserved value for the order. */
+  value?: PositionValue
+  /** Fraction of the order filled, as a decimal string from 0 to 1. */
+  filledFraction?: string
+  /** Limit price expressed in quote units per base unit. */
   limitPrice?: string
-  /** Client-provided order identifier, if supported by the venue. */
-  clientOrderId?: string
-  /** Venue-native order identifier or sequence number. */
-  orderSequenceNumber?: string
+  /** Optional trigger conditions associated with the order. */
+  triggers?: TradingTrigger[]
   /** Current status of the trading position, if exposed. */
   status?: TradingPositionStatus
 }
@@ -61,8 +68,6 @@ export interface TradingMarketPosition {
 export interface TradingDefiPosition extends BaseDefiPosition {
   /** Position discriminator for switch-based narrowing. */
   positionKind: Extract<PositionKind, 'trading'>
-  /** Optional market address associated with this trading position. */
-  marketAddress?: string
   /** Idle balances deposited on the venue and available for trading. */
   deposited?: PositionValue[]
   /** Active buy-side orders on the venue. */
