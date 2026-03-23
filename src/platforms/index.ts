@@ -4,6 +4,7 @@ import driftPlatform from './drift'
 import echelonPlatform from './echelon'
 import jupiterLendPlatform from './jupiter'
 import kaminoPlatform from './kamino'
+import luloPlatform from './lulo'
 import meridianPlatform from './meridian'
 import meteoraPlatform from './meteora'
 import mosaicPlatform from './mosaic'
@@ -18,6 +19,7 @@ export const platforms = [
   meteoraPlatform,
   jupiterLendPlatform,
   kaminoPlatform,
+  luloPlatform,
   meridianPlatform,
   mosaicPlatform,
   movepositionPlatform,
