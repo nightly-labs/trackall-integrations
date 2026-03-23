@@ -27,6 +27,28 @@ Modeling rules:
 - Use the shared `rewards` field on a non-reward position only for incentives attached to that primary position.
 - Use `reward` when the claimable asset stands alone and is not naturally attached to a lending, staking, liquidity, or vesting position.
 
+### Position Metadata
+
+All shared position types extend `BaseDefiPosition`, which supports optional integration-specific metadata:
+
+```ts
+type PositionMetadata = Record<string, Record<string, unknown>>
+```
+
+Use `meta` only for structured protocol-specific details that do not fit an existing shared field. Prefer canonical shared fields such as `positionKind`, `rewards`, `usdValue`, token amounts, and timestamps whenever the concept already has a dedicated place in the schema.
+
+Keep metadata keys stable and semantic so downstream consumers can rely on them. Prefer domain nouns like `subaccount`, `vault`, or `lock`, with an object payload under each key.
+
+Example:
+
+```ts
+meta: {
+  subaccount: {
+    name: 'Hedge',
+  },
+}
+```
+
 ## Repository Layout
 
 ```text
@@ -143,6 +165,8 @@ When building positions, prefer the shared types from `src/types/position.ts`:
 - `VestingDefiPosition`
 - `RewardDefiPosition`
 
+Use `meta` for extra structured protocol details that are useful to consumers but do not belong in the shared schema, for example `meta.subaccount.name` for Drift subaccounts.
+
 #### Movement / Aptos-style
 
 Implement `AptosIntegration` from `src/types/aptosIntegration.ts`.
@@ -188,6 +212,7 @@ Use the same shared position taxonomy here:
 - emit `vesting` for token unlock schedules
 - emit `reward` for standalone claimable airdrops or incentive balances
 - keep nested `rewards` for incentives attached to another primary position
+- use `meta` for structured protocol-specific details that do not fit shared fields, for example `meta.subaccount.name`
 
 ### 4. Add a local test entrypoint
 
