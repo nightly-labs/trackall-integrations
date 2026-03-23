@@ -126,6 +126,7 @@ export type {
   SolanaPlugins,
   UserPositionsPlan,
 } from './src/types/solanaIntegration'
+export type { PlatformTag } from './src/types/platformTag'
 export {
   createFetchAccounts,
   createFetchProgramAccounts,

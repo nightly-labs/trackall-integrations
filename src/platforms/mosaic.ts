@@ -1,5 +1,4 @@
 import type { Platform } from '../types/platform'
-import { PlatformTag } from '../types/platformTag'
 
 const mosaicPlatform = {
   id: 'mosaic' as const,
@@ -7,7 +6,7 @@ const mosaicPlatform = {
   name: 'Mosaic',
   image: 'https://mosaic.ag/mosaic/thum.png',
   description: 'Mosaic AMM liquidity and LP farming on Movement',
-  tags: [PlatformTag.Dex],
+  tags: ['dex'],
   links: {
     website: 'https://app.mosaic.ag/',
     documentation: 'https://docs.mosaic.ag/products/liquidity-protocol',

@@ -31,7 +31,6 @@ Create `src/platforms/<protocol>.ts` modeled on `src/platforms/yuzu.ts`:
 
 ```ts
 import type { Platform } from '../types/platform'
-import { PlatformTag } from '../types/platformTag'
 
 const <protocol>Platform = {
   id: '<protocol>' as const,
@@ -39,7 +38,7 @@ const <protocol>Platform = {
   name: '<Name>',
   image: '<image-url>',
   description: '<Short description>',
-  tags: [PlatformTag.Lending],
+  tags: ['lending'],
   defiLlamaId: '<defiLlamaId>',
   links: {
     website: 'https://example.com',
@@ -53,7 +52,7 @@ Rules:
 
 - `id` must be unique and must exactly match the integration `platformId`
 - `networks` must include `'movement'`
-- `tags` must be valid `PlatformTag` values
+- `tags` must be valid `PlatformTag` string values such as `'lending'`
 - omit optional fields instead of filling them with placeholders if the real value is unknown
 
 ---

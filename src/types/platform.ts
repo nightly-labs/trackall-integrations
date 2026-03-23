@@ -30,7 +30,7 @@ export interface Platform {
   description: string
   /** DefiLlama platform identifier used for cross-service lookup. */
   defiLlamaId?: string
-  /** Platform tags, constrained by the shared PlatformTag enum. */
+  /** Platform tags, constrained by the shared PlatformTag string union. */
   tags: PlatformTag[]
   /** Related platform links. Each field expects a URL string. */
   links?: PlatformLinks
