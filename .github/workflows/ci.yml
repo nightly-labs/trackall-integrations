@@ -97,9 +97,12 @@ jobs:
           MOVEMENT_RPC_URL: ${{ secrets.MOVEMENT_RPC_URL }}
           SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL }}
         run: |
+          set -o pipefail
           bun test "${{ needs.detect.outputs.local_test_path }}" \
             2>&1 | tee /tmp/test-output.txt
-          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+          exit_code=${PIPESTATUS[0]}
+          echo "exit_code=${exit_code}" >> "$GITHUB_OUTPUT"
+          exit "${exit_code}"
 
       - name: Post PR comment
         if: always() && github.event_name == 'pull_request'
@@ -177,9 +180,12 @@ jobs:
           MOVEMENT_RPC_URL: ${{ secrets.MOVEMENT_RPC_URL }}
           SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL }}
         run: |
+          set -o pipefail
           bun test "src/test/run-integration.test.ts" \
             2>&1 | tee /tmp/test-output.txt
-          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+          exit_code=${PIPESTATUS[0]}
+          echo "exit_code=${exit_code}" >> "$GITHUB_OUTPUT"
+          exit "${exit_code}"
 
       - name: Post PR comment
         if: always() && github.event_name == 'pull_request'
