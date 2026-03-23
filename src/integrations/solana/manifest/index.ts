@@ -388,23 +388,10 @@ export const manifestIntegration: SolanaIntegration = {
           return usdValue ? { usdValue } : {}
         })(),
         meta: {
-          manifest: {
-            hasDeposits: deposited.length > 0,
-            buyOrderCount: buyOrders.length,
-            sellOrderCount: sellOrders.length,
-          },
           market: {
             address: marketAddress,
-            baseMint,
-            quoteMint,
-            baseDecimals,
-            quoteDecimals,
             bestBidPrice: market.bestBidPrice() ?? null,
             bestAskPrice: market.bestAskPrice() ?? null,
-          },
-          balances: {
-            baseWithdrawableAtoms: baseWithdrawableAtoms.toString(),
-            quoteWithdrawableAtoms: quoteWithdrawableAtoms.toString(),
           },
         },
       }
