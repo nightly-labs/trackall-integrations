@@ -2,10 +2,11 @@ import type { Platform } from '../types/platform'
 import canopyPlatform from './canopy'
 import driftPlatform from './drift'
 import echelonPlatform from './echelon'
-import jupiterDaoPlatform from './jupiter-dao'
 import jupiterLendPlatform from './jupiter'
+import jupiterDaoPlatform from './jupiter-dao'
 import kaminoPlatform from './kamino'
 import luloPlatform from './lulo'
+import manifestPlatform from './manifest'
 import meridianPlatform from './meridian'
 import meteoraPlatform from './meteora'
 import mosaicPlatform from './mosaic'
@@ -23,6 +24,7 @@ export const platforms = [
   jupiterLendPlatform,
   kaminoPlatform,
   luloPlatform,
+  manifestPlatform,
   meridianPlatform,
   mosaicPlatform,
   movepositionPlatform,
