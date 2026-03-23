@@ -223,6 +223,11 @@ describe('<protocol> integration', () => {
 })
 ```
 
+Minimum requirement:
+- Always create at least `src/integrations/solana/<protocol>/index.test.ts`, even if you only wire it to the shared generic helper in `src/test/solana-integration.ts`
+- A richer protocol-specific test file like the example above is preferred when the integration needs extra assertions, batching coverage, or better debugging output
+- Do not skip test creation for a new integration
+
 ---
 
 ## Step 6 — Local verification
