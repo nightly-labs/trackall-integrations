@@ -13,6 +13,8 @@ export interface BaseLiquidityDefiPosition extends BaseDefiPosition {
   liquidityModel: LiquidityModel
   /** Optional list of token-level values tied to the liquidity pool. */
   poolTokens: PositionValue[]
+  /** Optional accrued swap fees claimable from the liquidity position. */
+  fees?: PositionValue[]
   /** Optional liquidity pool contract address. */
   poolAddress?: string
   /** Optional APY value for liquidity rewards, decimal string. */
