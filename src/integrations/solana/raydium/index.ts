@@ -6,6 +6,7 @@ import { PublicKey } from '@solana/web3.js'
 import type {
   ConcentratedRangeLiquidityDefiPosition,
   ConstantProductLiquidityDefiPosition,
+  ProgramRequest,
   SolanaIntegration,
   SolanaPlugins,
   UserDefiPosition,
@@ -279,27 +280,46 @@ export const raydiumIntegration: SolanaIntegration = {
     }
     const ammV4Matches: AmmV4Match[] = []
 
-    for (const [mint, amount] of userSplMintBalances) {
-      const cpPoolsMap = yield {
-        kind: 'getProgramAccounts' as const,
-        programId: CP_PROGRAM_ID,
-        filters: [
-          {
-            memcmp: {
-              offset: 0,
-              bytes: CP_POOL_DISC_B64,
-              encoding: 'base64' as const,
+    const poolDiscoveryRequests: ProgramRequest[] = []
+    for (const mint of userSplMintBalances.keys()) {
+      poolDiscoveryRequests.push(
+        {
+          kind: 'getProgramAccounts' as const,
+          programId: CP_PROGRAM_ID,
+          filters: [
+            {
+              memcmp: {
+                offset: 0,
+                bytes: CP_POOL_DISC_B64,
+                encoding: 'base64' as const,
+              },
             },
-          },
-          { memcmp: { offset: CP_LP_MINT_OFFSET, bytes: mint } },
-        ],
-      }
+            { memcmp: { offset: CP_LP_MINT_OFFSET, bytes: mint } },
+          ],
+        },
+        {
+          kind: 'getProgramAccounts' as const,
+          programId: AMM_V4.toBase58(),
+          filters: [
+            { dataSize: 752 },
+            { memcmp: { offset: 464, bytes: mint } },
+          ],
+        },
+      )
+    }
 
-      for (const acc of Object.values(cpPoolsMap)) {
-        if (!acc.exists) continue
-        const buf = Buffer.from(acc.data)
+    const discoveredPools =
+      poolDiscoveryRequests.length > 0 ? yield poolDiscoveryRequests : {}
+
+    for (const acc of Object.values(discoveredPools)) {
+      if (!acc.exists) continue
+      const buf = Buffer.from(acc.data)
+
+      if (acc.programAddress === CP_PROGRAM_ID) {
         if (buf.length < 341) continue
         const pool = decodeCpPool(buf)
+        const userLpAmount = userSplMintBalances.get(pool.lpMint)
+        if (userLpAmount === undefined) continue
         cpMatches.push({
           poolAddress: acc.address,
           token0Mint: pool.token0Mint,
@@ -309,35 +329,31 @@ export const raydiumIntegration: SolanaIntegration = {
           mintDecimals0: pool.mintDecimals0,
           mintDecimals1: pool.mintDecimals1,
           lpSupply: pool.lpSupply,
-          userLpAmount: amount,
+          userLpAmount,
         })
         cpVaultAddresses.push(pool.token0Vault, pool.token1Vault)
+        continue
       }
 
-      // AMM v4 (legacy): lpMint at offset 464, account size 752
-      const ammV4PoolsMap = yield {
-        kind: 'getProgramAccounts' as const,
-        programId: AMM_V4.toBase58(),
-        filters: [{ dataSize: 752 }, { memcmp: { offset: 464, bytes: mint } }],
-      }
+      if (acc.programAddress !== AMM_V4.toBase58()) continue
+      if (buf.length < 752) continue
 
-      for (const acc of Object.values(ammV4PoolsMap)) {
-        if (!acc.exists) continue
-        const buf = Buffer.from(acc.data)
-        if (buf.length < 752) continue
-        const pool = liquidityStateV4Layout.decode(buf)
-        ammV4Matches.push({
-          poolAddress: acc.address,
-          baseMint: pool.baseMint.toBase58(),
-          quoteMint: pool.quoteMint.toBase58(),
-          baseVault: pool.baseVault.toBase58(),
-          quoteVault: pool.quoteVault.toBase58(),
-          baseDecimal: Number(pool.baseDecimal),
-          quoteDecimal: Number(pool.quoteDecimal),
-          lpMint: pool.lpMint.toBase58(),
-          userLpAmount: amount,
-        })
-      }
+      const pool = liquidityStateV4Layout.decode(buf)
+      const lpMint = pool.lpMint.toBase58()
+      const userLpAmount = userSplMintBalances.get(lpMint)
+      if (userLpAmount === undefined) continue
+
+      ammV4Matches.push({
+        poolAddress: acc.address,
+        baseMint: pool.baseMint.toBase58(),
+        quoteMint: pool.quoteMint.toBase58(),
+        baseVault: pool.baseVault.toBase58(),
+        quoteVault: pool.quoteVault.toBase58(),
+        baseDecimal: Number(pool.baseDecimal),
+        quoteDecimal: Number(pool.quoteDecimal),
+        lpMint,
+        userLpAmount,
+      })
     }
 
     // Collect AMM v4 addresses for phase 2
