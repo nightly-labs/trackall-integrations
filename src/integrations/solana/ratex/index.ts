@@ -1,5 +1,7 @@
 import { PublicKey } from '@solana/web3.js'
 import type {
+  ConstantProductLiquidityDefiPosition,
+  MaybeSolanaAccount,
   SolanaIntegration,
   SolanaPlugins,
   StakingDefiPosition,
@@ -23,7 +25,16 @@ const PROGRAMS = [
   'rAtERVnFCEdaY3BqP7w1wdMJFphHz9m8uTyLjRkw8Fu',
   'RaTeUhvvohYGErSb2Sy3RA5EdMv9A9jtiJe8FHTg7uK',
   'rAtewzmMSgn1QGewCM8PHdoW49bbuzrDQi4ftFoTFWo',
+  // Additional live market programs exposed by the production app asset maps.
+  'RAtELWRTmTxPtDUue6ihnoXRhLzjbFixvJmH9RwymLo',
+  'RateNeT2BXBKaV33ECFRNwwi2nGGsZWPdWEJMncBsU8',
+  'RAtEizi1p6eXCashGSnMtzbJNwxmpeRHBPFRsS9uKBH',
 ] as const
+
+const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
+const METADATA_PROGRAM_ID = 'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s'
+const RATEX_GATEWAY_URL = 'https://api.rate-x.io'
+const RATEX_SESSION_ID = 'trackall-integrations'
 
 // Account discriminators (from ratex-earn-sdk IDL)
 const USER_DISCRIMINATOR = Buffer.from([159, 117, 95, 227, 239, 151, 58, 236])
@@ -61,7 +72,24 @@ const YIELD_MARKET_MARGIN_OFFSET = 908 // u32: margin_index referencing collater
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
-export const RATEX_INDEXED_PROGRAMS = PROGRAMS
+export const PROGRAM_IDS = PROGRAMS
+
+type RatexGatewayResponse<T> = {
+  code?: number
+  data?: T
+}
+
+type RatexLpRecordRow = {
+  Lower?: string
+  MarginAmount?: string
+  MarketIndicator?: string
+  SecurityID?: string
+  SettlCurrency?: string
+  TransactTime?: string
+  Upper?: string
+}
+
+type RatexPriceMap = Record<string, number | string>
 
 function checkDiscriminator(data: Uint8Array, expected: Buffer): boolean {
   if (data.length < 8) return false
@@ -78,6 +106,10 @@ function readU32(data: Uint8Array, offset: number): number {
 
 function readU16(data: Uint8Array, offset: number): number {
   return Buffer.from(data).readUInt16LE(offset)
+}
+
+function readU64(data: Uint8Array, offset: number): bigint {
+  return Buffer.from(data).readBigUInt64LE(offset)
 }
 
 function readPubkey(data: Uint8Array, offset: number): string {
@@ -136,6 +168,49 @@ function deriveYieldMarketPda(index: number, programId: string): string {
   return pda.toBase58()
 }
 
+function deriveMetadataPda(mint: string): string {
+  const [pda] = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from('metadata'),
+      new PublicKey(METADATA_PROGRAM_ID).toBuffer(),
+      new PublicKey(mint).toBuffer(),
+    ],
+    new PublicKey(METADATA_PROGRAM_ID),
+  )
+  return pda.toBase58()
+}
+
+function readMetaplexString(
+  data: Uint8Array,
+  offset: number,
+): {
+  nextOffset: number
+  value: string
+} {
+  const length = readU32(data, offset)
+  const start = offset + 4
+  const end = start + length
+  if (end > data.length) return { nextOffset: end, value: '' }
+  return {
+    nextOffset: end,
+    value: Buffer.from(data)
+      .subarray(start, end)
+      .toString('utf8')
+      .replace(/\0+$/, '')
+      .trim(),
+  }
+}
+
+function readMetadataNameAndSymbol(data: Uint8Array): {
+  name: string
+  symbol: string
+} {
+  if (data.length < 69) return { name: '', symbol: '' }
+  const name = readMetaplexString(data, 65)
+  const symbol = readMetaplexString(data, name.nextOffset)
+  return { name: name.value, symbol: symbol.value }
+}
+
 function getOrCreateIndexSet(
   map: Map<number, Set<number>>,
   programIndex: number,
@@ -148,6 +223,115 @@ function getOrCreateIndexSet(
   return set
 }
 
+function chunk<T>(items: readonly T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size))
+  }
+  return chunks
+}
+
+function isExistingAccount(
+  account: MaybeSolanaAccount,
+): account is Extract<MaybeSolanaAccount, { exists: true }> {
+  return account.exists
+}
+
+function parseDecimalAmount(value: string): {
+  amount: string
+  decimals: number
+} {
+  const trimmed = value.trim()
+  const negative = trimmed.startsWith('-')
+  const unsigned = negative ? trimmed.slice(1) : trimmed
+  const [whole = '0', fraction = ''] = unsigned.split('.')
+  const digits = `${whole}${fraction}`.replace(/^0+(?=\d)/, '')
+
+  return {
+    amount: negative ? `-${digits || '0'}` : digits || '0',
+    decimals: fraction.length,
+  }
+}
+
+function parseTimestampMs(value?: string): number {
+  if (!value) return 0
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function parseYymm(value?: string): number | null {
+  if (!value) return null
+  const match = /-(\d{4})$/.exec(value)
+  if (!match?.[1]) return null
+  const parsed = Number(match[1])
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function getCurrentUtcYymm(): number {
+  const now = new Date()
+  return (now.getUTCFullYear() % 100) * 100 + (now.getUTCMonth() + 1)
+}
+
+function getLpAssetSymbol(row: RatexLpRecordRow): string {
+  return row.SecurityID?.split('-')[0] || row.SettlCurrency || 'UNKNOWN'
+}
+
+function getRatePrice(
+  prices: RatexPriceMap,
+  row: RatexLpRecordRow,
+  assetSymbol: string,
+): number | undefined {
+  const candidates = [
+    row.MarketIndicator ? `${row.MarketIndicator}USDT` : undefined,
+    row.SettlCurrency ? `${row.SettlCurrency}USDT` : undefined,
+    `${assetSymbol.toUpperCase()}USDT`,
+  ]
+
+  for (const key of candidates) {
+    if (!key) continue
+    const value = prices[key]
+    const numeric =
+      typeof value === 'number'
+        ? value
+        : typeof value === 'string'
+          ? Number(value)
+          : NaN
+    if (Number.isFinite(numeric)) return numeric
+  }
+
+  return undefined
+}
+
+async function fetchRatexGatewayData<T>(
+  serverName: string,
+  method: string,
+  content: Record<string, unknown>,
+): Promise<T | undefined> {
+  try {
+    const res = await fetch(RATEX_GATEWAY_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        SessionId: RATEX_SESSION_ID,
+      },
+      body: JSON.stringify({
+        serverName,
+        method,
+        content: {
+          cid: RATEX_SESSION_ID,
+          ...content,
+        },
+      }),
+    })
+
+    const json = (await res.json()) as RatexGatewayResponse<T>
+    if (!res.ok || json.code !== 0) return undefined
+    return json.data
+  } catch {
+    return undefined
+  }
+}
+
 export const ratexIntegration: SolanaIntegration = {
   platformId: 'ratex',
 
@@ -156,6 +340,11 @@ export const ratexIntegration: SolanaIntegration = {
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
     const authority = new PublicKey(address)
+    const ownerTokenAccounts = yield {
+      kind: 'getTokenAccountsByOwner' as const,
+      owner: address,
+      programId: TOKEN_PROGRAM_ID,
+    }
 
     // Phase 0: fetch UserStats for every supported RateX trader program.
     const userStatsPdas = PROGRAMS.map((prog) =>
@@ -239,10 +428,7 @@ export const ratexIntegration: SolanaIntegration = {
       }
     }
 
-    if (marginPositions.length === 0 && yieldPositions.length === 0) return []
-
-    // Phase 2: fetch directly referenced MarginMarket accounts plus the active YieldMarket accounts.
-    const phase2Pdas = new Map<string, string>() // key -> address
+    const phase2Pdas = new Map<string, string>()
 
     for (const [pi, indices] of marginMarketsByProgram) {
       const progId = PROGRAMS[pi]
@@ -413,6 +599,177 @@ export const ratexIntegration: SolanaIntegration = {
         },
       }
       result.push(position)
+    }
+
+    // Current LP balances are indexed by the RateX backend. The production app
+    // uses that feed for wallet LP rows, while the stable on-chain account path
+    // is not exposed across all current markets.
+    const [lpRecords, ratePrices] = await Promise.all([
+      fetchRatexGatewayData<RatexLpRecordRow[]>('AdminSvr', 'queryLpRecord', {
+        pageNum: 0,
+        pageSize: 200,
+        user_id: address,
+      }),
+      fetchRatexGatewayData<RatexPriceMap>('APSSvr', 'ratePrice', {}),
+    ])
+
+    if ((lpRecords?.length ?? 0) > 0) {
+      const currentYymm = getCurrentUtcYymm()
+      const latestLpRowsBySecurity = new Map<string, RatexLpRecordRow>()
+
+      for (const row of lpRecords ?? []) {
+        const securityId = row.SecurityID
+        if (!securityId) continue
+
+        const current = latestLpRowsBySecurity.get(securityId)
+        if (
+          current === undefined ||
+          parseTimestampMs(row.TransactTime) >=
+            parseTimestampMs(current.TransactTime)
+        ) {
+          latestLpRowsBySecurity.set(securityId, row)
+        }
+      }
+
+      for (const row of latestLpRowsBySecurity.values()) {
+        const securityId = row.SecurityID
+        const marginAmount = row.MarginAmount
+        if (!securityId || !marginAmount || Number(marginAmount) <= 0) continue
+
+        const maturity = parseYymm(securityId)
+        if (maturity !== null && maturity < currentYymm) continue
+
+        const assetSymbol = getLpAssetSymbol(row)
+        const parsedAmount = parseDecimalAmount(marginAmount)
+        const priceUsd = getRatePrice(ratePrices ?? {}, row, assetSymbol)
+        const usdValue =
+          priceUsd !== undefined
+            ? (Number(marginAmount) * priceUsd).toString()
+            : undefined
+
+        const position: ConstantProductLiquidityDefiPosition = {
+          platformId: 'ratex',
+          positionKind: 'liquidity',
+          liquidityModel: 'constant-product',
+          poolAddress: securityId,
+          poolTokens: [
+            {
+              amount: {
+                token: assetSymbol,
+                amount: parsedAmount.amount,
+                decimals: parsedAmount.decimals.toString(),
+              },
+              ...(priceUsd !== undefined && { priceUsd: priceUsd.toString() }),
+              ...(usdValue !== undefined && { usdValue }),
+            },
+          ],
+          ...(usdValue !== undefined && { usdValue }),
+          meta: {
+            liquidityPool: {
+              marketName: securityId,
+              assetSymbol,
+              ...(row.MarketIndicator && {
+                marketIndicator: row.MarketIndicator,
+              }),
+              ...(row.Lower && { lowerRate: row.Lower }),
+              ...(row.Upper && { upperRate: row.Upper }),
+            },
+          },
+        }
+        result.push(position)
+      }
+    }
+
+    const nonZeroTokenAccounts = Object.values(ownerTokenAccounts).filter(
+      (account): account is Extract<MaybeSolanaAccount, { exists: true }> =>
+        isExistingAccount(account) &&
+        account.data.length >= 72 &&
+        readU64(account.data, 64) > 0n,
+    )
+
+    if (nonZeroTokenAccounts.length > 0) {
+      const mintAddresses = [
+        ...new Set(
+          nonZeroTokenAccounts.map((account) => readPubkey(account.data, 0)),
+        ),
+      ]
+      const metadataPdas = new Map(
+        mintAddresses.map((mint) => [mint, deriveMetadataPda(mint)]),
+      )
+      const mintAndMetadataAccounts: Record<
+        string,
+        (typeof ownerTokenAccounts)[string]
+      > = {}
+
+      for (const mintChunk of chunk(mintAddresses, 50)) {
+        const addresses = [
+          ...mintChunk,
+          ...mintChunk.flatMap((mint) => {
+            const metadataPda = metadataPdas.get(mint)
+            return metadataPda === undefined ? [] : [metadataPda]
+          }),
+        ]
+        const chunkAccounts = yield addresses
+        Object.assign(mintAndMetadataAccounts, chunkAccounts)
+      }
+
+      for (const account of nonZeroTokenAccounts) {
+        const mint = readPubkey(account.data, 0)
+        const rawAmount = readU64(account.data, 64)
+        if (rawAmount === 0n) continue
+
+        const mintAccount = mintAndMetadataAccounts[mint]
+        if (!mintAccount?.exists || mintAccount.data.length < 45) continue
+        const decimals = mintAccount.data[44] ?? 0
+
+        const metadataPda = metadataPdas.get(mint)
+        const metadataAccount =
+          metadataPda !== undefined
+            ? mintAndMetadataAccounts[metadataPda]
+            : undefined
+        const { name, symbol } =
+          metadataAccount?.exists && metadataAccount.data.length >= 69
+            ? readMetadataNameAndSymbol(metadataAccount.data)
+            : { name: '', symbol: '' }
+
+        const isRatexPt =
+          (name.startsWith('PT-') || symbol.startsWith('PT')) &&
+          name.includes('(RateX)')
+        if (!isRatexPt) continue
+
+        const token = tokens.get(mint)
+        const amount = Number(rawAmount) / 10 ** decimals
+        const usdValue =
+          token?.priceUsd !== undefined
+            ? (amount * token.priceUsd).toString()
+            : undefined
+
+        const position: StakingDefiPosition = {
+          platformId: 'ratex',
+          positionKind: 'staking',
+          staked: [
+            {
+              amount: {
+                token: mint,
+                amount: rawAmount.toString(),
+                decimals: decimals.toString(),
+              },
+              ...(token?.priceUsd !== undefined && {
+                priceUsd: token.priceUsd.toString(),
+              }),
+              ...(usdValue !== undefined && { usdValue }),
+            },
+          ],
+          ...(usdValue !== undefined && { usdValue }),
+          meta: {
+            earnPosition: {
+              marketName: name || symbol || mint,
+              symbol: symbol || undefined,
+            },
+          },
+        }
+        result.push(position)
+      }
     }
 
     return result
