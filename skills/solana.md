@@ -230,21 +230,17 @@ describe('<protocol> integration', () => {
 Run these commands to verify before opening a PR:
 
 ```bash
-# Run the integration's own rich test
-bun test src/solana/<protocol>/index.test.ts
+# Run the integration's own rich test (requires an RPC URL)
+SOLANA_RPC_URL=<url> bun test src/solana/<protocol>/index.test.ts
 
 # Run via the generic CI harness
-INTEGRATION_NAME=<protocol> bun test src/test/run-integration.test.ts
+SOLANA_RPC_URL=<url> INTEGRATION_NAME=<protocol> bun test src/test/run-integration.test.ts
 
 # Type-check everything
 bun run typecheck
 ```
 
-All three must succeed before opening a PR.
-
-Important:
-- Do not overwrite `SOLANA_RPC_URL` if it is already provided by the local `.env`, shell environment, or CI.
-- GitHub CI already defines `SOLANA_RPC_URL`, so local examples should rely on the existing environment variable instead of exporting a new one inline unless you are intentionally testing a different RPC endpoint.
+All three must succeed before opening a PR. If you don't have a private RPC URL, ask the maintainers — `SOLANA_RPC_URL` is also set as a repository secret for CI.
 
 ---
 
