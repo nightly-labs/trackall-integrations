@@ -1,5 +1,6 @@
 import type { Platform } from '../types/platform'
 import canopyPlatform from './canopy'
+import driftPlatform from './drift'
 import echelonPlatform from './echelon'
 import jupiterLendPlatform from './jupiter'
 import kaminoPlatform from './kamino'
@@ -12,6 +13,7 @@ import raydiumPlatform from './raydium'
 import yuzuPlatform from './yuzu'
 
 export const platforms = [
+  driftPlatform,
   meteoraPlatform,
   jupiterLendPlatform,
   kaminoPlatform,

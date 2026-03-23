@@ -132,6 +132,7 @@ When implementing protocol logic:
 - keep repo-specific conventions aligned with `yuzu`
 - use `VestingDefiPosition` for token unlock schedules and `RewardDefiPosition` for standalone claimable rewards or airdrops
 - keep nested `rewards` for incentives attached to a primary lending, staking, liquidity, or vesting position
+- use `meta?: PositionMetadata` for structured protocol-specific details that do not fit shared fields; `PositionMetadata` is `Record<string, Record<string, unknown>>`, for example `meta.subaccount.name`
 
 ---
 

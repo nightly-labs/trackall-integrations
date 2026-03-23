@@ -16,6 +16,8 @@ export interface PositionValue {
   priceUsd?: string
 }
 
+export type PositionMetadata = Record<string, Record<string, unknown>>
+
 export type PositionKind =
   | 'lending'
   | 'staking'
@@ -28,6 +30,8 @@ export interface BaseDefiPosition {
   platformId: string
   /** Optional top-level USD value of the position as a decimal string. */
   usdValue?: string
+  /** Optional integration-specific metadata. */
+  meta?: PositionMetadata
   /** Reward token amounts for this position. */
   rewards?: PositionValue[]
 }
