@@ -11,6 +11,7 @@ import type {
   SolanaIntegration,
   SolanaPlugins,
   TradingDefiPosition,
+  TradingOrder,
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
@@ -178,6 +179,10 @@ function buildMarketOrderLookup(market: Market) {
   return lookup
 }
 
+function buildOrderUsdValue(order: TradingOrder): string | undefined {
+  return order.selling.usdValue
+}
+
 export const manifestIntegration: SolanaIntegration = {
   platformId: 'manifest',
 
@@ -250,14 +255,9 @@ export const manifestIntegration: SolanaIntegration = {
 
     const positions: UserDefiPosition[] = []
 
-    for (const market of markets.filter((entry) => entry.hasSeat(trader))) {
+    for (const [marketAddress, market] of marketByAddress) {
       const { baseWithdrawableAtoms, quoteWithdrawableAtoms } =
         readSeatBalances(market, trader)
-
-      if (baseWithdrawableAtoms <= 0n && quoteWithdrawableAtoms <= 0n) {
-        continue
-      }
-
       const baseMint = market.baseMint().toBase58()
       const quoteMint = market.quoteMint().toBase58()
       const baseDecimals = market.baseDecimals()
@@ -287,25 +287,105 @@ export const manifestIntegration: SolanaIntegration = {
         )
       }
 
+      const buyOrders: TradingOrder[] = []
+      const sellOrders: TradingOrder[] = []
+      const orders = wrapper?.openOrdersForMarket(market.address) as
+        | WrapperOrder[]
+        | null
+      if (orders && orders.length > 0) {
+        const orderLookup = buildMarketOrderLookup(market)
+
+        for (const order of orders) {
+          const orderSequenceNumber = toBigInt(
+            order.orderSequenceNumber,
+          ).toString()
+          const marketOrder = orderLookup.get(orderSequenceNumber)
+          const numBaseAtoms = toBigInt(
+            marketOrder?.numBaseAtoms ?? order.numBaseAtoms,
+          )
+          const priceRaw =
+            marketOrder?.price !== undefined
+              ? toBigInt(marketOrder.price)
+              : BigInt(Math.ceil(Number(numBaseAtoms) * order.price)) *
+                PRICE_SCALE
+          const quoteAtoms =
+            marketOrder?.price !== undefined
+              ? ceilDiv(numBaseAtoms * priceRaw, PRICE_SCALE)
+              : BigInt(Math.ceil(Number(numBaseAtoms) * order.price))
+
+          const isBid = marketOrder?.isBid ?? order.isBid
+          const sellingMint = isBid ? quoteMint : baseMint
+          const buyingMint = isBid ? baseMint : quoteMint
+          const sellingDecimals = isBid ? quoteDecimals : baseDecimals
+          const buyingDecimals = isBid ? baseDecimals : quoteDecimals
+          const sellingToken = isBid ? quoteToken : baseToken
+          const buyingToken = isBid ? baseToken : quoteToken
+          const sellingAtoms = isBid ? quoteAtoms : numBaseAtoms
+          const buyingAtoms = isBid ? numBaseAtoms : quoteAtoms
+          const selling = buildPositionValue(
+            sellingMint,
+            sellingAtoms,
+            sellingDecimals,
+            sellingToken?.priceUsd,
+          )
+          const buying = buildPositionValue(
+            buyingMint,
+            buyingAtoms,
+            buyingDecimals,
+            buyingToken?.priceUsd,
+          )
+          const { priceQuotePerBase, priceBasePerQuote } =
+            buildTokenRateStrings(priceRaw, baseDecimals, quoteDecimals)
+
+          const tradingOrder: TradingOrder = {
+            selling,
+            buying,
+            side: isBid ? 'buy' : 'sell',
+            limitPrice: isBid ? priceBasePerQuote : priceQuotePerBase,
+            clientOrderId: toBigInt(order.clientOrderId).toString(),
+            orderSequenceNumber,
+            status: 'open',
+          }
+
+          if (isBid) {
+            buyOrders.push(tradingOrder)
+          } else {
+            sellOrders.push(tradingOrder)
+          }
+        }
+      }
+
+      if (
+        deposited.length === 0 &&
+        buyOrders.length === 0 &&
+        sellOrders.length === 0
+      ) {
+        continue
+      }
+
       const position: TradingDefiPosition = {
         platformId: 'manifest',
         positionKind: 'trading',
-        tradingType: 'deposit',
-        marketAddress: market.address.toBase58(),
-        deposited,
+        marketAddress,
+        ...(deposited.length > 0 && { deposited }),
+        ...(buyOrders.length > 0 && { buyOrders }),
+        ...(sellOrders.length > 0 && { sellOrders }),
         ...(() => {
-          const usdValue = sumUsdValues(
-            deposited.map((asset) => asset.usdValue),
-          )
+          const usdValue = sumUsdValues([
+            ...deposited.map((asset) => asset.usdValue),
+            ...buyOrders.map(buildOrderUsdValue),
+            ...sellOrders.map(buildOrderUsdValue),
+          ])
           return usdValue ? { usdValue } : {}
         })(),
         meta: {
           manifest: {
-            label: 'Deposit',
-            positionType: 'deposit',
+            hasDeposits: deposited.length > 0,
+            buyOrderCount: buyOrders.length,
+            sellOrderCount: sellOrders.length,
           },
           market: {
-            address: market.address.toBase58(),
+            address: marketAddress,
             baseMint,
             quoteMint,
             baseDecimals,
@@ -321,118 +401,6 @@ export const manifestIntegration: SolanaIntegration = {
       }
 
       positions.push(position)
-    }
-
-    if (!wrapper) {
-      return positions
-    }
-
-    for (const [marketAddress, market] of marketByAddress) {
-      const orders = wrapper.openOrdersForMarket(market.address) as
-        | WrapperOrder[]
-        | null
-      if (!orders || orders.length === 0) continue
-
-      const orderLookup = buildMarketOrderLookup(market)
-      const baseMint = market.baseMint().toBase58()
-      const quoteMint = market.quoteMint().toBase58()
-      const baseDecimals = market.baseDecimals()
-      const quoteDecimals = market.quoteDecimals()
-      const baseToken = tokens.get(baseMint)
-      const quoteToken = tokens.get(quoteMint)
-
-      for (const order of orders) {
-        const orderSequenceNumber = toBigInt(
-          order.orderSequenceNumber,
-        ).toString()
-        const marketOrder = orderLookup.get(orderSequenceNumber)
-        const numBaseAtoms = toBigInt(
-          marketOrder?.numBaseAtoms ?? order.numBaseAtoms,
-        )
-        const priceRaw =
-          marketOrder?.price !== undefined
-            ? toBigInt(marketOrder.price)
-            : BigInt(Math.ceil(Number(numBaseAtoms) * order.price)) *
-              PRICE_SCALE
-        const quoteAtoms =
-          marketOrder?.price !== undefined
-            ? ceilDiv(numBaseAtoms * priceRaw, PRICE_SCALE)
-            : BigInt(Math.ceil(Number(numBaseAtoms) * order.price))
-
-        const isBid = marketOrder?.isBid ?? order.isBid
-        const sellingMint = isBid ? quoteMint : baseMint
-        const buyingMint = isBid ? baseMint : quoteMint
-        const sellingDecimals = isBid ? quoteDecimals : baseDecimals
-        const buyingDecimals = isBid ? baseDecimals : quoteDecimals
-        const sellingToken = isBid ? quoteToken : baseToken
-        const buyingToken = isBid ? baseToken : quoteToken
-        const sellingAtoms = isBid ? quoteAtoms : numBaseAtoms
-        const buyingAtoms = isBid ? numBaseAtoms : quoteAtoms
-        const selling = buildPositionValue(
-          sellingMint,
-          sellingAtoms,
-          sellingDecimals,
-          sellingToken?.priceUsd,
-        )
-        const buying = buildPositionValue(
-          buyingMint,
-          buyingAtoms,
-          buyingDecimals,
-          buyingToken?.priceUsd,
-        )
-        const { priceQuotePerBase, priceBasePerQuote } = buildTokenRateStrings(
-          priceRaw,
-          baseDecimals,
-          quoteDecimals,
-        )
-
-        const position: TradingDefiPosition = {
-          platformId: 'manifest',
-          positionKind: 'trading',
-          tradingType: 'limit-order',
-          marketAddress,
-          selling,
-          buying,
-          side: isBid ? 'buy' : 'sell',
-          limitPrice: isBid ? priceBasePerQuote : priceQuotePerBase,
-          clientOrderId: toBigInt(order.clientOrderId).toString(),
-          orderSequenceNumber,
-          status: 'open',
-          ...(() => {
-            const usdValue = sumUsdValues([selling.usdValue])
-            return usdValue ? { usdValue } : {}
-          })(),
-          meta: {
-            manifest: {
-              label: 'LimitOrder',
-              positionType: 'limit-order',
-              clientOrderId: toBigInt(order.clientOrderId).toString(),
-              orderSequenceNumber,
-              isBid,
-              priceQuotePerBase,
-              priceBasePerQuote,
-            },
-            market: {
-              address: marketAddress,
-              baseMint,
-              quoteMint,
-              baseDecimals,
-              quoteDecimals,
-            },
-            order: {
-              sellingMint,
-              buyingMint,
-              sellingAtoms: sellingAtoms.toString(),
-              buyingAtoms: buyingAtoms.toString(),
-              sellingDecimals,
-              buyingDecimals,
-              orderType: order.orderType,
-            },
-          },
-        }
-
-        positions.push(position)
-      }
     }
 
     return positions
