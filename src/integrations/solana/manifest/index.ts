@@ -10,7 +10,6 @@ import type {
   SolanaAccount,
   SolanaIntegration,
   SolanaPlugins,
-  TradingAccountMetrics,
   TradingDefiPosition,
   TradingOrder,
   UserDefiPosition,
@@ -123,30 +122,17 @@ function sumUsdValues(values: Array<string | undefined>): string | undefined {
   return numbers.reduce((sum, value) => sum + value, 0).toString()
 }
 
-function buildTokenRateStrings(
+function buildLimitPrice(
   priceRaw: bigint,
   baseDecimals: number,
   quoteDecimals: number,
 ) {
-  const priceQuotePerBase =
-    priceRaw > 0n
-      ? divideToDecimalString(
-          priceRaw * 10n ** BigInt(baseDecimals),
-          PRICE_SCALE * 10n ** BigInt(quoteDecimals),
-        )
-      : '0'
-  const priceBasePerQuote =
-    priceRaw > 0n
-      ? divideToDecimalString(
-          PRICE_SCALE * 10n ** BigInt(quoteDecimals),
-          priceRaw * 10n ** BigInt(baseDecimals),
-        )
-      : '0'
-
-  return {
-    priceQuotePerBase,
-    priceBasePerQuote,
-  }
+  return priceRaw > 0n
+    ? divideToDecimalString(
+        priceRaw * 10n ** BigInt(baseDecimals),
+        PRICE_SCALE * 10n ** BigInt(quoteDecimals),
+      )
+    : '0'
 }
 
 function readSeatBalances(market: Market, trader: PublicKey) {
@@ -201,12 +187,6 @@ function sortTradingOrders(orders: TradingOrder[], side: TradingOrder['side']) {
       right.size.amount.amount,
     )
   })
-}
-
-function buildSpotAccountMetrics(): TradingAccountMetrics {
-  return {
-    leverage: '1',
-  }
 }
 
 export const manifestIntegration: SolanaIntegration = {
@@ -352,14 +332,17 @@ export const manifestIntegration: SolanaIntegration = {
             quoteDecimals,
             quoteToken?.priceUsd,
           )
-          const { priceQuotePerBase } =
-            buildTokenRateStrings(priceRaw, baseDecimals, quoteDecimals)
+          const limitPrice = buildLimitPrice(
+            priceRaw,
+            baseDecimals,
+            quoteDecimals,
+          )
 
           const tradingOrder: TradingOrder = {
             side: isBid ? 'buy' : 'sell',
             size,
             value,
-            limitPrice: priceQuotePerBase,
+            limitPrice,
             status: 'open',
           }
 
@@ -387,7 +370,6 @@ export const manifestIntegration: SolanaIntegration = {
         positionKind: 'trading',
         marketType: 'spot',
         marginEnabled: false,
-        account: buildSpotAccountMetrics(),
         ...(deposited.length > 0 && { deposited }),
         ...(buyOrders.length > 0 && { buyOrders }),
         ...(sellOrders.length > 0 && { sellOrders }),
