@@ -82,7 +82,6 @@ export type {
   AptosResource,
 } from './src/types/aptosIntegration'
 export type { Platform, PlatformLinks } from './src/types/platform'
-export { PlatformTag } from './src/types/platformTag'
 export type {
   BaseDefiPosition,
   BaseLiquidityDefiPosition,
