@@ -99,6 +99,7 @@ export type {
   StakedAsset,
   StakingDefiPosition,
   TokenAmount,
+  TradingAccountMetrics,
   TradingDefiPosition,
   TradingExposureSide,
   TradingMarketPosition,

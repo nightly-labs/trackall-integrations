@@ -65,9 +65,22 @@ export interface TradingMarketPosition {
   collateral?: PositionValue[]
 }
 
+export interface TradingAccountMetrics {
+  /** Optional account-level leverage multiplier as decimal string. */
+  leverage?: string
+  /** Optional account-level health factor as decimal string. */
+  healthFactor?: string
+  /** Optional initial margin ratio as decimal string. */
+  initialMarginRatio?: string
+  /** Optional maintenance margin ratio as decimal string. */
+  maintenanceMarginRatio?: string
+}
+
 export interface TradingDefiPosition extends BaseDefiPosition {
   /** Position discriminator for switch-based narrowing. */
   positionKind: Extract<PositionKind, 'trading'>
+  /** Optional account-wide trading metrics shared across this venue/account. */
+  account?: TradingAccountMetrics
   /** Idle balances deposited on the venue and available for trading. */
   deposited?: PositionValue[]
   /** Active buy-side orders on the venue. */
