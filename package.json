@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@aptos-labs/ts-sdk": "6.2.0",
+    "@bonasa-tech/manifest-sdk": "0.2.42",
     "@coral-xyz/anchor": "0.32.1",
     "@drift-labs/sdk": "2.156.0",
     "@jup-ag/lend": "0.1.8",

@@ -58,15 +58,62 @@ export const solanaIndexedPrograms = [
   ),
 ]
 
+export type { PlatformId } from './src/platforms/index'
+export { platforms } from './src/platforms/index'
+export type {
+  AptosTokenData,
+  AptosTokenIdentifier,
+  AptosTokenStandard,
+} from './src/plugin/aptos/tokens'
+// Utilities
+export { AptosTokenPlugin } from './src/plugin/aptos/tokens'
+export type {
+  TokenCreator,
+  TokenData,
+  TokensMap,
+} from './src/plugin/solana/tokens'
+export { TokenPlugin } from './src/plugin/solana/tokens'
 // Types
 export type {
-  AptosAddress,
   AptosAccountsMap,
+  AptosAddress,
   AptosIntegration,
   AptosPlugins,
   AptosResource,
 } from './src/types/aptosIntegration'
-export type { SolanaIntegration, SolanaPlugins } from './src/types/solanaIntegration'
+export type { Platform, PlatformLinks } from './src/types/platform'
+export { PlatformTag } from './src/types/platformTag'
+export type {
+  BaseDefiPosition,
+  BaseLiquidityDefiPosition,
+  ConcentratedRangeLiquidityDefiPosition,
+  ConstantProductLiquidityDefiPosition,
+  LendingBorrowedAsset,
+  LendingDefiPosition,
+  LendingSuppliedAsset,
+  LiquidityDefiPosition,
+  LiquidityModel,
+  PositionKind,
+  PositionValue,
+  RewardDefiPosition,
+  StakedAsset,
+  StakingDefiPosition,
+  TokenAmount,
+  TradingAccountMetrics,
+  TradingDefiPosition,
+  TradingExposureSide,
+  TradingMarketType,
+  TradingMarketPosition,
+  TradingOrder,
+  TradingPositionStatus,
+  TradingSide,
+  TradingTrigger,
+  TradingTriggerCondition,
+  UserDefiPosition,
+  VestingAsset,
+  VestingDefiPosition,
+} from './src/types/position'
+export { runIntegrations } from './src/types/runner'
 export type {
   AccountsMap,
   MaybeSolanaAccount,
@@ -75,47 +122,10 @@ export type {
   SolanaAccount,
   SolanaAccountNotFound,
   SolanaAddress,
+  SolanaIntegration,
+  SolanaPlugins,
   UserPositionsPlan,
 } from './src/types/solanaIntegration'
-export type { Platform, PlatformLinks } from './src/types/platform'
-export { PlatformTag } from './src/types/platformTag'
-export type {
-  UserDefiPosition,
-  LendingDefiPosition,
-  LendingSuppliedAsset,
-  LendingBorrowedAsset,
-  StakingDefiPosition,
-  StakedAsset,
-  LiquidityDefiPosition,
-  BaseLiquidityDefiPosition,
-  ConstantProductLiquidityDefiPosition,
-  ConcentratedRangeLiquidityDefiPosition,
-  LiquidityModel,
-  VestingDefiPosition,
-  VestingAsset,
-  RewardDefiPosition,
-  BaseDefiPosition,
-  PositionKind,
-  PositionValue,
-  TokenAmount,
-} from './src/types/position'
-export type { PlatformId } from './src/platforms/index'
-export type {
-  TokenCreator,
-  TokenData,
-  TokensMap,
-} from './src/plugin/solana/tokens'
-
-// Utilities
-export { AptosTokenPlugin } from './src/plugin/aptos/tokens'
-export type {
-  AptosTokenData,
-  AptosTokenIdentifier,
-  AptosTokenStandard,
-} from './src/plugin/aptos/tokens'
-export { platforms } from './src/platforms/index'
-export { TokenPlugin } from './src/plugin/solana/tokens'
-export { runIntegrations } from './src/types/runner'
 export {
   createFetchAccounts,
   createFetchProgramAccounts,
