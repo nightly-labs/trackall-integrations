@@ -31,7 +31,7 @@ export const testAddress = 'BsYDTmksyvTWpP3DGSWpoAXP7ykFDhikYdKEVspkStc4'
 const LENDING_PROGRAM_ID = lendingIdl.address
 const VAULTS_PROGRAM_ID = vaultsIdl.address
 
-export const JUPITER_LEND_INDEXED_PROGRAMS = [
+export const PROGRAM_IDS = [
   LENDING_PROGRAM_ID,
   VAULTS_PROGRAM_ID,
   TOKEN_PROGRAM_ID.toBase58(),

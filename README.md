@@ -155,7 +155,7 @@ Solana integrations use the async-generator batching protocol:
 
 Use `runIntegrations`, `fetchAccountsBatch`, and `fetchProgramAccountsBatch` for tests and local execution. Do not make direct RPC calls inside the integration when the same data can be requested through yielded batch operations.
 
-If the integration needs indexer coverage metadata, export a top-level `*_INDEXED_PROGRAMS` constant from the module. Do not put `indexedPrograms` on the `SolanaIntegration` object; the package root aggregates exported `*_INDEXED_PROGRAMS` constants automatically.
+Every Solana integration must export a top-level `PROGRAM_IDS` constant from the module. Do not put `indexedPrograms` on the `SolanaIntegration` object; the package root aggregates exported `PROGRAM_IDS` constants automatically, and CI treats missing or invalid `PROGRAM_IDS` as a failure.
 
 When building positions, prefer the shared types from `src/types/position.ts`:
 

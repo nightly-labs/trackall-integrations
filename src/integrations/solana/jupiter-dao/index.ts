@@ -36,7 +36,7 @@ const [LOCKER_PDA] = PublicKey.findProgramAddressSync(
   LOCKED_VOTER_PROGRAM_ID,
 )
 
-export const JUPITER_DAO_INDEXED_PROGRAMS = [
+export const PROGRAM_IDS = [
   LOCKED_VOTER_PROGRAM_ID.toBase58(),
   GOVERN_PROGRAM_ID.toBase58(),
 ] as const

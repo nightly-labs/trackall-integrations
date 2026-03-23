@@ -38,7 +38,7 @@ type DecodedBinArray = {
 
 export const testAddress = 'D2TKNY5CwCHCTu5YPbpouC9D4DGuoSvFsaYnMyEg7djn'
 
-export const METEORA_INDEXED_PROGRAMS = [
+export const PROGRAM_IDS = [
   LBCLMM_PROGRAM_IDS['mainnet-beta'],
   TOKEN_PROGRAM_ID.toBase58(),
   TOKEN_2022_PROGRAM_ID.toBase58(),

@@ -76,7 +76,7 @@ import type {
 } from '../../types/index'
 
 export const testAddress = '<wallet-with-known-positions>'
-export const <PROTOCOL>_INDEXED_PROGRAMS = [
+export const PROGRAM_IDS = [
   '<PROGRAM_ID>',
 ] as const
 
@@ -113,7 +113,8 @@ export default <protocol>Integration
 Key rules:
 - `export default` is **mandatory** — the root auto-discovers integrations via `import.meta.glob('./src/solana/*/index.ts')`
 - `export const testAddress` is **mandatory** — the generic CI harness reads it from `mod.testAddress`
-- Export `*_INDEXED_PROGRAMS` as a top-level constant when the indexer needs to know which full programs must be indexed; do not place `indexedPrograms` on the `SolanaIntegration` object itself
+- Export `PROGRAM_IDS` as a top-level constant in every Solana integration; do not place `indexedPrograms` on the `SolanaIntegration` object itself
+- `PROGRAM_IDS` must be a non-empty string array; CI fails if it is missing or invalid
 - `platformId` must match the `id` registered in Step 2/3 exactly
 - Yield `GetProgramAccountsRequest` objects (with `kind: 'getProgramAccounts'`) to discover accounts owned by a program
 - Yield `SolanaAddress[]` to batch-fetch arbitrary accounts

@@ -47,7 +47,7 @@ type ClockState = {
 
 export const testAddress = 'FDnPSh8tkDhe1oydb4ot4GtiwVVu1iYgJcAYPwxRMHa5'
 
-export const ORCA_INDEXED_PROGRAMS = [
+export const PROGRAM_IDS = [
   ORCA_WHIRLPOOL_PROGRAM_ID.toBase58(),
   TOKEN_PROGRAM_ID.toBase58(),
   TOKEN_2022_PROGRAM_ID.toBase58(),

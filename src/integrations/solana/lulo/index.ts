@@ -65,7 +65,7 @@ const DIRECT_ROUTE_MINTS = {
   jupiter: 'HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr',
 } as const satisfies Record<Exclude<LuloRoute, 'marginfi'>, string>
 
-export const LULO_INDEXED_PROGRAMS = [
+export const PROGRAM_IDS = [
   LULO_PROGRAM_ID,
   DRIFT_PROGRAM_ID,
   JUPITER_LENDING_PROGRAM_ID,

@@ -10,18 +10,33 @@ async function loadIntegrations(dir: URL) {
   return Promise.all(
     entries
       .filter((entry) => entry.isDirectory())
-      .map((entry) => import(new URL(`${entry.name}/index.ts`, dir).href)),
+      .map(async (entry) => ({
+        name: entry.name,
+        module: (await import(
+          new URL(`${entry.name}/index.ts`, dir).href
+        )) as Record<string, unknown>,
+      })),
   )
 }
 
-function getIndexedProgramsFromModule(
+function getProgramIdsFromModule(
+  moduleName: string,
   module: Record<string, unknown>,
 ): readonly string[] {
-  return Object.entries(module).flatMap(([exportName, value]) => {
-    if (!exportName.endsWith('_INDEXED_PROGRAMS')) return []
-    if (!Array.isArray(value)) return []
-    return value.filter((item): item is string => typeof item === 'string')
-  })
+  const value = module.PROGRAM_IDS
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(
+      `Solana integration "${moduleName}" must export a non-empty PROGRAM_IDS array`,
+    )
+  }
+
+  if (!value.every((item): item is string => typeof item === 'string')) {
+    throw new Error(
+      `Solana integration "${moduleName}" has an invalid PROGRAM_IDS export; all items must be strings`,
+    )
+  }
+
+  return value
 }
 
 const [solanaModules, movementModules] = await Promise.all([
@@ -30,13 +45,17 @@ const [solanaModules, movementModules] = await Promise.all([
 ])
 
 export const solanaIntegrations: SolanaIntegration[] = solanaModules.map(
-  (m) => m.default,
+  (entry) => entry.module.default as SolanaIntegration,
 )
 export const movementIntegrations: AptosIntegration[] = movementModules.map(
-  (m) => m.default,
+  (entry) => entry.module.default as AptosIntegration,
 )
 export const solanaIndexedPrograms = [
-  ...new Set(solanaModules.flatMap((module) => getIndexedProgramsFromModule(module))),
+  ...new Set(
+    solanaModules.flatMap((entry) =>
+      getProgramIdsFromModule(entry.name, entry.module),
+    ),
+  ),
 ]
 
 // Types

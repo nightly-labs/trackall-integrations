@@ -21,7 +21,7 @@ export const testAddress = '93PSyNrS7zBhrXaHHfU1ZtfegcKq5SaCYc35ZwPVrK3K'
 const CLMM_PROGRAM = new PublicKey(clmmIdl.address)
 const CP_PROGRAM_ID = cpIdl.address
 
-export const RAYDIUM_INDEXED_PROGRAMS = [
+export const PROGRAM_IDS = [
   CLMM_PROGRAM.toBase58(),
   CP_PROGRAM_ID,
   AMM_V4.toBase58(),
