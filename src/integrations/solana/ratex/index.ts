@@ -378,6 +378,7 @@ export const ratexIntegration: SolanaIntegration = {
 
     const userAccounts = yield userEntries.map((e) => e.pda)
 
+    // Parse User accounts to collect active margin and yield positions
     type MarginPos = {
       balance: bigint
       marketIndex: number
@@ -392,8 +393,8 @@ export const ratexIntegration: SolanaIntegration = {
 
     const marginPositions: MarginPos[] = []
     const yieldPositions: YieldPos[] = []
-    const marginMarketsByProgram = new Map<number, Set<number>>()
-    const yieldMarketsByProgram = new Map<number, Set<number>>()
+    const marginMarketsByProgram = new Map<number, Set<number>>() // programIndex -> Set<marketIndex>
+    const yieldMarketsByProgram = new Map<number, Set<number>>() // programIndex -> Set<marketIndex>
 
     const minUserSize =
       USER_YIELD_POSITIONS_OFFSET + YIELD_POSITION_SIZE * MAX_YIELD_POSITIONS
@@ -446,6 +447,7 @@ export const ratexIntegration: SolanaIntegration = {
 
     const phase2Map = yield [...new Set(phase2Pdas.values())]
 
+    // Build margin market info lookup
     const marginMarketInfo = new Map<
       string,
       { mint: string; decimals: number }
@@ -463,6 +465,7 @@ export const ratexIntegration: SolanaIntegration = {
       }
     }
 
+    // Build yield market info lookup
     type YieldMarketInfo = {
       name: string
       expireTs: bigint
@@ -484,6 +487,9 @@ export const ratexIntegration: SolanaIntegration = {
       }
     }
 
+    // Phase 3: fetch any collateral MarginMarkets referenced by YieldMarkets that were not part of
+    // the user's direct margin balances. Newer RateX markets use high market indices, so assuming
+    // a small fixed range here misses live positions entirely.
     const phase3Pdas = new Map<string, string>()
     for (const [pi, indices] of marginMarketsByProgram) {
       const progId = PROGRAMS[pi]
@@ -509,6 +515,7 @@ export const ratexIntegration: SolanaIntegration = {
 
     const result: UserDefiPosition[] = []
 
+    // Margin positions — deposited collateral backing yield trades
     for (const {
       balance,
       marketIndex,
@@ -545,6 +552,7 @@ export const ratexIntegration: SolanaIntegration = {
       result.push(position)
     }
 
+    // Yield positions — leveraged yield token (YT) trading exposure
     for (const { baseAmount, marketIndex, programIndex } of yieldPositions) {
       const yInfo = yieldMarketInfo.get(`${programIndex}:${marketIndex}`)
       const mInfo = yInfo
