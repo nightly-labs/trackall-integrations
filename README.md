@@ -80,7 +80,6 @@ Add `src/platforms/<integration-name>.ts` with the `Platform` shape:
 
 ```ts
 import type { Platform } from '../types/platform'
-import { PlatformTag } from '../types/platformTag'
 
 const myPlatform = {
   id: 'my-platform' as const,
@@ -88,7 +87,7 @@ const myPlatform = {
   name: 'My Platform',
   image: 'https://example.com/logo.png',
   description: 'Short description',
-  tags: [PlatformTag.Lending],
+  tags: ['lending'],
   defiLlamaId: 'my-platform',
   links: {
     website: 'https://example.com',

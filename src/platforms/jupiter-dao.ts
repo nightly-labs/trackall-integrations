@@ -1,5 +1,4 @@
 import type { Platform } from '../types/platform'
-import { PlatformTag } from '../types/platformTag'
 
 const jupiterDaoPlatform = {
   id: 'jupiter-dao' as const,
@@ -8,7 +7,7 @@ const jupiterDaoPlatform = {
   image: 'https://jup.ag/favicon.ico',
   description:
     'Stake JUP in Jupiter DAO, track locked governance positions and ASR rewards on Solana',
-  tags: [PlatformTag.Staking, PlatformTag.Governance],
+  tags: ['staking', 'governance'],
 } satisfies Platform
 
 export default jupiterDaoPlatform

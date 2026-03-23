@@ -1,5 +1,4 @@
 import type { Platform } from '../types/platform'
-import { PlatformTag } from '../types/platformTag'
 
 const realmsPlatform = {
   id: 'realms' as const,
@@ -8,7 +7,7 @@ const realmsPlatform = {
   image: 'https://v2.realms.today/favicons/apple-icon.png',
   description:
     'DAO governance memberships and voting power deposits on Solana via Realms',
-  tags: [PlatformTag.Governance],
+  tags: ['governance'],
   links: {
     website: 'https://v2.realms.today',
     documentation: 'https://docs.realms.today',

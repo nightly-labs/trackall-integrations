@@ -1,5 +1,4 @@
 import type { Platform } from '../types/platform'
-import { PlatformTag } from '../types/platformTag'
 
 const jupiterLendPlatform = {
   id: 'jupiter' as const,
@@ -8,7 +7,7 @@ const jupiterLendPlatform = {
   image: 'https://jup.ag/favicon.ico',
   description:
     'Jupiter Lend earn — supply assets and track borrow positions on Solana',
-  tags: [PlatformTag.Lending],
+  tags: ['lending'],
   defiLlamaId: 'jupiter-lend',
 } satisfies Platform
 
