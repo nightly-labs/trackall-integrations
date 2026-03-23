@@ -10,6 +10,7 @@ import mosaicPlatform from './mosaic'
 import movepositionPlatform from './moveposition'
 import orcaPlatform from './orca'
 import orePlatform from './ore'
+import ratexPlatform from './ratex'
 import raydiumPlatform from './raydium'
 import yuzuPlatform from './yuzu'
 
@@ -23,6 +24,7 @@ export const platforms = [
   movepositionPlatform,
   orcaPlatform,
   orePlatform,
+  ratexPlatform,
   raydiumPlatform,
   yuzuPlatform,
   canopyPlatform,
