@@ -5,6 +5,7 @@ import echelonPlatform from './echelon'
 import jupiterDaoPlatform from './jupiter-dao'
 import jupiterLendPlatform from './jupiter'
 import kaminoPlatform from './kamino'
+import luloPlatform from './lulo'
 import meridianPlatform from './meridian'
 import meteoraPlatform from './meteora'
 import mosaicPlatform from './mosaic'
@@ -20,6 +21,7 @@ export const platforms = [
   jupiterDaoPlatform,
   jupiterLendPlatform,
   kaminoPlatform,
+  luloPlatform,
   meridianPlatform,
   mosaicPlatform,
   movepositionPlatform,
