@@ -1,5 +1,8 @@
+import { unpackMint } from '@solana/spl-token'
+import type { AccountInfo } from '@solana/web3.js'
 import { PublicKey } from '@solana/web3.js'
 import type {
+  MaybeSolanaAccount,
   GetProgramAccountsRequest,
   SolanaIntegration,
   SolanaPlugins,
@@ -83,6 +86,8 @@ type RealmData = {
   councilMint?: string
   name: string
 }
+
+type MintData = ReturnType<typeof unpackMint>
 
 function readPubkey(data: Uint8Array, offset: number): string | null {
   if (data.length < offset + 32) return null
@@ -216,6 +221,34 @@ function decodeRealm(address: string, data: Uint8Array): RealmData | null {
   }
 }
 
+function toAccountInfo(
+  account: MaybeSolanaAccount | undefined,
+): AccountInfo<Buffer> | null {
+  if (!account?.exists) return null
+
+  return {
+    data: Buffer.from(account.data),
+    owner: new PublicKey(account.programAddress),
+    lamports: Number(account.lamports),
+    executable: false,
+    rentEpoch: 0,
+  }
+}
+
+function decodeMint(
+  address: string,
+  account: MaybeSolanaAccount | undefined,
+): MintData | null {
+  const accountInfo = toAccountInfo(account)
+  if (!accountInfo) return null
+
+  try {
+    return unpackMint(new PublicKey(address), accountInfo, accountInfo.owner)
+  } catch {
+    return null
+  }
+}
+
 function buildTokenOwnerRecordRequest(
   programId: string,
   accountType: typeof TOKEN_OWNER_RECORD_V1 | typeof TOKEN_OWNER_RECORD_V2,
@@ -318,18 +351,31 @@ export const realmsIntegration: SolanaIntegration = {
     const realmAddresses = [
       ...new Set(tokenOwnerRecords.map((record) => record.realm)),
     ]
-    const realmsMap = yield realmAddresses
+    const mintAddresses = [
+      ...new Set(
+        tokenOwnerRecords.map((record) => record.governingTokenMint),
+      ),
+    ]
+    const metadataMap = yield [...realmAddresses, ...mintAddresses]
 
     const realms = new Map<string, RealmData>()
-    for (const [address, account] of Object.entries(realmsMap)) {
+    for (const address of realmAddresses) {
+      const account = metadataMap[address]
       if (!account?.exists) continue
       const decoded = decodeRealm(address, account.data)
       if (decoded) realms.set(address, decoded)
     }
 
+    const mintDecimals = new Map<string, number>()
+    for (const address of mintAddresses) {
+      const mint = decodeMint(address, metadataMap[address])
+      if (mint) mintDecimals.set(address, mint.decimals)
+    }
+
     const positions: UserDefiPosition[] = tokenOwnerRecords.map((record) => {
       const token = tokens.get(record.governingTokenMint)
-      const decimals = token?.decimals ?? 0
+      const decimals =
+        mintDecimals.get(record.governingTokenMint) ?? token?.decimals ?? 0
       const usdValue = buildUsdValue(record.governingTokenDepositAmount, token)
       const realm = realms.get(record.realm)
       const role = classifyRealmRole(record.governingTokenMint, realm)
