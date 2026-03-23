@@ -22,6 +22,7 @@ export type PositionKind =
   | 'lending'
   | 'staking'
   | 'liquidity'
+  | 'trading'
   | 'vesting'
   | 'reward'
 
