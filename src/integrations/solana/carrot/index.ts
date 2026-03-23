@@ -317,7 +317,7 @@ function buildBorrowedAsset(
   }
 }
 
-export const boostIntegration: SolanaIntegration = {
+export const carrotIntegration: SolanaIntegration = {
   platformId: 'carrot',
 
   getUserPositions: async function* (
@@ -421,4 +421,4 @@ export const boostIntegration: SolanaIntegration = {
   },
 }
 
-export default boostIntegration
+export default carrotIntegration

@@ -6,7 +6,7 @@ const carrotPlatform = {
   name: 'Carrot',
   image: 'https://boost.deficarrot.com/android-chrome-512x512.png',
   description:
-    'Carrot Boost is a leveraged yield farming product for JLP, FLP.1, and ONyc on Solana.',
+    'Carrot is a leveraged yield farming protocol for JLP, FLP.1, and ONyc on Solana.',
   tags: [],
 } satisfies Platform
 
