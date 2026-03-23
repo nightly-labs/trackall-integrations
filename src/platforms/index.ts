@@ -2,8 +2,10 @@ import type { Platform } from '../types/platform'
 import canopyPlatform from './canopy'
 import driftPlatform from './drift'
 import echelonPlatform from './echelon'
+import jupiterDaoPlatform from './jupiter-dao'
 import jupiterLendPlatform from './jupiter'
 import kaminoPlatform from './kamino'
+import luloPlatform from './lulo'
 import meridianPlatform from './meridian'
 import meteoraPlatform from './meteora'
 import mosaicPlatform from './mosaic'
@@ -17,8 +19,10 @@ import yuzuPlatform from './yuzu'
 export const platforms = [
   driftPlatform,
   meteoraPlatform,
+  jupiterDaoPlatform,
   jupiterLendPlatform,
   kaminoPlatform,
+  luloPlatform,
   meridianPlatform,
   mosaicPlatform,
   movepositionPlatform,

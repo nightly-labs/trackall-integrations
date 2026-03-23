@@ -8,12 +8,12 @@
 
 ## Pre-flight checklist
 
-- [ ] One integration per PR (CI detects only the first changed `src/solana/<name>/`)
-- [ ] `src/solana/<name>/index.test.ts` exists with a valid `testAddress`
+- [ ] One integration per PR (CI detects only the first changed `src/integrations/<network>/<name>/`)
+- [ ] `src/integrations/<network>/<name>/index.test.ts` exists with a valid `testAddress`
 - [ ] `src/platforms/<name>.ts` created and registered in `src/platforms/index.ts`
 - [ ] Typecheck passes locally: `bun run typecheck`
 - [ ] Lint passes locally: `bun run lint`
-- [ ] Integration tests pass locally: `SOLANA_RPC_URL=<url> bun test src/solana/<name>/index.test.ts`
+- [ ] Integration tests pass locally: `SOLANA_RPC_URL=<url> bun test src/integrations/<network>/<name>/index.test.ts`
 
 ## Notes for reviewer (optional)
 

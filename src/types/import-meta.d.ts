@@ -4,3 +4,7 @@ interface ImportMeta {
     options?: { eager?: boolean },
   ): Record<string, Module>
 }
+
+declare module '@mrgnlabs/marginfi-client-v2' {
+  export const MARGINFI_IDL: unknown
+}

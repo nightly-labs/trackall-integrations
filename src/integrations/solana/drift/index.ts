@@ -46,7 +46,7 @@ const RATE_PRECISION = 1_000_000n
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
 const TOKEN_ACCOUNT_AMOUNT_BYTES = 8
 
-export const DRIFT_INDEXED_PROGRAMS = [DRIFT_PROGRAM_ID] as const
+export const PROGRAM_IDS = [DRIFT_PROGRAM_ID] as const
 
 const driftAccountsCoder = new CustomBorshAccountsCoder(driftIdl as never)
 

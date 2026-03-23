@@ -28,7 +28,7 @@ const STAKE_REWARDS_OFFSET = 121
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
-export const ORE_INDEXED_PROGRAMS = [
+export const PROGRAM_IDS = [
   ORE_PROGRAM_ID.toBase58(),
 ] as const
 
