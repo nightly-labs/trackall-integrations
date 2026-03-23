@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { PublicKey } from '@solana/web3.js'
 import type {
+  ProgramRequest,
   PositionValue,
   RewardDefiPosition,
   SolanaIntegration,
@@ -292,8 +293,13 @@ export const jupiterDaoIntegration: SolanaIntegration = {
       ],
     }
 
-    const partialUnstakingAccounts = yield {
-      kind: 'getProgramAccounts' as const,
+    const escrows = Object.values(escrowAccounts)
+      .filter((account) => account.exists)
+      .map((account) => decodeEscrow(account.address, account.data))
+      .filter((escrow): escrow is JupiterEscrow => escrow !== null)
+
+    const partialUnstakingRequests: ProgramRequest[] = escrows.map((escrow) => ({
+      kind: 'getProgramAccounts',
       programId: LOCKED_VOTER_PROGRAM_ID.toBase58(),
       filters: [
         {
@@ -303,19 +309,23 @@ export const jupiterDaoIntegration: SolanaIntegration = {
             encoding: 'base64',
           },
         },
+        {
+          memcmp: {
+            offset: PARTIAL_UNSTAKING_ESCROW_OFFSET,
+            bytes: escrow.address,
+          },
+        },
       ],
-    }
+    }))
+
+    const partialUnstakingAccounts =
+      partialUnstakingRequests.length > 0 ? yield partialUnstakingRequests : {}
 
     const positions: UserDefiPosition[] = []
     const now = BigInt(Math.floor(Date.now() / 1000))
     const jupToken = tokens.get(JUP_MINT)
     const jupPriceUsd = jupToken?.priceUsd
     const jupDecimals = jupToken?.decimals ?? JUP_DECIMALS
-
-    const escrows = Object.values(escrowAccounts)
-      .filter((account) => account.exists)
-      .map((account) => decodeEscrow(account.address, account.data))
-      .filter((escrow): escrow is JupiterEscrow => escrow !== null)
 
     const partialsByEscrow = new Map<string, PartialUnstaking[]>()
     for (const account of Object.values(partialUnstakingAccounts)) {
