@@ -205,7 +205,6 @@ export const manifestIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: MANIFEST_PROGRAM_ID,
-        cacheTtlMs: 60 * 1000,
         filters: [
           {
             memcmp: {
@@ -219,7 +218,6 @@ export const manifestIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: WRAPPER_PROGRAM_ID,
-        cacheTtlMs: 60 * 1000,
         filters: [
           {
             memcmp: {
