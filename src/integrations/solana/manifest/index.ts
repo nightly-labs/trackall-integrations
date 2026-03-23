@@ -165,7 +165,7 @@ function buildMarketOrderLookup(market: Market) {
 }
 
 function buildOrderUsdValue(order: TradingOrder): string | undefined {
-  return order.value?.usdValue ?? order.size.usdValue
+  return order.selling.usdValue
 }
 
 function compareDecimalStrings(a: string, b: string): number {
@@ -183,8 +183,8 @@ function sortTradingOrders(orders: TradingOrder[], side: TradingOrder['side']) {
     }
 
     return compareDecimalStrings(
-      left.size.amount.amount,
-      right.size.amount.amount,
+      left.selling.amount.amount,
+      right.selling.amount.amount,
     )
   })
 }
@@ -318,17 +318,25 @@ export const manifestIntegration: SolanaIntegration = {
               : BigInt(Math.ceil(Number(numBaseAtoms) * order.price))
 
           const isBid = marketOrder?.isBid ?? order.isBid
-          const size = buildPositionValue(
-            baseMint,
-            numBaseAtoms,
-            baseDecimals,
-            baseToken?.priceUsd,
+          const sellingMint = isBid ? quoteMint : baseMint
+          const buyingMint = isBid ? baseMint : quoteMint
+          const sellingDecimals = isBid ? quoteDecimals : baseDecimals
+          const buyingDecimals = isBid ? baseDecimals : quoteDecimals
+          const sellingToken = isBid ? quoteToken : baseToken
+          const buyingToken = isBid ? baseToken : quoteToken
+          const sellingAtoms = isBid ? quoteAtoms : numBaseAtoms
+          const buyingAtoms = isBid ? numBaseAtoms : quoteAtoms
+          const selling = buildPositionValue(
+            sellingMint,
+            sellingAtoms,
+            sellingDecimals,
+            sellingToken?.priceUsd,
           )
-          const value = buildPositionValue(
-            quoteMint,
-            quoteAtoms,
-            quoteDecimals,
-            quoteToken?.priceUsd,
+          const buying = buildPositionValue(
+            buyingMint,
+            buyingAtoms,
+            buyingDecimals,
+            buyingToken?.priceUsd,
           )
           const limitPrice = buildLimitPrice(
             priceRaw,
@@ -338,8 +346,8 @@ export const manifestIntegration: SolanaIntegration = {
 
           const tradingOrder: TradingOrder = {
             side: isBid ? 'buy' : 'sell',
-            size,
-            value,
+            selling,
+            buying,
             limitPrice,
             status: 'open',
           }

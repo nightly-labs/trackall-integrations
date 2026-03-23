@@ -27,10 +27,10 @@ export interface TradingTrigger {
 export interface TradingOrder {
   /** Side of the active order from the user's perspective. */
   side: TradingSide
-  /** Base asset or contract size targeted by the order. */
-  size: PositionValue
-  /** Optional quote-side notional or reserved value for the order. */
-  value?: PositionValue
+  /** Asset amount currently offered by the order. */
+  selling: PositionValue
+  /** Asset amount expected if the order fully fills. */
+  buying: PositionValue
   /** Fraction of the order filled, as a decimal string from 0 to 1. */
   filledFraction?: string
   /** Limit price expressed in quote units per base unit. */
