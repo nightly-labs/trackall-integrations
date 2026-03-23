@@ -7,45 +7,53 @@ import { fetchAccountsBatch, fetchProgramAccountsBatch } from '../utils/solana'
 export function testIntegration(
   integration: SolanaIntegration,
   testAddress?: string,
+  options?: {
+    timeoutMs?: number
+  },
 ) {
   const rpcUrl =
     process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
+  const timeoutMs = options?.timeoutMs ?? 60_000
 
   describe(`${integration.platformId} integration`, () => {
     const getUserPositions = integration.getUserPositions
     if (getUserPositions && testAddress) {
-      it('getUserPositions', async () => {
-        const connection = new Connection(rpcUrl, 'confirmed')
-        const tokens = new TokenPlugin()
-        const plugins = { endpoint: rpcUrl, tokens }
+      it(
+        'getUserPositions',
+        async () => {
+          const connection = new Connection(rpcUrl, 'confirmed')
+          const tokens = new TokenPlugin()
+          const plugins = { endpoint: rpcUrl, tokens }
 
-        let totalBatches = 0
-        let totalAccounts = 0
+          let totalBatches = 0
+          let totalAccounts = 0
 
-        const [positions] = await runIntegrations(
-          [getUserPositions(testAddress, plugins)],
-          async (addrs) => {
-            totalBatches++
-            totalAccounts += addrs.length
-            console.log(
-              `  batch ${totalBatches}: fetching ${addrs.length} accounts`,
-            )
-            return fetchAccountsBatch(connection, addrs)
-          },
-          (req) => fetchProgramAccountsBatch(connection, req),
-        )
+          const [positions] = await runIntegrations(
+            [getUserPositions(testAddress, plugins)],
+            async (addrs) => {
+              totalBatches++
+              totalAccounts += addrs.length
+              console.log(
+                `  batch ${totalBatches}: fetching ${addrs.length} accounts`,
+              )
+              return fetchAccountsBatch(connection, addrs)
+            },
+            (req) => fetchProgramAccountsBatch(connection, req),
+          )
 
-        console.log(
-          `\n✓ getUserPositions → ${positions?.length ?? 0} positions (${totalBatches} batches, ${totalAccounts} accounts)`,
-        )
-        if (positions) {
-          for (const position of positions) {
-            console.log(JSON.stringify(position, null, 2))
+          console.log(
+            `\n✓ getUserPositions → ${positions?.length ?? 0} positions (${totalBatches} batches, ${totalAccounts} accounts)`,
+          )
+          if (positions) {
+            for (const position of positions) {
+              console.log(JSON.stringify(position, null, 2))
+            }
           }
-        }
 
-        expect(Array.isArray(positions)).toBe(true)
-      }, 60_000)
+          expect(Array.isArray(positions)).toBe(true)
+        },
+        timeoutMs,
+      )
     }
 
     if (integration.getTvl) {

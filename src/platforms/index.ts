@@ -2,8 +2,8 @@ import type { Platform } from '../types/platform'
 import canopyPlatform from './canopy'
 import driftPlatform from './drift'
 import echelonPlatform from './echelon'
-import jupiterDaoPlatform from './jupiter-dao'
 import jupiterLendPlatform from './jupiter'
+import jupiterDaoPlatform from './jupiter-dao'
 import kaminoPlatform from './kamino'
 import luloPlatform from './lulo'
 import meridianPlatform from './meridian'
@@ -14,6 +14,7 @@ import orcaPlatform from './orca'
 import orePlatform from './ore'
 import ratexPlatform from './ratex'
 import raydiumPlatform from './raydium'
+import realmsPlatform from './realms'
 import yuzuPlatform from './yuzu'
 
 export const platforms = [
@@ -30,6 +31,7 @@ export const platforms = [
   orePlatform,
   ratexPlatform,
   raydiumPlatform,
+  realmsPlatform,
   yuzuPlatform,
   canopyPlatform,
   echelonPlatform,
