@@ -102,6 +102,7 @@ export type {
   TradingAccountMetrics,
   TradingDefiPosition,
   TradingExposureSide,
+  TradingMarketType,
   TradingMarketPosition,
   TradingOrder,
   TradingPositionStatus,

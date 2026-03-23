@@ -13,6 +13,7 @@ export type TradingPositionStatus =
 export type TradingSide = 'buy' | 'sell'
 
 export type TradingExposureSide = 'long' | 'short'
+export type TradingMarketType = 'spot' | 'perp'
 
 export type TradingTriggerCondition = 'above' | 'below'
 
@@ -79,6 +80,10 @@ export interface TradingAccountMetrics {
 export interface TradingDefiPosition extends BaseDefiPosition {
   /** Position discriminator for switch-based narrowing. */
   positionKind: Extract<PositionKind, 'trading'>
+  /** Whether the trading venue/market is spot or perpetuals. */
+  marketType: TradingMarketType
+  /** Whether this trading position uses margin. */
+  marginEnabled: boolean
   /** Optional account-wide trading metrics shared across this venue/account. */
   account?: TradingAccountMetrics
   /** Idle balances deposited on the venue and available for trading. */

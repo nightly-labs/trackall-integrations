@@ -385,6 +385,8 @@ export const manifestIntegration: SolanaIntegration = {
       const position: TradingDefiPosition = {
         platformId: 'manifest',
         positionKind: 'trading',
+        marketType: 'spot',
+        marginEnabled: false,
         account: buildSpotAccountMetrics(),
         ...(deposited.length > 0 && { deposited }),
         ...(buyOrders.length > 0 && { buyOrders }),
@@ -399,8 +401,6 @@ export const manifestIntegration: SolanaIntegration = {
         })(),
         meta: {
           manifest: {
-            marketType: 'spot',
-            marginEnabled: false,
             hasDeposits: deposited.length > 0,
             buyOrderCount: buyOrders.length,
             sellOrderCount: sellOrders.length,
