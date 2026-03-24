@@ -11,6 +11,9 @@ import type {
 const ZEUS_PROGRAM_ID = 'SYNMjud3ALEaeJhxuq8gpc2wJzC4XLHfxp9SgKmzQ8r'
 const BTCSOL_MINT = 'BSoLov7Es6mGLkBq7Z89PSWDmk6Vsw4jVxdfE2UHrJTX'
 const BTCSOL_DECIMALS = 9
+const MSOL_MINT = 'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So'
+const JUPSOL_MINT = 'jupSoLaHXQiZZTSfEWMTRRgpnyFm8f6sZdosWBjx93v'
+const KYSOL_MINT = 'kySo1nETpsZE2NWe5vj2C64mPSciH1SppmHb4XieQ7B'
 
 const USER_POSITION_DISCRIMINATOR = new Uint8Array([
   251, 248, 209, 245, 83, 234, 17, 27,
@@ -36,6 +39,27 @@ const KNOWN_STRATEGY_GROUPS: Record<string, string> = {
   CMBwsHiUnih1VAzENzoNKTq8tyRaCpD2zBgBUm47sN6h: 'mSOL',
   '9HGpvmW1Lv2pqKkbM41pGm7ApMjgdXt7Refdv5hoFejJ': 'jupSOL',
   '67zGEwrzVJvn9owJR8aL693K1eMoH28WiDKDE17xNmf8': 'kySOL',
+}
+
+const STRATEGY_GROUP_ASSET: Record<
+  string,
+  { mint: string; decimals: number; name: string }
+> = {
+  CMBwsHiUnih1VAzENzoNKTq8tyRaCpD2zBgBUm47sN6h: {
+    mint: MSOL_MINT,
+    decimals: 9,
+    name: 'mSOL',
+  },
+  '9HGpvmW1Lv2pqKkbM41pGm7ApMjgdXt7Refdv5hoFejJ': {
+    mint: JUPSOL_MINT,
+    decimals: 9,
+    name: 'jupSOL',
+  },
+  '67zGEwrzVJvn9owJR8aL693K1eMoH28WiDKDE17xNmf8': {
+    mint: KYSOL_MINT,
+    decimals: 9,
+    name: 'kySOL',
+  },
 }
 
 type StrategyState = {
@@ -105,6 +129,20 @@ function mergeUsdValues(values: Array<string | undefined>): string | undefined {
 
   if (entries.length === 0) return undefined
   return entries.reduce((sum, value) => sum + value, 0).toString()
+}
+
+function getStrategyAsset(strategyGroup: string): {
+  mint: string
+  decimals: number
+  name: string
+} {
+  return (
+    STRATEGY_GROUP_ASSET[strategyGroup] ?? {
+      mint: BTCSOL_MINT,
+      decimals: BTCSOL_DECIMALS,
+      name: 'unknown',
+    }
+  )
 }
 
 export const zeusIntegration: SolanaIntegration = {
@@ -182,7 +220,6 @@ export const zeusIntegration: SolanaIntegration = {
       }
     }
 
-    const token = tokens.get(BTCSOL_MINT)
     for (const account of Object.values(accounts)) {
       if (!account.exists || account.programAddress !== ZEUS_PROGRAM_ID) continue
       if (!hasDiscriminator(account.data, REDEEM_REQUEST_DISCRIMINATOR)) continue
@@ -195,8 +232,15 @@ export const zeusIntegration: SolanaIntegration = {
       if (requested <= 0n) continue
 
       const state = strategyState.get(strategyGroup) ?? { staked: 0n, unbonding: [] }
+      const asset = getStrategyAsset(strategyGroup)
+      const assetToken = tokens.get(asset.mint)
       state.unbonding.push(
-        buildPositionValue(BTCSOL_MINT, requested, BTCSOL_DECIMALS, token?.priceUsd),
+        buildPositionValue(
+          asset.mint,
+          requested,
+          asset.decimals,
+          assetToken?.priceUsd,
+        ),
       )
 
       if (
@@ -215,17 +259,19 @@ export const zeusIntegration: SolanaIntegration = {
     for (const [strategyGroup, state] of strategyState.entries()) {
       if (state.staked <= 0n && state.unbonding.length === 0) continue
 
+      const asset = getStrategyAsset(strategyGroup)
+      const assetToken = tokens.get(asset.mint)
       const stakedValue =
         state.staked > 0n
           ? buildPositionValue(
-              BTCSOL_MINT,
+              asset.mint,
               state.staked,
-              BTCSOL_DECIMALS,
-              token?.priceUsd,
+              asset.decimals,
+              assetToken?.priceUsd,
             )
           : undefined
 
-      const strategyName = KNOWN_STRATEGY_GROUPS[strategyGroup] ?? 'unknown'
+      const strategyName = KNOWN_STRATEGY_GROUPS[strategyGroup] ?? asset.name
 
       const position: StakingDefiPosition = {
         platformId: 'zeus',
