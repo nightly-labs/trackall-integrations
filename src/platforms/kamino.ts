@@ -4,7 +4,7 @@ const kaminoPlatform = {
   id: 'kamino' as const,
   networks: ['solana'],
   name: 'Kamino',
-  image: 'https://kamino.finance/favicon.ico',
+  image: 'https://kamino.com/apple-touch-icon.png',
   description: 'Kamino Lending obligations and Earn vault shares on Solana',
   tags: ['lending', 'staking'],
 } satisfies Platform
