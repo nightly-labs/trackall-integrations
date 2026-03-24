@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto'
-import { BorshCoder } from '@coral-xyz/anchor'
 import { PublicKey } from '@solana/web3.js'
 import type {
   LendingDefiPosition,
@@ -9,9 +8,6 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
-import bundleV1Idl from './idls/bundle-v1.json'
-import bundleV2Idl from './idls/bundle-v2.json'
-import driftVaultIdl from './idls/drift-vaults.json'
 import neutralVaults from './vaults.json'
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
@@ -22,7 +18,6 @@ const DRIFT_VAULT_PROGRAM_ID_DEFAULT =
   'vAuLTsyrvSfZRuRB3XgvkPwNGgYSs9YRYymVebLKoxR'
 
 const BUNDLE_SEED_USER = Buffer.from('USER_BUNDLE')
-const BUNDLE_SEED_ORACLE = Buffer.from('ORACLE')
 const DRIFT_DEPOSITOR_AUTHORITY_OFFSET = 8 + 32 + 32
 const RPC_CACHE_TTL_MS = 5 * 60 * 1000
 
@@ -71,89 +66,7 @@ export const PROGRAM_IDS = [
   ...DRIFT_PROGRAM_IDS,
 ]
 
-function normalizeLegacyIdl<T>(value: T): T {
-  if (Array.isArray(value)) {
-    return value.map((entry) => normalizeLegacyIdl(entry)) as T
-  }
-  if (value && typeof value === 'object') {
-    if (
-      'defined' in value &&
-      typeof (value as { defined?: unknown }).defined === 'string'
-    ) {
-      return {
-        ...(value as Record<string, unknown>),
-        defined: {
-          name: (value as { defined: string }).defined,
-        },
-      } as T
-    }
-
-    const entries = Object.entries(value).map(([key, entry]) => [
-      key,
-      normalizeLegacyIdl(entry),
-    ])
-    return Object.fromEntries(entries) as T
-  }
-  if (value === 'publicKey') return 'pubkey' as T
-  return value
-}
-
-function ensureIdlTypes(idl: Record<string, unknown>) {
-  const accounts = idl.accounts
-  if (!Array.isArray(accounts)) return idl
-
-  const accountTypes = accounts
-    .filter(
-      (account): account is { name: string; type: unknown } =>
-        !!account &&
-        typeof account === 'object' &&
-        'name' in account &&
-        'type' in account &&
-        typeof (account as { name: unknown }).name === 'string',
-    )
-    .map((account) => ({
-      name: account.name,
-      type: account.type,
-    }))
-
-  const existingTypes = Array.isArray(idl.types)
-    ? (idl.types as Array<{ name?: string }>)
-    : []
-  const existingNames = new Set(existingTypes.map((type) => type.name))
-  const mergedTypes = [
-    ...existingTypes,
-    ...accountTypes.filter((type) => !existingNames.has(type.name)),
-  ]
-
-  return {
-    ...idl,
-    types: mergedTypes,
-  }
-}
-
-const bundleV1Coder = new BorshCoder(
-  ensureIdlTypes(
-    normalizeLegacyIdl({
-      ...(bundleV1Idl as Record<string, unknown>),
-      instructions: [],
-      events: [],
-    }) as Record<string, unknown>,
-  ) as never,
-)
-const bundleV2Coder = new BorshCoder(bundleV2Idl as never)
-const driftVaultCoder = new BorshCoder(
-  ensureIdlTypes(
-    normalizeLegacyIdl({
-      ...(driftVaultIdl as Record<string, unknown>),
-      instructions: [],
-      events: [],
-    }) as Record<string, unknown>,
-  ) as never,
-)
-
 const BUNDLE_DISC_USER_B64 = discriminatorBase64('UserBundleAccount')
-const BUNDLE_DISC_BUNDLE_B64 = discriminatorBase64('Bundle')
-const BUNDLE_DISC_ORACLE_B64 = discriminatorBase64('OracleData')
 const DRIFT_DISC_VAULT_DEPOSITOR_B64 = discriminatorBase64('VaultDepositor')
 const DRIFT_DISC_VAULT_B64 = discriminatorBase64('Vault')
 
@@ -166,48 +79,51 @@ function discriminatorBase64(accountName: string) {
   ).toString('base64')
 }
 
-function toBigInt(value: unknown): bigint {
-  if (typeof value === 'bigint') return value
-  if (typeof value === 'number') return BigInt(value)
-  if (value && typeof value === 'object' && 'toString' in value) {
-    return BigInt(String(value))
-  }
-  return 0n
-}
-
-function toNumberish(value: unknown): number {
-  if (typeof value === 'number') return value
-  if (typeof value === 'bigint') return Number(value)
-  if (value && typeof value === 'object' && 'toString' in value) {
-    return Number(String(value))
-  }
-  return 0
-}
-
-function toAddress(value: unknown): string | undefined {
-  if (!value) return undefined
-  if (typeof value === 'string') return value
-  if (value instanceof PublicKey) return value.toBase58()
-  if (typeof value === 'object' && 'toBase58' in value) {
-    return String((value as { toBase58: () => string }).toBase58())
-  }
-  if (typeof value === 'object' && 'toString' in value) {
-    return String(value)
-  }
-  return undefined
-}
-
-function withUnderscore<T extends Record<string, unknown>>(
-  value: T,
-  camel: string,
-  snake: string,
-): unknown {
-  return camel in value ? value[camel] : value[snake]
-}
-
 function hasDiscriminator(data: Uint8Array, discB64: string): boolean {
   if (data.length < 8) return false
   return Buffer.from(data.subarray(0, 8)).toString('base64') === discB64
+}
+
+function readU64LE(data: Uint8Array, offset: number): bigint | null {
+  const buf = Buffer.from(data)
+  if (buf.length < offset + 8) return null
+  return buf.readBigUInt64LE(offset)
+}
+
+function readSignedI64LE(data: Uint8Array, offset: number): bigint | null {
+  const buf = Buffer.from(data)
+  if (buf.length < offset + 8) return null
+  return buf.readBigInt64LE(offset)
+}
+
+function readU128LE(data: Uint8Array, offset: number): bigint | null {
+  if (data.length < offset + 16) return null
+  let value = 0n
+  for (let idx = 0; idx < 16; idx++) {
+    value |= BigInt(data[offset + idx] ?? 0) << (BigInt(idx) * 8n)
+  }
+  return value
+}
+
+function readSignedI128LE(data: Uint8Array, offset: number): bigint | null {
+  if (data.length < offset + 16) return null
+
+  let value = 0n
+  for (let idx = 0; idx < 16; idx++) {
+    value |= BigInt(data[offset + idx] ?? 0) << (BigInt(idx) * 8n)
+  }
+
+  if ((data[offset + 15] ?? 0) & 0x80) {
+    value -= 1n << 128n
+  }
+
+  return value
+}
+
+function readPubkey(data: Uint8Array, offset: number): string | null {
+  const buf = Buffer.from(data)
+  if (buf.length < offset + 32) return null
+  return new PublicKey(buf.subarray(offset, offset + 32)).toBase58()
 }
 
 function buildUsdValue(
@@ -267,11 +183,59 @@ function deriveBundleUserPda(
   )[0].toBase58()
 }
 
-function deriveBundleOraclePda(vaultAddress: string, programId: string): string {
-  return PublicKey.findProgramAddressSync(
-    [BUNDLE_SEED_ORACLE, new PublicKey(vaultAddress).toBuffer()],
-    new PublicKey(programId),
-  )[0].toBase58()
+function programCandidatesForBundle(vault: NeutralVault & { type: 'Bundle' }) {
+  if (vault.bundleProgramId === BUNDLE_PROGRAM_ID_V1) {
+    return [BUNDLE_PROGRAM_ID_V1, BUNDLE_PROGRAM_ID_V2]
+  }
+
+  if (vault.bundleProgramId === BUNDLE_PROGRAM_ID_V2) {
+    return [BUNDLE_PROGRAM_ID_V2, BUNDLE_PROGRAM_ID_V1]
+  }
+
+  return [BUNDLE_PROGRAM_ID_V1, BUNDLE_PROGRAM_ID_V2]
+}
+
+function parseBundleUserAccount(data: Uint8Array) {
+  // Anchor discriminator at [0..7]
+  const shares = readU128LE(data, 48) ?? 0n
+  const pendingDepositRaw = readU64LE(data, 64) ?? 0n
+  const netDepositsRaw = readSignedI128LE(data, 152) ?? 0n
+
+  return {
+    shares,
+    pendingDepositRaw,
+    netDepositsRaw,
+  }
+}
+
+function parseDriftDepositorAccount(data: Uint8Array) {
+  // Anchor discriminator at [0..7]
+  const vaultAddress = readPubkey(data, 8)
+  const vaultShares = readU128LE(data, 104) ?? 0n
+  const requestedWithdrawRaw = readU64LE(data, 136) ?? 0n
+  const netDepositsRaw = readSignedI64LE(data, 160) ?? 0n
+
+  if (!vaultAddress) return null
+
+  return {
+    vaultAddress,
+    vaultShares,
+    requestedWithdrawRaw,
+    netDepositsRaw,
+  }
+}
+
+function parseDriftVaultAccount(data: Uint8Array) {
+  // Anchor discriminator at [0..7]
+  const vaultAddress = readPubkey(data, 40)
+  const totalShares = readU128LE(data, 280) ?? 0n
+
+  if (!vaultAddress) return null
+
+  return {
+    vaultAddress,
+    totalShares,
+  }
 }
 
 export const neutralIntegration: SolanaIntegration = {
@@ -306,34 +270,6 @@ export const neutralIntegration: SolanaIntegration = {
       },
       {
         kind: 'getProgramAccounts' as const,
-        programId: BUNDLE_PROGRAM_ID_V1,
-        cacheTtlMs: RPC_CACHE_TTL_MS,
-        filters: [
-          {
-            memcmp: {
-              offset: 0,
-              bytes: BUNDLE_DISC_BUNDLE_B64,
-              encoding: 'base64' as const,
-            },
-          },
-        ],
-      },
-      {
-        kind: 'getProgramAccounts' as const,
-        programId: BUNDLE_PROGRAM_ID_V1,
-        cacheTtlMs: RPC_CACHE_TTL_MS,
-        filters: [
-          {
-            memcmp: {
-              offset: 0,
-              bytes: BUNDLE_DISC_ORACLE_B64,
-              encoding: 'base64' as const,
-            },
-          },
-        ],
-      },
-      {
-        kind: 'getProgramAccounts' as const,
         programId: BUNDLE_PROGRAM_ID_V2,
         cacheTtlMs: RPC_CACHE_TTL_MS,
         filters: [
@@ -348,34 +284,6 @@ export const neutralIntegration: SolanaIntegration = {
             memcmp: {
               offset: 8,
               bytes: authority.toBase58(),
-            },
-          },
-        ],
-      },
-      {
-        kind: 'getProgramAccounts' as const,
-        programId: BUNDLE_PROGRAM_ID_V2,
-        cacheTtlMs: RPC_CACHE_TTL_MS,
-        filters: [
-          {
-            memcmp: {
-              offset: 0,
-              bytes: BUNDLE_DISC_BUNDLE_B64,
-              encoding: 'base64' as const,
-            },
-          },
-        ],
-      },
-      {
-        kind: 'getProgramAccounts' as const,
-        programId: BUNDLE_PROGRAM_ID_V2,
-        cacheTtlMs: RPC_CACHE_TTL_MS,
-        filters: [
-          {
-            memcmp: {
-              offset: 0,
-              bytes: BUNDLE_DISC_ORACLE_B64,
-              encoding: 'base64' as const,
             },
           },
         ],
@@ -420,26 +328,11 @@ export const neutralIntegration: SolanaIntegration = {
 
     const accountsMap = yield requests
 
-    const bundleUsersByProgram = new Map<
-      string,
-      Map<string, Record<string, unknown>>
-    >()
-    const bundleByProgramAndAddress = new Map<
-      string,
-      Map<string, Record<string, unknown>>
-    >()
-    const oracleByProgramAndAddress = new Map<
-      string,
-      Map<string, Record<string, unknown>>
-    >()
-    const driftVaultByProgramAndAddress = new Map<
-      string,
-      Map<string, Record<string, unknown>>
-    >()
-    const driftDepositorByProgram = new Map<
-      string,
-      Array<Record<string, unknown>>
-    >()
+    const bundleUserAccountsByProgram = new Map<string, Set<string>>()
+    const bundleUserDataByAddress = new Map<string, Uint8Array>()
+
+    const driftDepositorAccountsByProgram = new Map<string, Uint8Array[]>()
+    const driftVaultAccountsByProgram = new Map<string, Map<string, Uint8Array>>()
 
     for (const account of Object.values(accountsMap)) {
       if (!account.exists || account.data.length < 8) continue
@@ -448,83 +341,28 @@ export const neutralIntegration: SolanaIntegration = {
       const data = account.data
 
       if (programId === BUNDLE_PROGRAM_ID_V1 || programId === BUNDLE_PROGRAM_ID_V2) {
-        const coder = programId === BUNDLE_PROGRAM_ID_V2 ? bundleV2Coder : bundleV1Coder
+        if (!hasDiscriminator(data, BUNDLE_DISC_USER_B64)) continue
 
-        if (hasDiscriminator(data, BUNDLE_DISC_USER_B64)) {
-          try {
-            const decoded = coder.accounts.decode(
-              'UserBundleAccount',
-              Buffer.from(data),
-            ) as Record<string, unknown>
-            const users = bundleUsersByProgram.get(programId) ?? new Map()
-            users.set(account.address, decoded)
-            bundleUsersByProgram.set(programId, users)
-          } catch {
-            // Skip malformed account.
-          }
-          continue
-        }
-
-        if (hasDiscriminator(data, BUNDLE_DISC_BUNDLE_B64)) {
-          try {
-            const decoded = coder.accounts.decode(
-              'Bundle',
-              Buffer.from(data),
-            ) as Record<string, unknown>
-            const bundles = bundleByProgramAndAddress.get(programId) ?? new Map()
-            bundles.set(account.address, decoded)
-            bundleByProgramAndAddress.set(programId, bundles)
-          } catch {
-            // Skip malformed account.
-          }
-          continue
-        }
-
-        if (hasDiscriminator(data, BUNDLE_DISC_ORACLE_B64)) {
-          try {
-            const decoded = coder.accounts.decode(
-              'OracleData',
-              Buffer.from(data),
-            ) as Record<string, unknown>
-            const oracles = oracleByProgramAndAddress.get(programId) ?? new Map()
-            oracles.set(account.address, decoded)
-            oracleByProgramAndAddress.set(programId, oracles)
-          } catch {
-            // Skip malformed account.
-          }
-        }
-
+        const addresses = bundleUserAccountsByProgram.get(programId) ?? new Set()
+        addresses.add(account.address)
+        bundleUserAccountsByProgram.set(programId, addresses)
+        bundleUserDataByAddress.set(account.address, data)
         continue
       }
 
       if (DRIFT_PROGRAM_IDS.includes(programId)) {
-        if (hasDiscriminator(data, DRIFT_DISC_VAULT_B64)) {
-          try {
-            const decoded = driftVaultCoder.accounts.decode(
-              'Vault',
-              Buffer.from(data),
-            ) as Record<string, unknown>
-            const vaults = driftVaultByProgramAndAddress.get(programId) ?? new Map()
-            vaults.set(account.address, decoded)
-            driftVaultByProgramAndAddress.set(programId, vaults)
-          } catch {
-            // Skip malformed account.
-          }
+        if (hasDiscriminator(data, DRIFT_DISC_VAULT_DEPOSITOR_B64)) {
+          const depositors = driftDepositorAccountsByProgram.get(programId) ?? []
+          depositors.push(data)
+          driftDepositorAccountsByProgram.set(programId, depositors)
           continue
         }
 
-        if (hasDiscriminator(data, DRIFT_DISC_VAULT_DEPOSITOR_B64)) {
-          try {
-            const decoded = driftVaultCoder.accounts.decode(
-              'VaultDepositor',
-              Buffer.from(data),
-            ) as Record<string, unknown>
-            const depositors = driftDepositorByProgram.get(programId) ?? []
-            depositors.push(decoded)
-            driftDepositorByProgram.set(programId, depositors)
-          } catch {
-            // Skip malformed account.
-          }
+        if (hasDiscriminator(data, DRIFT_DISC_VAULT_B64)) {
+          const vaultMap = driftVaultAccountsByProgram.get(programId) ?? new Map()
+          const parsed = parseDriftVaultAccount(data)
+          if (parsed) vaultMap.set(parsed.vaultAddress, data)
+          driftVaultAccountsByProgram.set(programId, vaultMap)
         }
       }
     }
@@ -532,49 +370,41 @@ export const neutralIntegration: SolanaIntegration = {
     const positions: UserDefiPosition[] = []
 
     for (const vault of BUNDLE_VAULTS) {
-      const programId = vault.bundleProgramId ?? BUNDLE_PROGRAM_ID_V1
-      const userAccountAddress = deriveBundleUserPda(address, vault.vaultAddress, programId)
-      const oracleAddress = deriveBundleOraclePda(vault.vaultAddress, programId)
+      const candidates = programCandidatesForBundle(vault)
 
-      const user = bundleUsersByProgram.get(programId)?.get(userAccountAddress)
-      const bundle = bundleByProgramAndAddress.get(programId)?.get(vault.vaultAddress)
-      const oracle = oracleByProgramAndAddress.get(programId)?.get(oracleAddress)
-      if (!user || !bundle || !oracle) continue
+      let selectedProgram: string | undefined
+      let selectedUserPda: string | undefined
 
-      const userShares = toBigInt(user.shares)
-      const pendingDepositRaw = toBigInt(
-        withUnderscore(user, 'pendingDeposit', 'pending_deposit'),
-      )
-      const totalShares = toBigInt(withUnderscore(bundle, 'totalShares', 'total_shares'))
-      const oracleEquity = toBigInt(
-        withUnderscore(oracle, 'averageExternalEquity', 'average_external_equity'),
-      )
-      const underlyingBalance = toBigInt(
-        withUnderscore(bundle, 'bundleUnderlyingBalance', 'bundle_underlying_balance'),
-      )
-      const activeBalanceRaw =
-        userShares > 0n && totalShares > 0n
-          ? ((oracleEquity + underlyingBalance) * userShares) / totalShares
-          : 0n
+      for (const programId of candidates) {
+        const pda = deriveBundleUserPda(address, vault.vaultAddress, programId)
+        const found = bundleUserAccountsByProgram.get(programId)?.has(pda)
+        if (!found) continue
 
-      if (activeBalanceRaw <= 0n && pendingDepositRaw <= 0n) continue
+        selectedProgram = programId
+        selectedUserPda = pda
+        break
+      }
 
-      const assetToken =
-        toAddress(withUnderscore(bundle, 'assetAddress', 'asset_address')) ??
-        TOKEN_BY_SYMBOL[vault.depositToken]?.token ??
-        vault.depositToken
-      const assetDecimals =
-        toNumberish(withUnderscore(bundle, 'assetDecimals', 'asset_decimals')) ||
-        TOKEN_BY_SYMBOL[vault.depositToken]?.decimals ||
-        6
+      if (!selectedProgram || !selectedUserPda) continue
 
-      const suppliedRaw = activeBalanceRaw + pendingDepositRaw
+      const userData = bundleUserDataByAddress.get(selectedUserPda)
+      if (!userData) continue
+
+      const parsed = parseBundleUserAccount(userData)
+      const principalRaw = parsed.netDepositsRaw > 0n ? parsed.netDepositsRaw : 0n
+      const suppliedRaw = principalRaw + parsed.pendingDepositRaw
+
+      if (suppliedRaw <= 0n && parsed.shares <= 0n) continue
+
+      const tokenInfo = TOKEN_BY_SYMBOL[vault.depositToken]
+      const token = tokenInfo?.token ?? vault.depositToken
+      const decimals = tokenInfo?.decimals ?? 6
 
       positions.push(
         buildLendingPosition(
-          assetToken,
+          token,
           suppliedRaw,
-          assetDecimals,
+          decimals,
           {
             vaultId: vault.vaultId,
             vaultType: vault.type,
@@ -582,13 +412,12 @@ export const neutralIntegration: SolanaIntegration = {
             subname: vault.subname,
             category: vault.category,
             vaultAddress: vault.vaultAddress,
-            bundleProgramId: programId,
+            bundleProgramId: selectedProgram,
             source: 'bundle',
             accounting: {
-              activeBalanceRaw: activeBalanceRaw.toString(),
-              pendingDepositRaw: pendingDepositRaw.toString(),
-              userShares: userShares.toString(),
-              totalShares: totalShares.toString(),
+              netDepositsRaw: parsed.netDepositsRaw.toString(),
+              pendingDepositRaw: parsed.pendingDepositRaw.toString(),
+              shares: parsed.shares.toString(),
             },
           },
           tokens,
@@ -596,29 +425,32 @@ export const neutralIntegration: SolanaIntegration = {
       )
     }
 
-    const driftVaultsByAddress = new Map(DRIFT_VAULTS.map((v) => [v.vaultAddress, v]))
+    const driftVaultByAddress = new Map(DRIFT_VAULTS.map((vault) => [vault.vaultAddress, vault]))
 
-    for (const [programId, depositors] of driftDepositorByProgram) {
-      const vaultAccounts = driftVaultByProgramAndAddress.get(programId) ?? new Map()
+    for (const [programId, depositorAccounts] of driftDepositorAccountsByProgram) {
+      const vaultAccounts = driftVaultAccountsByProgram.get(programId) ?? new Map()
 
-      for (const depositor of depositors) {
-        const depositorVaultAddress = toAddress(depositor.vault)
-        if (!depositorVaultAddress) continue
+      for (const depositorData of depositorAccounts) {
+        const parsedDepositor = parseDriftDepositorAccount(depositorData)
+        if (!parsedDepositor) continue
 
-        const vault = driftVaultsByAddress.get(depositorVaultAddress)
+        const vault = driftVaultByAddress.get(parsedDepositor.vaultAddress)
         if (!vault) continue
 
-        const vaultAccount = vaultAccounts.get(vault.vaultAddress)
-        if (!vaultAccount) continue
+        const vaultData = vaultAccounts.get(vault.vaultAddress)
+        if (!vaultData) continue
 
-        const netDepositsRaw = toBigInt(depositor.netDeposits)
-        const withdrawRequestRaw = toBigInt(
-          ((depositor.lastWithdrawRequest as Record<string, unknown> | undefined)
-            ?.value ?? 0) as unknown,
-        )
-        const suppliedRaw = netDepositsRaw - withdrawRequestRaw
+        const parsedVault = parseDriftVaultAccount(vaultData)
+        if (!parsedVault) continue
 
-        if (suppliedRaw <= 0n) continue
+        const principalRaw =
+          parsedDepositor.netDepositsRaw > 0n ? parsedDepositor.netDepositsRaw : 0n
+        const suppliedRaw =
+          parsedDepositor.requestedWithdrawRaw > 0n
+            ? parsedDepositor.requestedWithdrawRaw
+            : principalRaw
+
+        if (suppliedRaw <= 0n && parsedDepositor.vaultShares <= 0n) continue
 
         const tokenInfo = TOKEN_BY_SYMBOL[vault.depositToken]
         const token = tokenInfo?.token ?? vault.depositToken
@@ -627,7 +459,7 @@ export const neutralIntegration: SolanaIntegration = {
         positions.push(
           buildLendingPosition(
             token,
-            suppliedRaw,
+            suppliedRaw > 0n ? suppliedRaw : 0n,
             decimals,
             {
               vaultId: vault.vaultId,
@@ -640,10 +472,14 @@ export const neutralIntegration: SolanaIntegration = {
               source: 'drift',
               valuationMode: 'accounting',
               accounting: {
-                netDepositsRaw: netDepositsRaw.toString(),
-                withdrawRequestRaw: withdrawRequestRaw.toString(),
-                vaultShares: toBigInt(depositor.vaultShares).toString(),
-                totalVaultShares: toBigInt(vaultAccount.totalShares).toString(),
+                netDepositsRaw: parsedDepositor.netDepositsRaw.toString(),
+                requestedWithdrawRaw: parsedDepositor.requestedWithdrawRaw.toString(),
+                balanceSource:
+                  parsedDepositor.requestedWithdrawRaw > 0n
+                    ? 'requested-withdraw-value'
+                    : 'net-deposits',
+                vaultShares: parsedDepositor.vaultShares.toString(),
+                totalVaultShares: parsedVault.totalShares.toString(),
               },
             },
             tokens,
