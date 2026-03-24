@@ -313,7 +313,7 @@ export const pythStakingIntegration: SolanaIntegration = {
       }
     }
 
-    if (aggregate.staked === 0n && aggregate.unbonding === 0n) {
+    if (aggregate.targets.voting === 0n && aggregate.unbonding === 0n) {
       return []
     }
 
@@ -322,10 +322,15 @@ export const pythStakingIntegration: SolanaIntegration = {
     const priceUsd = token?.priceUsd
 
     const stakedEntries =
-      aggregate.staked > 0n
+      aggregate.targets.voting > 0n
         ? [
             {
-              ...toTokenAmount(pythMint, aggregate.staked, decimals, priceUsd),
+              ...toTokenAmount(
+                pythMint,
+                aggregate.targets.voting,
+                decimals,
+                priceUsd,
+              ),
               cooldownPeriod: epochDuration.toString(),
             },
           ]
@@ -379,7 +384,7 @@ export const pythStakingIntegration: SolanaIntegration = {
     }
 
     const usdParts = [
-      toUsdValue(aggregate.staked, decimals, priceUsd),
+      toUsdValue(aggregate.targets.voting, decimals, priceUsd),
       toUsdValue(aggregate.unbonding, decimals, priceUsd),
     ].filter((value): value is string => value !== undefined)
 
