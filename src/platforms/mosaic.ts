@@ -4,7 +4,7 @@ const mosaicPlatform = {
   id: 'mosaic' as const,
   networks: ['movement'],
   name: 'Mosaic',
-  image: 'https://mosaic.ag/mosaic/thum.png',
+  image: 'https://mosaic.ag/mosaic/favicon.svg',
   description: 'Mosaic AMM liquidity and LP farming on Movement',
   tags: ['dex'],
   links: {

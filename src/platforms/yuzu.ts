@@ -4,7 +4,7 @@ const yuzuPlatform = {
   id: 'yuzu' as const,
   networks: ['movement'],
   name: 'Yuzu',
-  image: 'https://yuzu.finance/logo.png',
+  image: 'https://www.yuzu.finance/fruit-logo.png',
   description: 'Yuzu CLMM on Movement',
   tags: [],
   defiLlamaId: 'yuzu',

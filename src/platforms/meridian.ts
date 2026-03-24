@@ -4,7 +4,7 @@ const meridianPlatform = {
   id: 'meridian' as const,
   networks: ['movement'],
   name: 'Meridian',
-  image: 'https://app.meridian.money/assets/og.png',
+  image: 'https://app.meridian.money/apple-touch-icon.png',
   description: 'Meridian lending and liquidity on Movement',
   tags: ['dex', 'lending'],
   links: {

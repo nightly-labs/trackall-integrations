@@ -4,7 +4,7 @@ const echelonPlatform = {
   id: 'echelon' as const,
   networks: ['movement'],
   name: 'Echelon',
-  image: 'https://app.echelon.market/echelon-logo.svg',
+  image: 'https://app.echelon.market/apple-touch-icon.png',
   description: 'Echelon non-custodial lending protocol on Movement',
   tags: ['lending'],
   links: {
