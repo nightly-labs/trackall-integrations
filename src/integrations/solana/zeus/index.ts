@@ -44,7 +44,7 @@ type StrategyState = {
   latestUnlockAt?: bigint
 }
 
-export const testAddress = '85FYyrZXBnfmaTZJyTdGkAhxRKY7cNQXXm2wJNBDc8rV'
+export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
 export const PROGRAM_IDS = [ZEUS_PROGRAM_ID] as const
 
