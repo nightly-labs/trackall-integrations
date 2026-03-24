@@ -14,6 +14,7 @@ import mosaicPlatform from './mosaic'
 import movepositionPlatform from './moveposition'
 import orcaPlatform from './orca'
 import orePlatform from './ore'
+import pythStakingPlatform from './pyth-staking'
 import ratexPlatform from './ratex'
 import raydiumPlatform from './raydium'
 import realmsPlatform from './realms'
@@ -33,6 +34,7 @@ export const platforms = [
   movepositionPlatform,
   orcaPlatform,
   orePlatform,
+  pythStakingPlatform,
   ratexPlatform,
   raydiumPlatform,
   realmsPlatform,
