@@ -28,14 +28,14 @@ const MARGINFI_ACCOUNT_AUTHORITY_OFFSET = 40
 const I80F48_SCALE = 1n << 48n
 const I80F48_SCALE_SQUARED = I80F48_SCALE * I80F48_SCALE
 
+const ASSET_TAG_DEFAULT = 0
+const ASSET_TAG_SOL = 1
+const ASSET_TAG_STAKED = 2
 const ASSET_TAG_KAMINO = 3
 const ASSET_TAG_DRIFT = 4
 const ASSET_TAG_SOLEND = 5
-const EXCLUDED_ASSET_TAGS = new Set<number>([
-  ASSET_TAG_KAMINO,
-  ASSET_TAG_DRIFT,
-  ASSET_TAG_SOLEND,
-])
+
+type OriginProtocol = 'project0' | 'kamino' | 'drift' | 'solend'
 
 const marginfiCoder = new BorshCoder(marginfiIdl as never)
 
@@ -72,6 +72,11 @@ interface AggregatedPositionAmount {
   mint: string
   amountRaw: bigint
   decimals: number
+}
+
+interface AggregatedPositionByOrigin {
+  suppliedByMint: Map<string, AggregatedPositionAmount>
+  borrowedByMint: Map<string, AggregatedPositionAmount>
 }
 
 function accountDiscriminatorBase64(
@@ -204,6 +209,23 @@ function pushAggregatedAmount(
   })
 }
 
+function getOriginProtocol(assetTag: number): OriginProtocol | null {
+  switch (assetTag) {
+    case ASSET_TAG_DEFAULT:
+    case ASSET_TAG_SOL:
+    case ASSET_TAG_STAKED:
+      return 'project0'
+    case ASSET_TAG_KAMINO:
+      return 'kamino'
+    case ASSET_TAG_DRIFT:
+      return 'drift'
+    case ASSET_TAG_SOLEND:
+      return 'solend'
+    default:
+      return null
+  }
+}
+
 export const project0Integration: SolanaIntegration = {
   platformId: 'project0',
 
@@ -300,8 +322,10 @@ export const project0Integration: SolanaIntegration = {
     const positions: UserDefiPosition[] = []
 
     for (const parsedAccount of parsedAccounts) {
-      const suppliedByMint = new Map<string, AggregatedPositionAmount>()
-      const borrowedByMint = new Map<string, AggregatedPositionAmount>()
+      const positionsByOrigin = new Map<
+        OriginProtocol,
+        AggregatedPositionByOrigin
+      >()
 
       for (const balance of parsedAccount.balances) {
         const bankAddress = balance.bank_pk.toBase58()
@@ -309,7 +333,17 @@ export const project0Integration: SolanaIntegration = {
         if (!bank) continue
 
         if (bank.group.toBase58() !== parsedAccount.group) continue
-        if (EXCLUDED_ASSET_TAGS.has(bank.config.asset_tag)) continue
+        const originProtocol = getOriginProtocol(bank.config.asset_tag)
+        if (!originProtocol) continue
+
+        let aggregated = positionsByOrigin.get(originProtocol)
+        if (!aggregated) {
+          aggregated = {
+            suppliedByMint: new Map<string, AggregatedPositionAmount>(),
+            borrowedByMint: new Map<string, AggregatedPositionAmount>(),
+          }
+          positionsByOrigin.set(originProtocol, aggregated)
+        }
 
         const mint = bank.mint.toBase58()
         const decimals = bank.mint_decimals
@@ -324,36 +358,60 @@ export const project0Integration: SolanaIntegration = {
         )
 
         if (suppliedRaw > 0n) {
-          pushAggregatedAmount(suppliedByMint, mint, decimals, suppliedRaw)
+          pushAggregatedAmount(
+            aggregated.suppliedByMint,
+            mint,
+            decimals,
+            suppliedRaw,
+          )
         }
 
         if (borrowedRaw > 0n) {
-          pushAggregatedAmount(borrowedByMint, mint, decimals, borrowedRaw)
+          pushAggregatedAmount(
+            aggregated.borrowedByMint,
+            mint,
+            decimals,
+            borrowedRaw,
+          )
         }
       }
 
-      if (suppliedByMint.size === 0 && borrowedByMint.size === 0) continue
+      for (const [originProtocol, aggregated] of positionsByOrigin) {
+        const { suppliedByMint, borrowedByMint } = aggregated
+        if (suppliedByMint.size === 0 && borrowedByMint.size === 0) continue
 
-      const supplied = [...suppliedByMint.values()].map((entry) =>
-        buildSuppliedAsset(entry.mint, entry.amountRaw, entry.decimals, tokens),
-      )
+        const supplied = [...suppliedByMint.values()].map((entry) =>
+          buildSuppliedAsset(
+            entry.mint,
+            entry.amountRaw,
+            entry.decimals,
+            tokens,
+          ),
+        )
 
-      const borrowed = [...borrowedByMint.values()].map((entry) =>
-        buildBorrowedAsset(entry.mint, entry.amountRaw, entry.decimals, tokens),
-      )
+        const borrowed = [...borrowedByMint.values()].map((entry) =>
+          buildBorrowedAsset(
+            entry.mint,
+            entry.amountRaw,
+            entry.decimals,
+            tokens,
+          ),
+        )
 
-      positions.push({
-        platformId: 'project0',
-        positionKind: 'lending',
-        ...(supplied.length > 0 && { supplied }),
-        ...(borrowed.length > 0 && { borrowed }),
-        meta: {
-          project0: {
-            marginfiAccount: parsedAccount.marginfiAccount,
-            group: parsedAccount.group,
+        positions.push({
+          platformId: 'project0',
+          positionKind: 'lending',
+          ...(supplied.length > 0 && { supplied }),
+          ...(borrowed.length > 0 && { borrowed }),
+          meta: {
+            project0: {
+              marginfiAccount: parsedAccount.marginfiAccount,
+              group: parsedAccount.group,
+              originProtocol,
+            },
           },
-        },
-      } satisfies LendingDefiPosition)
+        } satisfies LendingDefiPosition)
+      }
     }
 
     return positions
