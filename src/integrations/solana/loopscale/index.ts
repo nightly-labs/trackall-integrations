@@ -19,6 +19,7 @@ const LOOPSCALE_LIVE_PROGRAM_ID = loopscaleIdl.address
 const DEFAULT_PUBLIC_KEY = '11111111111111111111111111111111'
 const LOAN_BORROWER_OFFSET = 11
 const VAULT_STAKE_USER_OFFSET = 73
+const USER_REWARDS_INFO_USER_OFFSET = 81
 const MINT_DECIMALS_OFFSET = 44
 
 type LoopscaleIdl = {
@@ -61,6 +62,15 @@ interface LoopscaleVaultStakeAccount {
   }
 }
 
+interface LoopscaleUserRewardsInfoAccount {
+  address: string
+  decoded: {
+    vault_address: PublicKey
+    user: PublicKey
+    lp_amount: unknown
+  }
+}
+
 interface LoopscaleVaultData {
   principalMint: string
   lpMint: string
@@ -79,10 +89,16 @@ const VAULT_STAKE_DISCRIMINATOR = accountDiscriminator(
   loopscaleIdl as LoopscaleIdl,
   'VaultStake',
 )
+const USER_REWARDS_INFO_DISCRIMINATOR = accountDiscriminator(
+  loopscaleIdl as LoopscaleIdl,
+  'UserRewardsInfo',
+)
 const LOAN_DISCRIMINATOR_B64 = LOAN_DISCRIMINATOR.toString('base64')
 const VAULT_STAKE_DISCRIMINATOR_B64 = VAULT_STAKE_DISCRIMINATOR.toString(
   'base64',
 )
+const USER_REWARDS_INFO_DISCRIMINATOR_B64 =
+  USER_REWARDS_INFO_DISCRIMINATOR.toString('base64')
 
 function accountDiscriminator(idl: LoopscaleIdl, accountName: string): Buffer {
   const discriminator = idl.accounts?.find(
@@ -262,9 +278,11 @@ function buildBorrowedAsset(
 function decodeDiscoveredAccounts(discoveryMap: LoopscaleAccountMap): {
   loans: LoopscaleLoanAccount[]
   stakes: LoopscaleVaultStakeAccount[]
+  rewardsInfo: LoopscaleUserRewardsInfoAccount[]
 } {
   const loans: LoopscaleLoanAccount[] = []
   const stakes: LoopscaleVaultStakeAccount[] = []
+  const rewardsInfo: LoopscaleUserRewardsInfoAccount[] = []
 
   for (const account of Object.values(discoveryMap)) {
     if (!account.exists || !account.data) continue
@@ -285,13 +303,22 @@ function decodeDiscoveredAccounts(discoveryMap: LoopscaleAccountMap): {
           Buffer.from(account.data),
         ) as LoopscaleVaultStakeAccount['decoded']
         stakes.push({ address: account.address, decoded })
+        continue
+      }
+
+      if (hasDiscriminator(account.data, USER_REWARDS_INFO_DISCRIMINATOR)) {
+        const decoded = loopscaleCoder.accounts.decode(
+          'UserRewardsInfo',
+          Buffer.from(account.data),
+        ) as LoopscaleUserRewardsInfoAccount['decoded']
+        rewardsInfo.push({ address: account.address, decoded })
       }
     } catch {
       // Skip malformed or unexpected accounts.
     }
   }
 
-  return { loans, stakes }
+  return { loans, stakes, rewardsInfo }
 }
 
 function decodeVaultAccounts(vaultAccounts: LoopscaleAccountMap): Map<string, LoopscaleVaultData> {
@@ -363,11 +390,30 @@ export const loopscaleIntegration: SolanaIntegration = {
           { memcmp: { offset: VAULT_STAKE_USER_OFFSET, bytes: address } },
         ],
       },
+      {
+        kind: 'getProgramAccounts' as const,
+        programId: LOOPSCALE_LIVE_PROGRAM_ID,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: USER_REWARDS_INFO_DISCRIMINATOR_B64,
+              encoding: 'base64',
+            },
+          },
+          { memcmp: { offset: USER_REWARDS_INFO_USER_OFFSET, bytes: address } },
+        ],
+      },
     ]
 
-    const { loans, stakes } = decodeDiscoveredAccounts(discoveryMap)
+    const { loans, stakes, rewardsInfo } = decodeDiscoveredAccounts(discoveryMap)
 
-    const vaultAddresses = [...new Set(stakes.map((stake) => keyToBase58(stake.decoded.vault)))]
+    const vaultAddresses = [
+      ...new Set([
+        ...stakes.map((stake) => keyToBase58(stake.decoded.vault)),
+        ...rewardsInfo.map((info) => keyToBase58(info.decoded.vault_address)),
+      ]),
+    ]
     const vaultAccounts = vaultAddresses.length > 0 ? yield vaultAddresses : {}
     const vaults = decodeVaultAccounts(vaultAccounts)
 
@@ -493,6 +539,58 @@ export const loopscaleIntegration: SolanaIntegration = {
           loopscale: {
             source: 'vault-stake',
             account: stake.address,
+            vault: vaultAddress,
+            lpMint: vault.lpMint,
+            lpAmount: lpAmount.toString(),
+          },
+        },
+      }
+
+      result.push(position)
+    }
+
+    const stakeKeys = new Set(
+      stakes.map((stake) => {
+        const vaultAddress = keyToBase58(stake.decoded.vault)
+        const lpAmount = toBigInt(stake.decoded.amount)
+        return `${vaultAddress}:${lpAmount.toString()}`
+      }),
+    )
+
+    for (const info of rewardsInfo) {
+      const vaultAddress = keyToBase58(info.decoded.vault_address)
+      const vault = vaults.get(vaultAddress)
+      if (!vault) continue
+
+      const lpAmount = toBigInt(info.decoded.lp_amount)
+      if (lpAmount <= 0n) continue
+      if (stakeKeys.has(`${vaultAddress}:${lpAmount.toString()}`)) continue
+
+      const principalMint = vault.principalMint
+      if (isDefaultKey(principalMint)) continue
+
+      const principalAmount =
+        vault.lpSupply > 0n
+          ? (lpAmount * vault.cumulativePrincipalDeposited) / vault.lpSupply
+          : lpAmount
+      if (principalAmount <= 0n) continue
+
+      const suppliedAsset = buildSuppliedAsset(
+        principalMint,
+        principalAmount,
+        mintDecimals(principalMint, tokens, mintDecimalsMap),
+        tokens,
+      )
+
+      const position: LendingDefiPosition = {
+        platformId: 'loopscale',
+        positionKind: 'lending',
+        supplied: [suppliedAsset],
+        ...(suppliedAsset.usdValue !== undefined && { usdValue: suppliedAsset.usdValue }),
+        meta: {
+          loopscale: {
+            source: 'vault-deposit',
+            account: info.address,
             vault: vaultAddress,
             lpMint: vault.lpMint,
             lpAmount: lpAmount.toString(),
