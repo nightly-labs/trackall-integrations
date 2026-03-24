@@ -522,10 +522,8 @@ export const loopscaleIntegration: SolanaIntegration = {
       const principalMint = vault.principalMint
       if (isDefaultKey(principalMint)) continue
 
-      const principalAmount =
-        vault.lpSupply > 0n
-          ? (lpAmount * vault.cumulativePrincipalDeposited) / vault.lpSupply
-          : lpAmount
+      // Loopscale stake amount is already tracked in principal units for user stake state.
+      const principalAmount = lpAmount
       if (principalAmount <= 0n) continue
 
       const suppliedAsset = buildSuppliedAsset(
@@ -574,10 +572,8 @@ export const loopscaleIntegration: SolanaIntegration = {
       const principalMint = vault.principalMint
       if (isDefaultKey(principalMint)) continue
 
-      const principalAmount =
-        vault.lpSupply > 0n
-          ? (lpAmount * vault.cumulativePrincipalDeposited) / vault.lpSupply
-          : lpAmount
+      // UserRewardsInfo.lp_amount follows the same principal-unit convention.
+      const principalAmount = lpAmount
       if (principalAmount <= 0n) continue
 
       const suppliedAsset = buildSuppliedAsset(
