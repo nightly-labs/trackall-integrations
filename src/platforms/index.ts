@@ -17,6 +17,7 @@ import orePlatform from './ore'
 import ratexPlatform from './ratex'
 import raydiumPlatform from './raydium'
 import realmsPlatform from './realms'
+import tramplinPlatform from './tramplin'
 import yuzuPlatform from './yuzu'
 
 export const platforms = [
@@ -36,6 +37,7 @@ export const platforms = [
   ratexPlatform,
   raydiumPlatform,
   realmsPlatform,
+  tramplinPlatform,
   yuzuPlatform,
   canopyPlatform,
   echelonPlatform,
