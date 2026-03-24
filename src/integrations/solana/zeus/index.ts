@@ -29,7 +29,9 @@ const OWNER_OFFSET_IN_USER_POSITION = 40
 const STRATEGY_GROUP_OFFSET = 72
 const SYNTHETIC_AMOUNT_OFFSET = 168
 const USER_OFFSET_IN_REDEEM_REQUEST = 8
+const UNDERLYING_MINT_OFFSET_IN_REDEEM_REQUEST = 104
 const SYNTHETIC_AMOUNT_REQUESTED_OFFSET = 136
+const UNDERLYING_AMOUNT_TO_REDEEM_OFFSET = 144
 const REFUNDABLE_AFTER_TS_OFFSET = 184
 
 const KNOWN_STRATEGY_GROUPS: Record<string, string> = {
@@ -40,7 +42,10 @@ const KNOWN_STRATEGY_GROUPS: Record<string, string> = {
 
 type StrategyState = {
   staked: bigint
+  syntheticStaked: bigint
   unbonding: PositionValue[]
+  assetMint?: string
+  assetDecimals?: number
   latestUnlockAt?: bigint
 }
 
@@ -69,6 +74,14 @@ function readU64(data: Uint8Array, offset: number): bigint | null {
 function readI64(data: Uint8Array, offset: number): bigint | null {
   if (data.length < offset + 8) return null
   return Buffer.from(data).readBigInt64LE(offset)
+}
+
+function readU128(data: Uint8Array, offset: number): bigint | null {
+  if (data.length < offset + 16) return null
+  const buffer = Buffer.from(data)
+  const low = buffer.readBigUInt64LE(offset)
+  const high = buffer.readBigUInt64LE(offset + 8)
+  return low + (high << 64n)
 }
 
 function buildPositionValue(
@@ -105,6 +118,49 @@ function mergeUsdValues(values: Array<string | undefined>): string | undefined {
 
   if (entries.length === 0) return undefined
   return entries.reduce((sum, value) => sum + value, 0).toString()
+}
+
+const EMPTY_PUBKEY = '11111111111111111111111111111111'
+const STRATEGY_UNDERLYING_START_OFFSET = 360
+const STRATEGY_UNDERLYING_ENTRY_SIZE = 400
+const STRATEGY_UNDERLYING_MINT_REL_OFFSET = 0
+const STRATEGY_UNDERLYING_EPOCH_RATIO_REL_OFFSET = 256
+const STRATEGY_UNDERLYING_DECIMALS_REL_OFFSET = 376
+const EXCHANGE_RATIO_SCALE = 10n ** 12n
+
+type StrategyConversion = {
+  mint: string
+  decimals: number
+  epochStartRatio: bigint
+}
+
+function decodeStrategyConversion(data: Uint8Array): StrategyConversion | null {
+  for (let index = 0; index < 3; index++) {
+    const base = STRATEGY_UNDERLYING_START_OFFSET + index * STRATEGY_UNDERLYING_ENTRY_SIZE
+    const mint = readPubkey(data, base + STRATEGY_UNDERLYING_MINT_REL_OFFSET)
+    const epochStartRatio = readU128(
+      data,
+      base + STRATEGY_UNDERLYING_EPOCH_RATIO_REL_OFFSET,
+    )
+
+    if (!mint || !epochStartRatio) continue
+    if (mint === EMPTY_PUBKEY || epochStartRatio <= 0n) continue
+
+    const decimalsOffset = base + STRATEGY_UNDERLYING_DECIMALS_REL_OFFSET
+    if (data.length < decimalsOffset + 1) continue
+    const decimals = data[decimalsOffset] ?? 0
+
+    return { mint, decimals, epochStartRatio }
+  }
+
+  return null
+}
+
+function convertSyntheticToUnderlying(
+  syntheticAmount: bigint,
+  conversion: StrategyConversion,
+): bigint {
+  return (syntheticAmount * EXCHANGE_RATIO_SCALE) / conversion.epochStartRatio
 }
 
 export const zeusIntegration: SolanaIntegration = {
@@ -174,15 +230,35 @@ export const zeusIntegration: SolanaIntegration = {
       const current = strategyState.get(strategyGroup)
       if (current) {
         current.staked += syntheticAmount
+        current.syntheticStaked += syntheticAmount
       } else {
         strategyState.set(strategyGroup, {
           staked: syntheticAmount,
+          syntheticStaked: syntheticAmount,
           unbonding: [],
         })
       }
     }
 
-    const btcsolToken = tokens.get(BTCSOL_MINT)
+    const strategyGroups = [...strategyState.keys()]
+    const strategyAccounts =
+      strategyGroups.length > 0 ? yield strategyGroups : {}
+
+    for (const strategyGroup of strategyGroups) {
+      const strategyAccount = strategyAccounts[strategyGroup]
+      if (!strategyAccount?.exists) continue
+
+      const conversion = decodeStrategyConversion(strategyAccount.data)
+      if (!conversion) continue
+
+      const state = strategyState.get(strategyGroup)
+      if (!state) continue
+
+      state.assetMint = conversion.mint
+      state.assetDecimals = conversion.decimals
+      state.staked = convertSyntheticToUnderlying(state.syntheticStaked, conversion)
+    }
+
     for (const account of Object.values(accounts)) {
       if (!account.exists || account.programAddress !== ZEUS_PROGRAM_ID) continue
       if (!hasDiscriminator(account.data, REDEEM_REQUEST_DISCRIMINATOR)) continue
@@ -190,19 +266,40 @@ export const zeusIntegration: SolanaIntegration = {
       const user = readPubkey(account.data, USER_OFFSET_IN_REDEEM_REQUEST)
       const strategyGroup = readPubkey(account.data, STRATEGY_GROUP_OFFSET)
       const requested = readU64(account.data, SYNTHETIC_AMOUNT_REQUESTED_OFFSET)
+      const underlyingMint = readPubkey(
+        account.data,
+        UNDERLYING_MINT_OFFSET_IN_REDEEM_REQUEST,
+      )
+      const underlyingAmountToRedeem = readU64(
+        account.data,
+        UNDERLYING_AMOUNT_TO_REDEEM_OFFSET,
+      )
       const refundableAfter = readI64(account.data, REFUNDABLE_AFTER_TS_OFFSET)
       if (!user || !strategyGroup || requested === null || user !== address) continue
       if (requested <= 0n) continue
 
-      const state = strategyState.get(strategyGroup) ?? { staked: 0n, unbonding: [] }
+      const state = strategyState.get(strategyGroup) ?? {
+        staked: 0n,
+        syntheticStaked: 0n,
+        unbonding: [],
+      }
+      const unbondingMint = underlyingMint ?? state.assetMint ?? BTCSOL_MINT
+      const unbondingDecimals = state.assetDecimals ?? BTCSOL_DECIMALS
+      const unbondingAmount =
+        underlyingAmountToRedeem && underlyingAmountToRedeem > 0n
+          ? underlyingAmountToRedeem
+          : requested
+      const unbondingToken = tokens.get(unbondingMint)
       state.unbonding.push(
         buildPositionValue(
-          BTCSOL_MINT,
-          requested,
-          BTCSOL_DECIMALS,
-          btcsolToken?.priceUsd,
+          unbondingMint,
+          unbondingAmount,
+          unbondingDecimals,
+          unbondingToken?.priceUsd,
         ),
       )
+      state.assetMint = unbondingMint
+      state.assetDecimals = unbondingDecimals
 
       if (
         refundableAfter !== null &&
@@ -220,13 +317,16 @@ export const zeusIntegration: SolanaIntegration = {
     for (const [strategyGroup, state] of strategyState.entries()) {
       if (state.staked <= 0n && state.unbonding.length === 0) continue
 
+      const assetMint = state.assetMint ?? BTCSOL_MINT
+      const assetDecimals = state.assetDecimals ?? BTCSOL_DECIMALS
+      const assetToken = tokens.get(assetMint)
       const stakedValue =
         state.staked > 0n
           ? buildPositionValue(
-              BTCSOL_MINT,
+              assetMint,
               state.staked,
-              BTCSOL_DECIMALS,
-              btcsolToken?.priceUsd,
+              assetDecimals,
+              assetToken?.priceUsd,
             )
           : undefined
 
