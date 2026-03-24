@@ -16,6 +16,10 @@ export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 const LOOPSCALE_IDL_SOURCE_PROGRAM_ID =
   '1oopBoJG58DgkUVKkEzKgyG9dvRmpgeEm1AVjoHkF78'
 const LOOPSCALE_LIVE_PROGRAM_ID = loopscaleIdl.address
+const LOOPSCLE_PROGRAM_IDS = [
+  LOOPSCALE_LIVE_PROGRAM_ID,
+  LOOPSCALE_IDL_SOURCE_PROGRAM_ID,
+] as const
 const DEFAULT_PUBLIC_KEY = '11111111111111111111111111111111'
 const LOAN_BORROWER_OFFSET = 11
 const VAULT_STAKE_USER_OFFSET = 73
@@ -362,48 +366,55 @@ export const loopscaleIntegration: SolanaIntegration = {
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
     const discoveryMap = yield [
-      {
-        kind: 'getProgramAccounts' as const,
-        programId: LOOPSCALE_LIVE_PROGRAM_ID,
-        filters: [
-          {
-            memcmp: {
-              offset: 0,
-              bytes: LOAN_DISCRIMINATOR_B64,
-              encoding: 'base64',
+      ...LOOPSCLE_PROGRAM_IDS.flatMap((programId) => [
+        {
+          kind: 'getProgramAccounts' as const,
+          programId,
+          filters: [
+            {
+              memcmp: {
+                offset: 0,
+                bytes: LOAN_DISCRIMINATOR_B64,
+                encoding: 'base64',
+              },
             },
-          },
-          { memcmp: { offset: LOAN_BORROWER_OFFSET, bytes: address } },
-        ],
-      },
-      {
-        kind: 'getProgramAccounts' as const,
-        programId: LOOPSCALE_LIVE_PROGRAM_ID,
-        filters: [
-          {
-            memcmp: {
-              offset: 0,
-              bytes: VAULT_STAKE_DISCRIMINATOR_B64,
-              encoding: 'base64',
+            { memcmp: { offset: LOAN_BORROWER_OFFSET, bytes: address } },
+          ],
+        },
+        {
+          kind: 'getProgramAccounts' as const,
+          programId,
+          filters: [
+            {
+              memcmp: {
+                offset: 0,
+                bytes: VAULT_STAKE_DISCRIMINATOR_B64,
+                encoding: 'base64',
+              },
             },
-          },
-          { memcmp: { offset: VAULT_STAKE_USER_OFFSET, bytes: address } },
-        ],
-      },
-      {
-        kind: 'getProgramAccounts' as const,
-        programId: LOOPSCALE_LIVE_PROGRAM_ID,
-        filters: [
-          {
-            memcmp: {
-              offset: 0,
-              bytes: USER_REWARDS_INFO_DISCRIMINATOR_B64,
-              encoding: 'base64',
+            { memcmp: { offset: VAULT_STAKE_USER_OFFSET, bytes: address } },
+          ],
+        },
+        {
+          kind: 'getProgramAccounts' as const,
+          programId,
+          filters: [
+            {
+              memcmp: {
+                offset: 0,
+                bytes: USER_REWARDS_INFO_DISCRIMINATOR_B64,
+                encoding: 'base64',
+              },
             },
-          },
-          { memcmp: { offset: USER_REWARDS_INFO_USER_OFFSET, bytes: address } },
-        ],
-      },
+            {
+              memcmp: {
+                offset: USER_REWARDS_INFO_USER_OFFSET,
+                bytes: address,
+              },
+            },
+          ],
+        },
+      ]),
     ]
 
     const { loans, stakes, rewardsInfo } = decodeDiscoveredAccounts(discoveryMap)
