@@ -4,7 +4,7 @@ const movepositionPlatform = {
   id: 'moveposition' as const,
   networks: ['movement'],
   name: 'MovePosition',
-  image: 'https://app.moveposition.xyz/favicon.png',
+  image: 'https://app.moveposition.xyz/favicon.svg',
   description: 'Next-gen omnichain lending protocol',
   tags: ['lending'],
   links: {
