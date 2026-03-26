@@ -4,6 +4,8 @@ import type {
   LendingBorrowedAsset,
   LendingDefiPosition,
   LendingSuppliedAsset,
+  StakedAsset,
+  StakingDefiPosition,
   SolanaIntegration,
   SolanaPlugins,
   UserDefiPosition,
@@ -16,11 +18,13 @@ export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 const BONDS_PROGRAM_ID = '4tdmkuY6EStxbS6Y8s5ueznL3VPMSugrvQuDeAHGZhSt'
 const WRAPPED_SOL_MINT = 'So11111111111111111111111111111111111111112'
 const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+const BANX_TOKEN_MINT = 'BANXbTpN8U2cU41FjPxe2Ti37PiT5cCxLUKDQZuJeMMR'
 const BANX_SOL_MINT = 'BANXyWgPpa519e2MtQF1ecRbKYKKDMXPF1dyBxUq9NQG'
 
 const BOND_TRADE_TRANSACTION_DISCRIMINATOR_B58 = 'b6hwxHZor7i'
 const BOND_OFFER_DISCRIMINATOR_B58 = 'A6YWkLyWjLB'
 const USER_VAULT_DISCRIMINATOR_B58 = '4u2LxSnUbZf'
+const BANX_TOKEN_STAKE_PREFIX = 'banx_token_stake'
 
 const BTT_USER_OFFSET = 41
 const BTT_SELLER_OFFSET = 147
@@ -61,6 +65,7 @@ interface BondTradeTransactionV3Raw {
   currentRemainingLent: unknown
   lenderOriginalLent: unknown
   borrowerOriginalLent: unknown
+  collateralAmountSnapshot: unknown
   soldAt: unknown
   redeemedAt: unknown
 }
@@ -77,6 +82,7 @@ interface BondOfferV3Raw {
 
 interface FraktBondRaw {
   fraktBondState: unknown
+  fbondTokenMint: unknown
   fbondIssuer: unknown
 }
 
@@ -90,6 +96,14 @@ interface UserVaultRaw {
   interestRewardsAmount: unknown
 }
 
+interface BanxTokenStakeRaw {
+  banxStakeState: unknown
+  user: unknown
+  tokensStaked: unknown
+  stakedAt: unknown
+  unstakedAt: unknown
+}
+
 interface ActiveLoan {
   address: string
   state: string
@@ -101,6 +115,7 @@ interface ActiveLoan {
   currentRemainingLent: bigint
   lenderOriginalLent: bigint
   borrowerOriginalLent: bigint
+  collateralAmountSnapshot: bigint
   soldAt: bigint
   redeemedAt: bigint
 }
@@ -207,15 +222,25 @@ function buildUsdValue(
   return ((Number(amountRaw) / 10 ** decimals) * priceUsd).toString()
 }
 
-function buildSuppliedAsset(
-  lendingTokenType: LendingTokenType,
+function buildAmountValue(
+  tokenMint: string,
   amountRaw: bigint,
+  fallbackDecimals: number,
   tokens: SolanaPlugins['tokens'],
-): LendingSuppliedAsset | null {
+):
+  | {
+      amount: {
+        token: string
+        amount: string
+        decimals: string
+      }
+      priceUsd?: string
+      usdValue?: string
+    }
+  | null {
   if (amountRaw <= 0n) return null
-  const tokenMint = lendingTokenTypeToMint(lendingTokenType)
   const token = tokens.get(tokenMint)
-  const decimals = token?.decimals ?? lendingTokenTypeToDecimals(lendingTokenType)
+  const decimals = token?.decimals ?? fallbackDecimals
   const usdValue = buildUsdValue(amountRaw, decimals, token?.priceUsd)
 
   return {
@@ -229,26 +254,61 @@ function buildSuppliedAsset(
   }
 }
 
+function buildSuppliedAsset(
+  lendingTokenType: LendingTokenType,
+  amountRaw: bigint,
+  tokens: SolanaPlugins['tokens'],
+): LendingSuppliedAsset | null {
+  const tokenMint = lendingTokenTypeToMint(lendingTokenType)
+  const value = buildAmountValue(
+    tokenMint,
+    amountRaw,
+    lendingTokenTypeToDecimals(lendingTokenType),
+    tokens,
+  )
+  return value
+}
+
 function buildBorrowedAsset(
   lendingTokenType: LendingTokenType,
   amountRaw: bigint,
   tokens: SolanaPlugins['tokens'],
 ): LendingBorrowedAsset | null {
-  if (amountRaw <= 0n) return null
   const tokenMint = lendingTokenTypeToMint(lendingTokenType)
-  const token = tokens.get(tokenMint)
-  const decimals = token?.decimals ?? lendingTokenTypeToDecimals(lendingTokenType)
-  const usdValue = buildUsdValue(amountRaw, decimals, token?.priceUsd)
+  const value = buildAmountValue(
+    tokenMint,
+    amountRaw,
+    lendingTokenTypeToDecimals(lendingTokenType),
+    tokens,
+  )
+  return value
+}
 
-  return {
-    amount: {
-      token: tokenMint,
-      amount: amountRaw.toString(),
-      decimals: decimals.toString(),
-    },
-    ...(token?.priceUsd !== undefined && { priceUsd: token.priceUsd.toString() }),
-    ...(usdValue !== undefined && { usdValue }),
-  }
+function buildSuppliedAssetByMint(
+  tokenMint: string,
+  amountRaw: bigint,
+  tokens: SolanaPlugins['tokens'],
+): LendingSuppliedAsset | null {
+  const value = buildAmountValue(tokenMint, amountRaw, 9, tokens)
+  return value
+}
+
+function buildBorrowedAssetByMint(
+  tokenMint: string,
+  amountRaw: bigint,
+  tokens: SolanaPlugins['tokens'],
+): LendingBorrowedAsset | null {
+  const value = buildAmountValue(tokenMint, amountRaw, 9, tokens)
+  return value
+}
+
+function buildStakedAsset(
+  tokenMint: string,
+  amountRaw: bigint,
+  tokens: SolanaPlugins['tokens'],
+): StakedAsset | null {
+  const value = buildAmountValue(tokenMint, amountRaw, 9, tokens)
+  return value
 }
 
 function isLoanStateActive(state: string): boolean {
@@ -316,6 +376,13 @@ export const banxIntegration: SolanaIntegration = {
       ],
     }
 
+    const userPubkey = new PublicKey(address)
+    const banxTokenStakeAddress = PublicKey.findProgramAddressSync(
+      [Buffer.from(BANX_TOKEN_STAKE_PREFIX), userPubkey.toBuffer()],
+      new PublicKey(BONDS_PROGRAM_ID),
+    )[0].toBase58()
+    const banxTokenStakeMap = yield [banxTokenStakeAddress]
+
     const activeLoans = new Map<string, ActiveLoan>()
     for (const account of [
       ...Object.values(lenderLoanMap),
@@ -350,6 +417,7 @@ export const banxIntegration: SolanaIntegration = {
         currentRemainingLent: toBigInt(decoded.currentRemainingLent),
         lenderOriginalLent: toBigInt(decoded.lenderOriginalLent),
         borrowerOriginalLent: toBigInt(decoded.borrowerOriginalLent),
+        collateralAmountSnapshot: toBigInt(decoded.collateralAmountSnapshot),
         soldAt: toBigInt(decoded.soldAt),
         redeemedAt: toBigInt(decoded.redeemedAt),
       })
@@ -364,7 +432,10 @@ export const banxIntegration: SolanaIntegration = {
       relatedAddresses.length > 0 ? yield relatedAddresses : {}
 
     const relatedOffers = new Map<string, OfferPositionSource>()
-    const relatedFraktBonds = new Map<string, { state: string; issuer: string }>()
+    const relatedFraktBonds = new Map<
+      string,
+      { state: string; issuer: string; collateralTokenMint: string | null }
+    >()
 
     for (const account of Object.values(relatedAccounts)) {
       if (!account.exists) continue
@@ -392,8 +463,13 @@ export const banxIntegration: SolanaIntegration = {
       if (fraktDecoded) {
         const state = enumName(fraktDecoded.fraktBondState)
         const issuer = toAddress(fraktDecoded.fbondIssuer)
+        const collateralTokenMint = toAddress(fraktDecoded.fbondTokenMint)
         if (state && issuer) {
-          relatedFraktBonds.set(account.address, { state, issuer })
+          relatedFraktBonds.set(account.address, {
+            state,
+            issuer,
+            collateralTokenMint,
+          })
         }
       }
     }
@@ -445,6 +521,34 @@ export const banxIntegration: SolanaIntegration = {
       })
     }
 
+    const banxTokenStakes: Array<{
+      address: string
+      state: string
+      tokensStaked: bigint
+      stakedAt: bigint
+      unstakedAt: bigint
+    }> = []
+    for (const account of Object.values(banxTokenStakeMap)) {
+      if (!account.exists) continue
+      const decoded = decodeAccount<BanxTokenStakeRaw>('banxTokenStake', account.data)
+      if (!decoded) continue
+
+      const state = enumName(decoded.banxStakeState)
+      const user = toAddress(decoded.user)
+      if (!state || !user || user !== address) continue
+
+      const tokensStaked = toBigInt(decoded.tokensStaked)
+      if (tokensStaked <= 0n) continue
+
+      banxTokenStakes.push({
+        address: account.address,
+        state,
+        tokensStaked,
+        stakedAt: toBigInt(decoded.stakedAt),
+        unstakedAt: toBigInt(decoded.unstakedAt),
+      })
+    }
+
     const positions: UserDefiPosition[] = []
     const seenPositionKeys = new Set<string>()
 
@@ -456,13 +560,26 @@ export const banxIntegration: SolanaIntegration = {
       if (loan.user === address) {
         const key = `loan:${loan.address}:lender`
         if (!seenPositionKeys.has(key)) {
-          const amount = loan.currentRemainingLent || loan.lenderOriginalLent
-          const supplied = buildSuppliedAsset(loan.lendingTokenType, amount, tokens)
-          if (supplied) {
+          const debtAmount = loan.currentRemainingLent || loan.lenderOriginalLent
+          const supplied = buildSuppliedAsset(
+            loan.lendingTokenType,
+            debtAmount,
+            tokens,
+          )
+          const collateral =
+            fraktBond?.collateralTokenMint && loan.collateralAmountSnapshot > 0n
+              ? buildBorrowedAssetByMint(
+                  fraktBond.collateralTokenMint,
+                  loan.collateralAmountSnapshot,
+                  tokens,
+                )
+              : null
+          if (supplied || collateral) {
             const position: LendingDefiPosition = {
               platformId: 'banx',
               positionKind: 'lending',
-              supplied: [supplied],
+              ...(supplied && { supplied: [supplied] }),
+              ...(collateral && { borrowed: [collateral] }),
               meta: {
                 banx: {
                   role: 'lender',
@@ -478,6 +595,8 @@ export const banxIntegration: SolanaIntegration = {
                   ...(fraktBond && {
                     fraktBondState: fraktBond.state,
                     borrower: fraktBond.issuer,
+                    collateralTokenMint: fraktBond.collateralTokenMint,
+                    collateralAmountSnapshot: loan.collateralAmountSnapshot.toString(),
                   }),
                   ...(vault && {
                     vault: vault.address,
@@ -501,11 +620,20 @@ export const banxIntegration: SolanaIntegration = {
         if (!seenPositionKeys.has(key)) {
           const amount = loan.currentRemainingLent || loan.borrowerOriginalLent
           const borrowed = buildBorrowedAsset(loan.lendingTokenType, amount, tokens)
-          if (borrowed) {
+          const collateral =
+            fraktBond?.collateralTokenMint && loan.collateralAmountSnapshot > 0n
+              ? buildSuppliedAssetByMint(
+                  fraktBond.collateralTokenMint,
+                  loan.collateralAmountSnapshot,
+                  tokens,
+                )
+              : null
+          if (borrowed || collateral) {
             const position: LendingDefiPosition = {
               platformId: 'banx',
               positionKind: 'lending',
-              borrowed: [borrowed],
+              ...(collateral && { supplied: [collateral] }),
+              ...(borrowed && { borrowed: [borrowed] }),
               meta: {
                 banx: {
                   role: 'borrower',
@@ -522,6 +650,8 @@ export const banxIntegration: SolanaIntegration = {
                   ...(fraktBond && {
                     fraktBondState: fraktBond.state,
                     borrower: fraktBond.issuer,
+                    collateralTokenMint: fraktBond.collateralTokenMint,
+                    collateralAmountSnapshot: loan.collateralAmountSnapshot.toString(),
                   }),
                 },
               },
@@ -572,6 +702,74 @@ export const banxIntegration: SolanaIntegration = {
 
       const usdValue = sumPositionUsdValue(position.supplied, position.borrowed)
       if (usdValue !== undefined) position.usdValue = usdValue
+      positions.push(position)
+      seenPositionKeys.add(key)
+    }
+
+    for (const vault of userVaults.values()) {
+      if (vault.state !== 'active') continue
+      if (vault.offerLiquidityAmount <= 0n) continue
+
+      const key = `vault:${vault.address}`
+      if (seenPositionKeys.has(key)) continue
+
+      const supplied = buildSuppliedAsset(
+        vault.lendingTokenType,
+        vault.offerLiquidityAmount,
+        tokens,
+      )
+      if (!supplied) continue
+
+      const position: LendingDefiPosition = {
+        platformId: 'banx',
+        positionKind: 'lending',
+        supplied: [supplied],
+        meta: {
+          banx: {
+            role: 'vault',
+            vault: vault.address,
+            state: vault.state,
+            vaultOfferLiquidityAmount: vault.offerLiquidityAmount.toString(),
+            vaultLiquidityInLoansAmount: vault.liquidityInLoansAmount.toString(),
+            vaultRepaymentsAmount: vault.repaymentsAmount.toString(),
+            vaultInterestRewardsAmount: vault.interestRewardsAmount.toString(),
+          },
+        },
+      }
+
+      const usdValue = sumPositionUsdValue(position.supplied, position.borrowed)
+      if (usdValue !== undefined) position.usdValue = usdValue
+      positions.push(position)
+      seenPositionKeys.add(key)
+    }
+
+    for (const stake of banxTokenStakes) {
+      if (stake.state !== 'staked') continue
+
+      const key = `stake:${stake.address}`
+      if (seenPositionKeys.has(key)) continue
+
+      const staked = buildStakedAsset(BANX_TOKEN_MINT, stake.tokensStaked, tokens)
+      if (!staked) continue
+
+      const position: StakingDefiPosition = {
+        platformId: 'banx',
+        positionKind: 'staking',
+        staked: [staked],
+        meta: {
+          banx: {
+            role: 'stake',
+            stake: stake.address,
+            state: stake.state,
+            stakedAt: stake.stakedAt.toString(),
+            unstakedAt: stake.unstakedAt.toString(),
+          },
+        },
+      }
+      if (staked.usdValue !== undefined) {
+        position.usdValue = staked.usdValue
+      }
+
       positions.push(position)
       seenPositionKeys.add(key)
     }
