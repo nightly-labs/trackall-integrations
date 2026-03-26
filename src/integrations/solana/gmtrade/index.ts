@@ -5,6 +5,7 @@ import type { AccountInfo } from '@solana/web3.js'
 import { PublicKey } from '@solana/web3.js'
 
 import gmsolStoreIdl from './idls/gmsol_store.json'
+import gmsolLiquidityProviderIdl from './idls/gmsol_liquidity_provider.json'
 
 import type {
   AccountsMap,
@@ -13,6 +14,7 @@ import type {
   PositionValue,
   SolanaIntegration,
   SolanaPlugins,
+  StakingDefiPosition,
   TradingDefiPosition,
   TradingOrder,
   UserDefiPosition,
@@ -20,8 +22,10 @@ import type {
 } from '../../../types/index'
 
 const GMTRADE_STORE_PROGRAM_ID = 'Gmso1uvJnLbawvw7yezdfCDcPydwW2s2iqG3w6MDucLo'
+const GMTRADE_LP_PROGRAM_ID = 'LPMWczEVgXyQ3979XaqqEttanCXmYGvtJqPVtw1PvC8'
 const POSITION_OWNER_OFFSET = 56
 const ACTION_OWNER_OFFSET = 88
+const LP_POSITION_OWNER_OFFSET = 8
 const PRICE_DECIMALS = 20
 const PENDING_ACTION_STATE = 0
 const POSITION_KIND_LONG = 1
@@ -52,6 +56,16 @@ type DecodedPosition = {
     collateral_amount: BigNumberish
     size_in_usd: BigNumberish
   }
+}
+
+type DecodedLpPosition = {
+  owner: PublicKey
+  controller: PublicKey
+  lp_mint: PublicKey
+  position_id: BigNumberish
+  staked_amount: BigNumberish
+  staked_value_usd: BigNumberish
+  stake_start_time: BigNumberish
 }
 
 type DecodedOrder = {
@@ -115,10 +129,14 @@ type Bucket = {
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
-export const PROGRAM_IDS = [GMTRADE_STORE_PROGRAM_ID] as const
+export const PROGRAM_IDS = [GMTRADE_STORE_PROGRAM_ID, GMTRADE_LP_PROGRAM_ID] as const
 
-const coder = new BorshAccountsCoder(gmsolStoreIdl as unknown as Idl)
-const POSITION_DISCRIMINATOR_B64 = accountDiscriminatorB64('Position')
+const storeCoder = new BorshAccountsCoder(gmsolStoreIdl as unknown as Idl)
+const lpCoder = new BorshAccountsCoder(
+  gmsolLiquidityProviderIdl as unknown as Idl,
+)
+const STORE_POSITION_DISCRIMINATOR_B64 = accountDiscriminatorB64('Position')
+const LP_POSITION_DISCRIMINATOR_B64 = accountDiscriminatorB64('Position')
 const ORDER_DISCRIMINATOR_B64 = accountDiscriminatorB64('Order')
 const MARKET_DISCRIMINATOR_B64 = accountDiscriminatorB64('Market')
 
@@ -166,11 +184,12 @@ function toScaledDecimal(value: bigint, decimals: number): string {
 }
 
 function decodeAccount<T>(
+  accountCoder: BorshAccountsCoder,
   accountName: string,
   data: Uint8Array,
 ): T | null {
   try {
-    return coder.decode(accountName, Buffer.from(data)) as T
+    return accountCoder.decode(accountName, Buffer.from(data)) as T
   } catch {
     return null
   }
@@ -288,7 +307,7 @@ export const gmtradeIntegration: SolanaIntegration = {
           {
             memcmp: {
               offset: 0,
-              bytes: POSITION_DISCRIMINATOR_B64,
+              bytes: STORE_POSITION_DISCRIMINATOR_B64,
               encoding: 'base64',
             },
           },
@@ -321,6 +340,25 @@ export const gmtradeIntegration: SolanaIntegration = {
       },
       {
         kind: 'getProgramAccounts' as const,
+        programId: GMTRADE_LP_PROGRAM_ID,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: LP_POSITION_DISCRIMINATOR_B64,
+              encoding: 'base64',
+            },
+          },
+          {
+            memcmp: {
+              offset: LP_POSITION_OWNER_OFFSET,
+              bytes: address,
+            },
+          },
+        ],
+      },
+      {
+        kind: 'getProgramAccounts' as const,
         programId: GMTRADE_STORE_PROGRAM_ID,
         cacheTtlMs: 5 * 60 * 1000,
         filters: [
@@ -346,6 +384,8 @@ export const gmtradeIntegration: SolanaIntegration = {
     ]
 
     const decodedPositions: Array<{ address: string; data: DecodedPosition }> = []
+    const decodedLpPositions: Array<{ address: string; data: DecodedLpPosition }> =
+      []
     const decodedOrders: Array<{ address: string; data: DecodedOrder }> = []
     const decodedMarkets: MarketInfo[] = []
     const walletMarketTokenBalances = new Map<string, bigint>()
@@ -369,19 +409,35 @@ export const gmtradeIntegration: SolanaIntegration = {
         continue
       }
 
-      const position = decodeAccount<DecodedPosition>('Position', account.data)
+      if (account.programAddress === GMTRADE_LP_PROGRAM_ID) {
+        const lpPosition = decodeAccount<DecodedLpPosition>(
+          lpCoder,
+          'Position',
+          account.data,
+        )
+        if (lpPosition) {
+          decodedLpPositions.push({ address: accountAddress, data: lpPosition })
+        }
+        continue
+      }
+
+      const position = decodeAccount<DecodedPosition>(
+        storeCoder,
+        'Position',
+        account.data,
+      )
       if (position) {
         decodedPositions.push({ address: accountAddress, data: position })
         continue
       }
 
-      const order = decodeAccount<DecodedOrder>('Order', account.data)
+      const order = decodeAccount<DecodedOrder>(storeCoder, 'Order', account.data)
       if (order) {
         decodedOrders.push({ address: accountAddress, data: order })
         continue
       }
 
-      const market = decodeAccount<DecodedMarket>('Market', account.data)
+      const market = decodeAccount<DecodedMarket>(storeCoder, 'Market', account.data)
       if (market) {
         const primaryPoolLongAmountRaw = toBigInt(
           market.state?.pools?.primary?.pool?.long_token_amount ?? 0,
@@ -404,6 +460,7 @@ export const gmtradeIntegration: SolanaIntegration = {
 
     if (
       decodedPositions.length === 0 &&
+      decodedLpPositions.length === 0 &&
       decodedOrders.length === 0 &&
       decodedMarkets.length === 0
     ) {
@@ -432,6 +489,9 @@ export const gmtradeIntegration: SolanaIntegration = {
       mintSet.add(market.indexTokenMint)
       mintSet.add(market.longTokenMint)
       mintSet.add(market.shortTokenMint)
+    })
+    decodedLpPositions.forEach(({ data }) => {
+      mintSet.add(data.lp_mint.toBase58())
     })
 
     const mintAddresses = [...mintSet]
@@ -601,6 +661,43 @@ export const gmtradeIntegration: SolanaIntegration = {
             positionAccounts: bucket.positionAccounts,
             orderAccounts: bucket.orderAccounts,
             orderKinds: bucket.orderKinds,
+          },
+        },
+      }
+
+      result.push(position)
+    }
+
+    for (const { address: lpPositionAddress, data: lpPosition } of decodedLpPositions) {
+      const lpMint = lpPosition.lp_mint.toBase58()
+      const stakedAmountRaw = toBigInt(lpPosition.staked_amount)
+      if (stakedAmountRaw <= 0n) continue
+
+      const lpDecimals = tokenDecimals(lpMint, tokens, mintDecimalsMap)
+      const lpPriceUsd = tokenPriceUsd(lpMint, tokens)
+      const stakedValue = buildPositionValue(
+        lpMint,
+        stakedAmountRaw,
+        lpDecimals,
+        lpPriceUsd,
+      )
+      const stakedValueUsd = toScaledDecimal(
+        toBigInt(lpPosition.staked_value_usd),
+        PRICE_DECIMALS,
+      )
+
+      const position: StakingDefiPosition = {
+        platformId: 'gmtrade',
+        positionKind: 'staking',
+        staked: [stakedValue],
+        ...(stakedValueUsd !== '0' && { usdValue: stakedValueUsd }),
+        meta: {
+          gmtrade: {
+            lpMint,
+            controller: lpPosition.controller.toBase58(),
+            positionAccount: lpPositionAddress,
+            positionId: toBigInt(lpPosition.position_id).toString(),
+            stakeStartTime: toBigInt(lpPosition.stake_start_time).toString(),
           },
         },
       }
