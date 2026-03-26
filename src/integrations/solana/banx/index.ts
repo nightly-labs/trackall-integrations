@@ -82,6 +82,7 @@ interface BondOfferV3Raw {
 
 interface FraktBondRaw {
   fraktBondState: unknown
+  banxStake: unknown
   fbondTokenMint: unknown
   fbondIssuer: unknown
 }
@@ -102,6 +103,28 @@ interface BanxTokenStakeRaw {
   tokensStaked: unknown
   stakedAt: unknown
   unstakedAt: unknown
+}
+
+interface BanxStakeAccountRaw {
+  banxStakeState: unknown
+  nftMint: unknown
+  isLoaned: unknown
+  playerPoints: unknown
+}
+
+interface FraktBondSource {
+  state: string
+  issuer: string
+  collateralTokenMint: string | null
+  banxStake: string | null
+}
+
+interface LoanBanxStakeSource {
+  address: string
+  state: string
+  nftMint: string | null
+  isLoaned: boolean
+  playerPoints: bigint
 }
 
 interface ActiveLoan {
@@ -432,10 +455,7 @@ export const banxIntegration: SolanaIntegration = {
       relatedAddresses.length > 0 ? yield relatedAddresses : {}
 
     const relatedOffers = new Map<string, OfferPositionSource>()
-    const relatedFraktBonds = new Map<
-      string,
-      { state: string; issuer: string; collateralTokenMint: string | null }
-    >()
+    const relatedFraktBonds = new Map<string, FraktBondSource>()
 
     for (const account of Object.values(relatedAccounts)) {
       if (!account.exists) continue
@@ -464,14 +484,50 @@ export const banxIntegration: SolanaIntegration = {
         const state = enumName(fraktDecoded.fraktBondState)
         const issuer = toAddress(fraktDecoded.fbondIssuer)
         const collateralTokenMint = toAddress(fraktDecoded.fbondTokenMint)
+        const banxStake = toAddress(fraktDecoded.banxStake)
         if (state && issuer) {
           relatedFraktBonds.set(account.address, {
             state,
             issuer,
             collateralTokenMint,
+            banxStake,
           })
         }
       }
+    }
+
+    const banxStakeAddresses = [
+      ...new Set(
+        [...relatedFraktBonds.values()]
+          .map((fraktBond) => fraktBond.banxStake)
+          .filter(
+            (address): address is string =>
+              !!address && address !== '11111111111111111111111111111111',
+          ),
+      ),
+    ]
+    const banxStakeAccounts =
+      banxStakeAddresses.length > 0 ? yield banxStakeAddresses : {}
+
+    const loanBanxStakes = new Map<string, LoanBanxStakeSource>()
+    for (const account of Object.values(banxStakeAccounts)) {
+      if (!account.exists) continue
+
+      const decoded = decodeAccount<BanxStakeAccountRaw>('banxStake', account.data)
+      if (!decoded) continue
+
+      const state = enumName(decoded.banxStakeState)
+      if (!state) continue
+
+      const isLoaned = Boolean(decoded.isLoaned)
+      const playerPoints = toBigInt(decoded.playerPoints)
+      loanBanxStakes.set(account.address, {
+        address: account.address,
+        state,
+        nftMint: toAddress(decoded.nftMint),
+        isLoaned,
+        playerPoints,
+      })
     }
 
     const ownerOffers: OfferPositionSource[] = []
@@ -566,7 +622,7 @@ export const banxIntegration: SolanaIntegration = {
             debtAmount,
             tokens,
           )
-          const collateral =
+          const collateralFromSnapshot =
             fraktBond?.collateralTokenMint && loan.collateralAmountSnapshot > 0n
               ? buildBorrowedAssetByMint(
                   fraktBond.collateralTokenMint,
@@ -574,6 +630,21 @@ export const banxIntegration: SolanaIntegration = {
                   tokens,
                 )
               : null
+          const linkedBanxStake = fraktBond?.banxStake
+            ? loanBanxStakes.get(fraktBond.banxStake)
+            : null
+          const collateralFromBanxStake =
+            !collateralFromSnapshot &&
+            linkedBanxStake &&
+            linkedBanxStake.isLoaned &&
+            linkedBanxStake.playerPoints > 0n
+              ? buildBorrowedAssetByMint(
+                  BANX_TOKEN_MINT,
+                  linkedBanxStake.playerPoints * 10n ** 9n,
+                  tokens,
+                )
+              : null
+          const collateral = collateralFromSnapshot ?? collateralFromBanxStake
           if (supplied || collateral) {
             const position: LendingDefiPosition = {
               platformId: 'banx',
@@ -597,6 +668,12 @@ export const banxIntegration: SolanaIntegration = {
                     borrower: fraktBond.issuer,
                     collateralTokenMint: fraktBond.collateralTokenMint,
                     collateralAmountSnapshot: loan.collateralAmountSnapshot.toString(),
+                    banxStake: fraktBond.banxStake,
+                  }),
+                  ...(linkedBanxStake && {
+                    banxStakeState: linkedBanxStake.state,
+                    banxStakeIsLoaned: linkedBanxStake.isLoaned,
+                    banxStakePlayerPoints: linkedBanxStake.playerPoints.toString(),
                   }),
                   ...(vault && {
                     vault: vault.address,
