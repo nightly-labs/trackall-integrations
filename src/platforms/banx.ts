@@ -1,0 +1,15 @@
+import type { Platform } from '../types/platform'
+
+const banxPlatform = {
+  id: 'banx' as const,
+  networks: ['solana'],
+  name: 'BANX',
+  image: 'https://banx.gg/favicon.ico',
+  description: 'NFT-backed lending and offer markets on Solana',
+  tags: ['lending', 'nft'],
+  links: {
+    website: 'https://banx.gg',
+  },
+} satisfies Platform
+
+export default banxPlatform
