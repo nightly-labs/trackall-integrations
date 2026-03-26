@@ -1,4 +1,5 @@
 import type { Platform } from '../types/platform'
+import allbridgePlatform from './allbridge'
 import canopyPlatform from './canopy'
 import carrotPlatform from './carrot'
 import driftPlatform from './drift'
@@ -20,6 +21,7 @@ import realmsPlatform from './realms'
 import yuzuPlatform from './yuzu'
 
 export const platforms = [
+  allbridgePlatform,
   carrotPlatform,
   driftPlatform,
   meteoraPlatform,
