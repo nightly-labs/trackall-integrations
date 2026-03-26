@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { BorshAccountsCoder, type Idl } from '@coral-xyz/anchor'
-import { unpackMint } from '@solana/spl-token'
+import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, unpackMint } from '@solana/spl-token'
 import type { AccountInfo } from '@solana/web3.js'
 import { PublicKey } from '@solana/web3.js'
 
@@ -8,6 +8,7 @@ import gmsolStoreIdl from './idls/gmsol_store.json'
 
 import type {
   AccountsMap,
+  ConstantProductLiquidityDefiPosition,
   MaybeSolanaAccount,
   PositionValue,
   SolanaIntegration,
@@ -69,6 +70,25 @@ type DecodedOrder = {
   }
 }
 
+type DecodedMarket = {
+  store: PublicKey
+  meta: {
+    market_token_mint: PublicKey
+    index_token_mint: PublicKey
+    long_token_mint: PublicKey
+    short_token_mint: PublicKey
+  }
+}
+
+type MarketInfo = {
+  marketAddress: string
+  store: string
+  marketTokenMint: string
+  indexTokenMint: string
+  longTokenMint: string
+  shortTokenMint: string
+}
+
 type Bucket = {
   store: string
   marketToken: string
@@ -88,6 +108,7 @@ export const PROGRAM_IDS = [GMTRADE_STORE_PROGRAM_ID] as const
 const coder = new BorshAccountsCoder(gmsolStoreIdl as unknown as Idl)
 const POSITION_DISCRIMINATOR_B64 = accountDiscriminatorB64('Position')
 const ORDER_DISCRIMINATOR_B64 = accountDiscriminatorB64('Order')
+const MARKET_DISCRIMINATOR_B64 = accountDiscriminatorB64('Market')
 
 function accountDiscriminatorB64(accountName: string): string {
   return createHash('sha256')
@@ -223,6 +244,18 @@ function tokenPriceUsd(mint: string, tokens: SolanaPlugins['tokens']) {
   return tokens.get(mint)?.priceUsd
 }
 
+function readTokenAccountMint(data: Uint8Array): string | null {
+  const buf = Buffer.from(data)
+  if (buf.length < 32) return null
+  return new PublicKey(buf.subarray(0, 32)).toBase58()
+}
+
+function readTokenAccountAmount(data: Uint8Array): bigint | null {
+  const buf = Buffer.from(data)
+  if (buf.length < 72) return null
+  return buf.readBigUInt64LE(64)
+}
+
 export const gmtradeIntegration: SolanaIntegration = {
   platformId: 'gmtrade',
 
@@ -269,13 +302,55 @@ export const gmtradeIntegration: SolanaIntegration = {
           },
         ],
       },
+      {
+        kind: 'getProgramAccounts' as const,
+        programId: GMTRADE_STORE_PROGRAM_ID,
+        cacheTtlMs: 5 * 60 * 1000,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: MARKET_DISCRIMINATOR_B64,
+              encoding: 'base64',
+            },
+          },
+        ],
+      },
+      {
+        kind: 'getTokenAccountsByOwner' as const,
+        owner: address,
+        programId: TOKEN_PROGRAM_ID.toBase58(),
+      },
+      {
+        kind: 'getTokenAccountsByOwner' as const,
+        owner: address,
+        programId: TOKEN_2022_PROGRAM_ID.toBase58(),
+      },
     ]
 
     const decodedPositions: Array<{ address: string; data: DecodedPosition }> = []
     const decodedOrders: Array<{ address: string; data: DecodedOrder }> = []
+    const decodedMarkets: MarketInfo[] = []
+    const walletMarketTokenBalances = new Map<string, bigint>()
 
     for (const [accountAddress, account] of Object.entries(phase0Map)) {
       if (!account.exists) continue
+
+      if (
+        account.programAddress === TOKEN_PROGRAM_ID.toBase58() ||
+        account.programAddress === TOKEN_2022_PROGRAM_ID.toBase58()
+      ) {
+        const mint = readTokenAccountMint(account.data)
+        const amount = readTokenAccountAmount(account.data)
+        if (!mint || amount === null || amount <= 0n) continue
+
+        const existing = walletMarketTokenBalances.get(mint)
+        walletMarketTokenBalances.set(
+          mint,
+          existing !== undefined ? existing + amount : amount,
+        )
+        continue
+      }
 
       const position = decodeAccount<DecodedPosition>('Position', account.data)
       if (position) {
@@ -286,11 +361,38 @@ export const gmtradeIntegration: SolanaIntegration = {
       const order = decodeAccount<DecodedOrder>('Order', account.data)
       if (order) {
         decodedOrders.push({ address: accountAddress, data: order })
+        continue
+      }
+
+      const market = decodeAccount<DecodedMarket>('Market', account.data)
+      if (market) {
+        decodedMarkets.push({
+          marketAddress: accountAddress,
+          store: market.store.toBase58(),
+          marketTokenMint: market.meta.market_token_mint.toBase58(),
+          indexTokenMint: market.meta.index_token_mint.toBase58(),
+          longTokenMint: market.meta.long_token_mint.toBase58(),
+          shortTokenMint: market.meta.short_token_mint.toBase58(),
+        })
       }
     }
 
-    if (decodedPositions.length === 0 && decodedOrders.length === 0) {
+    if (
+      decodedPositions.length === 0 &&
+      decodedOrders.length === 0 &&
+      decodedMarkets.length === 0
+    ) {
       return []
+    }
+
+    const marketByTokenMint = new Map(
+      decodedMarkets.map((market) => [market.marketTokenMint, market] as const),
+    )
+
+    for (const mint of [...walletMarketTokenBalances.keys()]) {
+      if (!marketByTokenMint.has(mint)) {
+        walletMarketTokenBalances.delete(mint)
+      }
     }
 
     const mintSet = new Set<string>()
@@ -300,6 +402,12 @@ export const gmtradeIntegration: SolanaIntegration = {
     decodedOrders.forEach(({ data }) =>
       mintSet.add(data.params.collateral_token.toBase58()),
     )
+    decodedMarkets.forEach((market) => {
+      mintSet.add(market.marketTokenMint)
+      mintSet.add(market.indexTokenMint)
+      mintSet.add(market.longTokenMint)
+      mintSet.add(market.shortTokenMint)
+    })
 
     const mintAddresses = [...mintSet]
     const mintAccountsMap: AccountsMap =
@@ -472,6 +580,42 @@ export const gmtradeIntegration: SolanaIntegration = {
       }
 
       result.push(position)
+    }
+
+    for (const [marketTokenMint, balanceRaw] of walletMarketTokenBalances) {
+      const market = marketByTokenMint.get(marketTokenMint)
+      if (!market) continue
+
+      const decimals = tokenDecimals(marketTokenMint, tokens, mintDecimalsMap)
+      const priceUsd = tokenPriceUsd(marketTokenMint, tokens)
+      const poolToken = buildPositionValue(
+        marketTokenMint,
+        balanceRaw,
+        decimals,
+        priceUsd,
+      )
+
+      const liquidityPosition: ConstantProductLiquidityDefiPosition = {
+        platformId: 'gmtrade',
+        positionKind: 'liquidity',
+        liquidityModel: 'constant-product',
+        poolAddress: market.marketAddress,
+        poolTokens: [poolToken],
+        lpTokenAmount: balanceRaw.toString(),
+        ...(poolToken.usdValue !== undefined && { usdValue: poolToken.usdValue }),
+        meta: {
+          gmtrade: {
+            store: market.store,
+            marketAddress: market.marketAddress,
+            marketToken: market.marketTokenMint,
+            indexTokenMint: market.indexTokenMint,
+            longTokenMint: market.longTokenMint,
+            shortTokenMint: market.shortTokenMint,
+          },
+        },
+      }
+
+      result.push(liquidityPosition)
     }
 
     return result
