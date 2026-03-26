@@ -16,6 +16,7 @@ import bondsIdl from './idls/bonds.json'
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
 const BONDS_PROGRAM_ID = '4tdmkuY6EStxbS6Y8s5ueznL3VPMSugrvQuDeAHGZhSt'
+const BONDS_PROGRAM_V2_ID = 'BanxxEcFZPJLKhS59EkwTa8SZez8vDYTiJVN78mGHWDi'
 const WRAPPED_SOL_MINT = 'So11111111111111111111111111111111111111112'
 const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
 const BANX_TOKEN_MINT = 'BANXbTpN8U2cU41FjPxe2Ti37PiT5cCxLUKDQZuJeMMR'
@@ -24,12 +25,18 @@ const BANX_SOL_MINT = 'BANXyWgPpa519e2MtQF1ecRbKYKKDMXPF1dyBxUq9NQG'
 const BOND_TRADE_TRANSACTION_DISCRIMINATOR_B58 = 'b6hwxHZor7i'
 const BOND_OFFER_DISCRIMINATOR_B58 = 'A6YWkLyWjLB'
 const USER_VAULT_DISCRIMINATOR_B58 = '4u2LxSnUbZf'
+const USER_VAULT_V2_DISCRIMINATOR_B58 = 'KiMThkZcrc8'
 const BANX_TOKEN_STAKE_PREFIX = 'banx_token_stake'
 
 const BTT_USER_OFFSET = 41
 const BTT_SELLER_OFFSET = 147
 const BOND_OFFER_ASSET_RECEIVER_OFFSET = 130
 const USER_VAULT_USER_OFFSET = 9
+const USER_VAULT_V2_USER_OFFSET = 41
+const USER_VAULT_V2_VAULT_OFFSET = 9
+const USER_VAULT_V2_STATE_OFFSET = 8
+const USER_VAULT_V2_LIQUIDITY_OFFSET = 73
+const VAULT_V2_MINT_OFFSET = 49
 
 const ACTIVE_LOAN_STATES = new Set([
   'perpetualActive',
@@ -49,7 +56,7 @@ const OPEN_OFFER_STATES = new Set([
   'perpetualListing',
 ])
 
-export const PROGRAM_IDS = [BONDS_PROGRAM_ID] as const
+export const PROGRAM_IDS = [BONDS_PROGRAM_ID, BONDS_PROGRAM_V2_ID] as const
 
 const bondsCoder = new BorshCoder(bondsIdl as never)
 
@@ -163,6 +170,14 @@ interface UserVaultPositionSource {
   interestRewardsAmount: bigint
 }
 
+interface UserVaultV2PositionSource {
+  address: string
+  state: number
+  user: string
+  vault: string
+  liquidityAmount: bigint
+}
+
 function decodeAccount<T>(name: string, data: Uint8Array): T | null {
   try {
     return bondsCoder.accounts.decode(name, Buffer.from(data)) as T
@@ -205,6 +220,14 @@ function toBigInt(value: unknown): bigint {
     return BigInt((value as { toString: () => string }).toString())
   }
   return 0n
+}
+
+function readU128LE(data: Uint8Array, offset: number): bigint | null {
+  if (offset < 0 || offset + 16 > data.length) return null
+  const view = data instanceof Buffer ? data : Buffer.from(data)
+  const lo = view.readBigUInt64LE(offset)
+  const hi = view.readBigUInt64LE(offset + 8)
+  return (hi << 64n) + lo
 }
 
 function toLendingTokenType(value: unknown): LendingTokenType | null {
@@ -396,6 +419,14 @@ export const banxIntegration: SolanaIntegration = {
       filters: [
         { memcmp: { offset: 0, bytes: USER_VAULT_DISCRIMINATOR_B58 } },
         { memcmp: { offset: USER_VAULT_USER_OFFSET, bytes: address } },
+      ],
+    }
+    const userVaultsV2Map = yield {
+      kind: 'getProgramAccounts' as const,
+      programId: BONDS_PROGRAM_V2_ID,
+      filters: [
+        { memcmp: { offset: 0, bytes: USER_VAULT_V2_DISCRIMINATOR_B58 } },
+        { memcmp: { offset: USER_VAULT_V2_USER_OFFSET, bytes: address } },
       ],
     }
 
@@ -603,6 +634,50 @@ export const banxIntegration: SolanaIntegration = {
         stakedAt: toBigInt(decoded.stakedAt),
         unstakedAt: toBigInt(decoded.unstakedAt),
       })
+    }
+
+    const userVaultsV2: UserVaultV2PositionSource[] = []
+    const vaultV2Addresses: string[] = []
+    for (const account of Object.values(userVaultsV2Map)) {
+      if (!account.exists) continue
+      const data = Buffer.from(account.data)
+      if (data.length < USER_VAULT_V2_LIQUIDITY_OFFSET + 16) continue
+
+      const state = data[USER_VAULT_V2_STATE_OFFSET] ?? 0
+      const userBytes = data.subarray(
+        USER_VAULT_V2_USER_OFFSET,
+        USER_VAULT_V2_USER_OFFSET + 32,
+      )
+      const vaultBytes = data.subarray(
+        USER_VAULT_V2_VAULT_OFFSET,
+        USER_VAULT_V2_VAULT_OFFSET + 32,
+      )
+      const user = new PublicKey(userBytes).toBase58()
+      if (user !== address) continue
+
+      const vault = new PublicKey(vaultBytes).toBase58()
+      const liquidityAmount = readU128LE(data, USER_VAULT_V2_LIQUIDITY_OFFSET) ?? 0n
+      userVaultsV2.push({
+        address: account.address,
+        state,
+        user,
+        vault,
+        liquidityAmount,
+      })
+      vaultV2Addresses.push(vault)
+    }
+
+    const vaultV2Accounts =
+      vaultV2Addresses.length > 0 ? yield [...new Set(vaultV2Addresses)] : {}
+    const vaultV2MintByAddress = new Map<string, string>()
+    for (const account of Object.values(vaultV2Accounts)) {
+      if (!account.exists) continue
+      const data = Buffer.from(account.data)
+      if (data.length < VAULT_V2_MINT_OFFSET + 32) continue
+      const mint = new PublicKey(
+        data.subarray(VAULT_V2_MINT_OFFSET, VAULT_V2_MINT_OFFSET + 32),
+      ).toBase58()
+      vaultV2MintByAddress.set(account.address, mint)
     }
 
     const positions: UserDefiPosition[] = []
@@ -814,6 +889,39 @@ export const banxIntegration: SolanaIntegration = {
         },
       }
 
+      const usdValue = sumPositionUsdValue(position.supplied, position.borrowed)
+      if (usdValue !== undefined) position.usdValue = usdValue
+      positions.push(position)
+      seenPositionKeys.add(key)
+    }
+
+    for (const vault of userVaultsV2) {
+      if (vault.state === 0) continue
+      if (vault.liquidityAmount <= 0n) continue
+
+      const key = `vault-v2:${vault.address}`
+      if (seenPositionKeys.has(key)) continue
+
+      const mint = vaultV2MintByAddress.get(vault.vault) ?? USDC_MINT
+      const supplied = buildSuppliedAssetByMint(mint, vault.liquidityAmount, tokens)
+      if (!supplied) continue
+
+      const position: LendingDefiPosition = {
+        platformId: 'banx',
+        positionKind: 'lending',
+        supplied: [supplied],
+        meta: {
+          banx: {
+            role: 'vault',
+            vault: vault.vault,
+            vaultAccount: vault.address,
+            vaultProgram: BONDS_PROGRAM_V2_ID,
+            vaultStateCode: vault.state.toString(),
+            vaultUserLiquidityAmount: vault.liquidityAmount.toString(),
+            vaultMint: mint,
+          },
+        },
+      }
       const usdValue = sumPositionUsdValue(position.supplied, position.borrowed)
       if (usdValue !== undefined) position.usdValue = usdValue
       positions.push(position)
