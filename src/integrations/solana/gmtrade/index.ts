@@ -78,6 +78,16 @@ type DecodedMarket = {
     long_token_mint: PublicKey
     short_token_mint: PublicKey
   }
+  state?: {
+    pools?: {
+      primary?: {
+        pool?: {
+          long_token_amount: BigNumberish
+          short_token_amount: BigNumberish
+        }
+      }
+    }
+  }
 }
 
 type MarketInfo = {
@@ -87,6 +97,8 @@ type MarketInfo = {
   indexTokenMint: string
   longTokenMint: string
   shortTokenMint: string
+  primaryPoolLongAmountRaw: bigint
+  primaryPoolShortAmountRaw: bigint
 }
 
 type Bucket = {
@@ -244,6 +256,11 @@ function tokenPriceUsd(mint: string, tokens: SolanaPlugins['tokens']) {
   return tokens.get(mint)?.priceUsd
 }
 
+function mulDivFloor(value: bigint, multiplier: bigint, divisor: bigint): bigint {
+  if (value <= 0n || multiplier <= 0n || divisor <= 0n) return 0n
+  return (value * multiplier) / divisor
+}
+
 function readTokenAccountMint(data: Uint8Array): string | null {
   const buf = Buffer.from(data)
   if (buf.length < 32) return null
@@ -366,6 +383,12 @@ export const gmtradeIntegration: SolanaIntegration = {
 
       const market = decodeAccount<DecodedMarket>('Market', account.data)
       if (market) {
+        const primaryPoolLongAmountRaw = toBigInt(
+          market.state?.pools?.primary?.pool?.long_token_amount ?? 0,
+        )
+        const primaryPoolShortAmountRaw = toBigInt(
+          market.state?.pools?.primary?.pool?.short_token_amount ?? 0,
+        )
         decodedMarkets.push({
           marketAddress: accountAddress,
           store: market.store.toBase58(),
@@ -373,6 +396,8 @@ export const gmtradeIntegration: SolanaIntegration = {
           indexTokenMint: market.meta.index_token_mint.toBase58(),
           longTokenMint: market.meta.long_token_mint.toBase58(),
           shortTokenMint: market.meta.short_token_mint.toBase58(),
+          primaryPoolLongAmountRaw,
+          primaryPoolShortAmountRaw,
         })
       }
     }
@@ -414,11 +439,11 @@ export const gmtradeIntegration: SolanaIntegration = {
       mintAddresses.length > 0 ? yield mintAddresses : {}
 
     const mintDecimalsMap = new Map<string, number>()
+    const mintSupplyMap = new Map<string, bigint>()
     for (const mintAddress of mintAddresses) {
       const token = tokens.get(mintAddress)
       if (token) {
         mintDecimalsMap.set(mintAddress, token.decimals)
-        continue
       }
 
       const accountInfo = toAccountInfo(mintAccountsMap[mintAddress])
@@ -431,6 +456,7 @@ export const gmtradeIntegration: SolanaIntegration = {
           accountInfo.owner,
         )
         mintDecimalsMap.set(mintAddress, mint.decimals)
+        mintSupplyMap.set(mintAddress, mint.supply)
       } catch {
         // Keep fallback decimals for unknown mint layouts.
       }
@@ -586,23 +612,59 @@ export const gmtradeIntegration: SolanaIntegration = {
       const market = marketByTokenMint.get(marketTokenMint)
       if (!market) continue
 
-      const decimals = tokenDecimals(marketTokenMint, tokens, mintDecimalsMap)
-      const priceUsd = tokenPriceUsd(marketTokenMint, tokens)
-      const poolToken = buildPositionValue(
-        marketTokenMint,
+      const supplyRaw = mintSupplyMap.get(marketTokenMint) ?? 0n
+      const longAmountRaw = mulDivFloor(
+        market.primaryPoolLongAmountRaw,
         balanceRaw,
-        decimals,
-        priceUsd,
+        supplyRaw,
       )
+      const shortAmountRaw = mulDivFloor(
+        market.primaryPoolShortAmountRaw,
+        balanceRaw,
+        supplyRaw,
+      )
+
+      const perTokenAmount = new Map<string, bigint>()
+      if (longAmountRaw > 0n) {
+        perTokenAmount.set(market.longTokenMint, longAmountRaw)
+      }
+      if (shortAmountRaw > 0n) {
+        const existing = perTokenAmount.get(market.shortTokenMint) ?? 0n
+        perTokenAmount.set(market.shortTokenMint, existing + shortAmountRaw)
+      }
+
+      const poolTokens = [...perTokenAmount.entries()].map(([mint, amountRaw]) =>
+        buildPositionValue(
+          mint,
+          amountRaw,
+          tokenDecimals(mint, tokens, mintDecimalsMap),
+          tokenPriceUsd(mint, tokens),
+        ),
+      )
+
+      const poolUsdValue = poolTokens
+        .map((token) => Number(token.usdValue))
+        .filter((value) => Number.isFinite(value))
+        .reduce((sum, value) => sum + value, 0)
 
       const liquidityPosition: ConstantProductLiquidityDefiPosition = {
         platformId: 'gmtrade',
         positionKind: 'liquidity',
         liquidityModel: 'constant-product',
         poolAddress: market.marketAddress,
-        poolTokens: [poolToken],
+        poolTokens:
+          poolTokens.length > 0
+            ? poolTokens
+            : [
+                buildPositionValue(
+                  marketTokenMint,
+                  balanceRaw,
+                  tokenDecimals(marketTokenMint, tokens, mintDecimalsMap),
+                  tokenPriceUsd(marketTokenMint, tokens),
+                ),
+              ],
         lpTokenAmount: balanceRaw.toString(),
-        ...(poolToken.usdValue !== undefined && { usdValue: poolToken.usdValue }),
+        ...(poolUsdValue > 0 && { usdValue: poolUsdValue.toString() }),
         meta: {
           gmtrade: {
             store: market.store,
