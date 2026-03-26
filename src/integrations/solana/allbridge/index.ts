@@ -12,9 +12,6 @@ import type {
 
 const ALLBRIDGE_BRIDGE_PROGRAM_ID =
   'BrdgN2RPzEMWF96ZbnnJaUtQDQx7VRXYaHHbYCBvceWB'
-const SPL_TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
-const XABR_MINT = 'xAx6d1sjmBvpWkVZQEqgUvPmGBNndEXPxYpr3QVp61H'
-const XABR_DECIMALS = 9
 const SYSTEM_PRECISION = 3
 const REWARD_SHIFT_BITS = 48n
 
@@ -31,11 +28,6 @@ const POOL_SIZE = 131
 const POOL_MINT_OFFSET = 8
 const POOL_DECIMALS_OFFSET = 80
 const POOL_ACC_REWARD_PER_SHARE_P_OFFSET = 105
-
-const TOKEN_ACCOUNT_SIZE = 165
-const TOKEN_ACCOUNT_MINT_OFFSET = 0
-const TOKEN_ACCOUNT_OWNER_OFFSET = 32
-const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
 
 type AllbridgeUserDeposit = {
   address: string
@@ -54,10 +46,7 @@ type AllbridgePool = {
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
-export const PROGRAM_IDS = [
-  ALLBRIDGE_BRIDGE_PROGRAM_ID,
-  SPL_TOKEN_PROGRAM_ID,
-] as const
+export const PROGRAM_IDS = [ALLBRIDGE_BRIDGE_PROGRAM_ID] as const
 
 function accountDiscriminatorBase64(accountName: string): string {
   return createHash('sha256')
@@ -84,10 +73,6 @@ function readU128(data: Uint8Array, offset: number): bigint | null {
     value |= BigInt(data[offset + idx] ?? 0) << (8n * BigInt(idx))
   }
   return value
-}
-
-function parseTokenAccountAmount(data: Uint8Array): bigint | null {
-  return readU64(data, TOKEN_ACCOUNT_AMOUNT_OFFSET)
 }
 
 function parseUserDeposit(account: SolanaAccount): AllbridgeUserDeposit | null {
@@ -244,28 +229,6 @@ export const allbridgeIntegration: SolanaIntegration = {
       ],
     }
 
-    const xAbrTokenAccountsMap = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: SPL_TOKEN_PROGRAM_ID,
-      filters: [
-        {
-          memcmp: {
-            offset: TOKEN_ACCOUNT_MINT_OFFSET,
-            bytes: XABR_MINT,
-            encoding: 'base58',
-          },
-        },
-        {
-          memcmp: {
-            offset: TOKEN_ACCOUNT_OWNER_OFFSET,
-            bytes: address,
-            encoding: 'base58',
-          },
-        },
-        { dataSize: TOKEN_ACCOUNT_SIZE },
-      ],
-    }
-
     const poolsByMint = new Map<string, AllbridgePool>()
     for (const account of Object.values(poolsMap)) {
       if (!account.exists) continue
@@ -326,35 +289,6 @@ export const allbridgeIntegration: SolanaIntegration = {
       }
 
       positions.push(position)
-    }
-
-    for (const account of Object.values(xAbrTokenAccountsMap)) {
-      if (!account.exists) continue
-      const amountRaw = parseTokenAccountAmount(account.data)
-      if (amountRaw === null || amountRaw <= 0n) continue
-
-      const xAbrValue = buildPositionValue(
-        XABR_MINT,
-        amountRaw,
-        XABR_DECIMALS,
-        tokens,
-      )
-
-      const xAbrPosition: ConstantProductLiquidityDefiPosition = {
-        positionKind: 'liquidity',
-        liquidityModel: 'constant-product',
-        platformId: 'allbridge',
-        poolTokens: [xAbrValue],
-        lpTokenAmount: amountRaw.toString(),
-        ...(xAbrValue.usdValue !== undefined && { usdValue: xAbrValue.usdValue }),
-        meta: {
-          tokenAccount: {
-            address: account.address,
-          },
-        },
-      }
-
-      positions.push(xAbrPosition)
     }
 
     return positions
