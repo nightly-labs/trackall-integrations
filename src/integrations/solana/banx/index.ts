@@ -335,7 +335,8 @@ function buildSuppliedAssetByMint(
   amountRaw: bigint,
   tokens: SolanaPlugins['tokens'],
 ): LendingSuppliedAsset | null {
-  const value = buildAmountValue(tokenMint, amountRaw, 9, tokens)
+  const fallbackDecimals = tokenMint === USDC_MINT ? 6 : 9
+  const value = buildAmountValue(tokenMint, amountRaw, fallbackDecimals, tokens)
   return value
 }
 
@@ -344,7 +345,8 @@ function buildBorrowedAssetByMint(
   amountRaw: bigint,
   tokens: SolanaPlugins['tokens'],
 ): LendingBorrowedAsset | null {
-  const value = buildAmountValue(tokenMint, amountRaw, 9, tokens)
+  const fallbackDecimals = tokenMint === USDC_MINT ? 6 : 9
+  const value = buildAmountValue(tokenMint, amountRaw, fallbackDecimals, tokens)
   return value
 }
 
