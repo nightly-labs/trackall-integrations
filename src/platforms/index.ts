@@ -3,6 +3,7 @@ import canopyPlatform from './canopy'
 import carrotPlatform from './carrot'
 import driftPlatform from './drift'
 import echelonPlatform from './echelon'
+import gmtradePlatform from './gmtrade'
 import jupiterLendPlatform from './jupiter'
 import jupiterDaoPlatform from './jupiter-dao'
 import kaminoPlatform from './kamino'
@@ -22,6 +23,7 @@ import yuzuPlatform from './yuzu'
 export const platforms = [
   carrotPlatform,
   driftPlatform,
+  gmtradePlatform,
   meteoraPlatform,
   jupiterDaoPlatform,
   jupiterLendPlatform,
