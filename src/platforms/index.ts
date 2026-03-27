@@ -13,6 +13,7 @@ import meridianPlatform from './meridian'
 import meteoraPlatform from './meteora'
 import mosaicPlatform from './mosaic'
 import movepositionPlatform from './moveposition'
+import nirvanaPlatform from './nirvana'
 import neutralPlatform from './neutral'
 import orcaPlatform from './orca'
 import orePlatform from './ore'
@@ -41,6 +42,7 @@ export const platforms = [
   meridianPlatform,
   mosaicPlatform,
   movepositionPlatform,
+  nirvanaPlatform,
   neutralPlatform,
   orcaPlatform,
   orePlatform,
