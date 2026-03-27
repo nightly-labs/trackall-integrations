@@ -8,7 +8,11 @@ import {
   fetchProgramAccountsBatch,
 } from '../../../utils/solana'
 import clmmIdl from './idls/amm_v3.json'
-import { raydiumIntegration } from './index'
+import {
+  computeAmmV4UserAmounts,
+  computeCpUserAmounts,
+  raydiumIntegration,
+} from './index'
 
 const solanaRpcUrl =
   process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
@@ -25,6 +29,38 @@ function buildTokenAccountData(mint: PublicKey, amount: bigint): Uint8Array {
 }
 
 describe('raydium integration', () => {
+  it('uses fee-adjusted CPMM reserves for LP share amounts', () => {
+    const { amount0, amount1 } = computeCpUserAmounts({
+      vault0Balance: 4_000_000_000n, // 4 SOL raw in vault
+      vault1Balance: 2_000_000_000n,
+      userLpAmount: 100n,
+      lpSupply: 1_000n,
+      protocolFeesToken0: 3_900_000_000n, // leaves only 0.1 SOL effective reserve
+      protocolFeesToken1: 0n,
+      fundFeesToken0: 0n,
+      fundFeesToken1: 0n,
+      creatorFeesToken0: 0n,
+      creatorFeesToken1: 0n,
+    })
+
+    expect(amount0).toBe(10_000_000n) // 0.01 SOL, not 0.4 SOL
+    expect(amount1).toBe(200_000_000n)
+  })
+
+  it('uses AMM v4 lpReserve and needTakePnl-adjusted reserves', () => {
+    const { amount0, amount1 } = computeAmmV4UserAmounts({
+      baseVaultBalance: 5_000_000_000n,
+      quoteVaultBalance: 3_000_000_000n,
+      userLpAmount: 100n,
+      lpReserve: 10_000n,
+      baseNeedTakePnl: 4_000_000_000n,
+      quoteNeedTakePnl: 2_500_000_000n,
+    })
+
+    expect(amount0).toBe(10_000_000n)
+    expect(amount1).toBe(5_000_000n)
+  })
+
   it('uses split mint sources: SPL for CP/AMM and Token-2022 for CLMM', async () => {
     const tokens = new TokenPlugin()
     const plugins = { endpoint: solanaRpcUrl, tokens }
