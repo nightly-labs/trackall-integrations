@@ -13,21 +13,29 @@ export async function fetchAccountsBatch(
   addresses: SolanaAddress[],
 ): Promise<AccountsMap> {
   if (addresses.length === 0) return {}
-  const pubkeys = addresses.map((a) => new PublicKey(a))
-  const infos = await connection.getMultipleAccountsInfo(pubkeys)
   const map: AccountsMap = {}
-  addresses.forEach((addr, i) => {
-    const info = infos[i]
-    map[addr] = info
-      ? {
-          exists: true,
-          address: addr,
-          lamports: BigInt(info.lamports),
-          programAddress: info.owner.toBase58(),
-          data: new Uint8Array(info.data as Buffer),
-        }
-      : { exists: false, address: addr }
-  })
+
+  // Solana RPC getMultipleAccounts currently accepts at most 100 pubkeys.
+  const BATCH_LIMIT = 100
+  for (let index = 0; index < addresses.length; index += BATCH_LIMIT) {
+    const batch = addresses.slice(index, index + BATCH_LIMIT)
+    const pubkeys = batch.map((a) => new PublicKey(a))
+    const infos = await connection.getMultipleAccountsInfo(pubkeys)
+
+    batch.forEach((addr, i) => {
+      const info = infos[i]
+      map[addr] = info
+        ? {
+            exists: true,
+            address: addr,
+            lamports: BigInt(info.lamports),
+            programAddress: info.owner.toBase58(),
+            data: new Uint8Array(info.data as Buffer),
+          }
+        : { exists: false, address: addr }
+    })
+  }
+
   return map
 }
 
