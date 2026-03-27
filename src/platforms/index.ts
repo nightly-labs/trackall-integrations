@@ -15,6 +15,7 @@ import movepositionPlatform from './moveposition'
 import neutralPlatform from './neutral'
 import orcaPlatform from './orca'
 import orePlatform from './ore'
+import project0Platform from './project0'
 import pythStakingPlatform from './pyth-staking'
 import ratexPlatform from './ratex'
 import raydiumPlatform from './raydium'
@@ -40,6 +41,7 @@ export const platforms = [
   neutralPlatform,
   orcaPlatform,
   orePlatform,
+  project0Platform,
   pythStakingPlatform,
   ratexPlatform,
   raydiumPlatform,
