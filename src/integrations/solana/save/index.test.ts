@@ -6,28 +6,17 @@ import {
   fetchAccountsBatch,
   fetchProgramAccountsBatch,
 } from '../../../utils/solana'
-import {
-  denormalizeVaultAmount,
-  jupiterLendIntegration,
-  testAddress,
-} from './index'
+import { saveIntegration, testAddress } from './index'
 
 const solanaRpcUrl =
   process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
 const wallets = [testAddress]
 
-const { getUserPositions } = jupiterLendIntegration
+const { getUserPositions } = saveIntegration
 if (!getUserPositions) throw new Error('getUserPositions not implemented')
 
-describe('jupiter-lend integration', () => {
-  it('denormalizes vault amounts for mints with decimals lower than 9', () => {
-    expect(denormalizeVaultAmount(1027578000n, 6)).toBe(1027578n)
-    expect(denormalizeVaultAmount(165631n, 8)).toBe(16563n)
-    expect(denormalizeVaultAmount(38557779n, 9)).toBe(38557779n)
-    expect(denormalizeVaultAmount(12345n, 10)).toBe(12345n)
-  })
-
-  it('fetches user supply positions', async () => {
+describe('save integration', () => {
+  it('fetches user positions', async () => {
     const connection = new Connection(solanaRpcUrl, 'confirmed')
     const tokens = new TokenPlugin()
     const plugins = { endpoint: solanaRpcUrl, tokens }
@@ -50,17 +39,13 @@ describe('jupiter-lend integration', () => {
 
     if (!positions) throw new Error('No results returned')
 
-    const lendingPositions = positions.filter(
-      (p) => p.positionKind === 'lending',
-    )
-
-    console.log(
-      `\nFound ${positions.length} Jupiter Lend positions for ${testAddress.slice(0, 8)}…`,
-    )
+    console.log(`\nFound ${positions.length} positions`)
     console.log(
       `RPC batches: ${totalBatches}, total accounts fetched: ${totalAccounts}`,
     )
-    console.log('Positions:', JSON.stringify(lendingPositions, null, 2))
+    if (positions.length > 0) {
+      console.log('Sample position:', JSON.stringify(positions[0], null, 2))
+    }
 
     expect(Array.isArray(positions)).toBe(true)
   }, 60000)
@@ -87,7 +72,7 @@ describe('jupiter-lend integration', () => {
     }
 
     const results = await runIntegrations(
-      wallets.map((w) => trackYields(getUserPositions(w, plugins))),
+      wallets.map((wallet) => trackYields(getUserPositions(wallet, plugins))),
       async (addresses) => {
         totalBatches++
         totalAccounts += addresses.length
@@ -99,7 +84,7 @@ describe('jupiter-lend integration', () => {
       (req) => fetchProgramAccountsBatch(connection, req),
     )
 
-    const totalPositions = results.reduce((sum, p) => sum + p.length, 0)
+    const totalPositions = results.reduce((sum, positions) => sum + positions.length, 0)
     const saved = naiveTotal - totalAccounts
     const savedPct = naiveTotal > 0 ? Math.round((saved / naiveTotal) * 100) : 0
     console.log(
@@ -111,8 +96,10 @@ describe('jupiter-lend integration', () => {
     console.log(
       `Sequential would have fetched: ${naiveTotal} — saved ${saved} (${savedPct}%)`,
     )
-    wallets.forEach((w, i) => {
-      console.log(`  ${w.slice(0, 8)}…  ${results[i]?.length ?? 0} positions`)
+    wallets.forEach((wallet, index) => {
+      console.log(
+        `  ${wallet.slice(0, 8)}…  ${results[index]?.length ?? 0} positions`,
+      )
     })
 
     expect(results).toHaveLength(wallets.length)
