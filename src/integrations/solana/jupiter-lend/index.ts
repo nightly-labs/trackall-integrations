@@ -4,7 +4,6 @@ import {
   getRatioAtTick,
   INIT_TICK,
   MIN_TICK,
-  ZERO_TICK_SCALED_RATIO,
 } from '@jup-ag/lend/borrow'
 import {
   getAssociatedTokenAddressSync,
@@ -25,7 +24,7 @@ import type {
 import lendingIdl from './idls/lending.json'
 import vaultsIdl from './idls/vaults.json'
 
-export const testAddress = 'BsYDTmksyvTWpP3DGSWpoAXP7ykFDhikYdKEVspkStc4'
+export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
 // ─── Program IDs ─────────────────────────────────────────────────────────────
 const LENDING_PROGRAM_ID = lendingIdl.address
@@ -40,9 +39,9 @@ export const PROGRAM_IDS = [
 
 // ─── Exchange precision (1e12) ────────────────────────────────────────────────
 const EXCHANGE_PRECISION = BigInt('1000000000000')
-const ZERO_TICK_BN = ZERO_TICK_SCALED_RATIO
 const INIT_TICK_VALUE = INIT_TICK // -2147483648
 const MIN_TICK_VALUE = MIN_TICK // -16383
+const INTERNAL_VAULT_DECIMALS = 9
 
 const lendingCoder = new BorshCoder(lendingIdl as never)
 const vaultsCoder = new BorshCoder(vaultsIdl as never)
@@ -93,7 +92,8 @@ function readTokenAccountMint(data: Uint8Array): string | null {
 
 /**
  * Recover netDebtRaw from the position's tick and supplyAmount.
- * netDebtRaw = colRaw * getRatioAtTick(tick) / ZERO_TICK_SCALED_RATIO
+ * Aligns with Jupiter SDK rounding:
+ * netDebtRaw = ((colRaw + 1) * getRatioAtTick(tick) >> 48) + 1
  * Total debt raw = netDebtRaw + dustDebtAmount.
  */
 function computeNetDebtRaw(
@@ -103,9 +103,18 @@ function computeNetDebtRaw(
 ): bigint {
   if (isSupplyOnly || tick === INIT_TICK_VALUE || tick <= MIN_TICK_VALUE)
     return 0n
-  const colBN = new BN(supplyAmount.toString())
+  const colBN = new BN(supplyAmount.toString()).addn(1)
   const ratio = getRatioAtTick(tick)
-  return BigInt(colBN.mul(ratio).divRound(ZERO_TICK_BN).toString())
+  return BigInt(colBN.mul(ratio).shrn(48).addn(1).toString())
+}
+
+export function denormalizeVaultAmount(
+  amount: bigint,
+  mintDecimals: number,
+): bigint {
+  if (mintDecimals >= INTERNAL_VAULT_DECIMALS) return amount
+  const delta = INTERNAL_VAULT_DECIMALS - mintDecimals
+  return amount / 10n ** BigInt(delta)
 }
 
 // ─── Integration ─────────────────────────────────────────────────────────────
@@ -385,8 +394,9 @@ export const jupiterLendIntegration: SolanaIntegration = {
       const supplyDecimals = meta?.supplyDecimals ?? 6
       const borrowDecimals = meta?.borrowDecimals ?? 6
 
-      const colAmount =
+      const colInternalAmount =
         (pos.supplyAmount * state.vaultSupplyExchangePrice) / EXCHANGE_PRECISION
+      const colAmount = denormalizeVaultAmount(colInternalAmount, supplyDecimals)
 
       const netDebtRaw = computeNetDebtRaw(
         pos.supplyAmount,
@@ -394,8 +404,12 @@ export const jupiterLendIntegration: SolanaIntegration = {
         pos.isSupplyOnly,
       )
       const totalDebtRaw = netDebtRaw + pos.dustDebtAmount
-      const debtAmount =
+      const debtInternalAmount =
         (totalDebtRaw * state.vaultBorrowExchangePrice) / EXCHANGE_PRECISION
+      const debtAmount = denormalizeVaultAmount(
+        debtInternalAmount,
+        borrowDecimals,
+      )
 
       const supplyTokenInfo = tokens.get(cfg.supplyToken)
       const borrowTokenInfo = tokens.get(cfg.borrowToken)
