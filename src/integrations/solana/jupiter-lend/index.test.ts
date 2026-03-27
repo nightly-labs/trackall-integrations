@@ -6,16 +6,27 @@ import {
   fetchAccountsBatch,
   fetchProgramAccountsBatch,
 } from '../../../utils/solana'
-import { jupiterLendIntegration, testAddress } from './index'
+import {
+  denormalizeVaultAmount,
+  jupiterLendIntegration,
+  testAddress,
+} from './index'
 
 const solanaRpcUrl =
   process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
-const wallets = ['BsYDTmksyvTWpP3DGSWpoAXP7ykFDhikYdKEVspkStc4']
+const wallets = [testAddress]
 
 const { getUserPositions } = jupiterLendIntegration
 if (!getUserPositions) throw new Error('getUserPositions not implemented')
 
 describe('jupiter-lend integration', () => {
+  it('denormalizes vault amounts for mints with decimals lower than 9', () => {
+    expect(denormalizeVaultAmount(1027578000n, 6)).toBe(1027578n)
+    expect(denormalizeVaultAmount(165631n, 8)).toBe(16563n)
+    expect(denormalizeVaultAmount(38557779n, 9)).toBe(38557779n)
+    expect(denormalizeVaultAmount(12345n, 10)).toBe(12345n)
+  })
+
   it('fetches user supply positions', async () => {
     const connection = new Connection(solanaRpcUrl, 'confirmed')
     const tokens = new TokenPlugin()
