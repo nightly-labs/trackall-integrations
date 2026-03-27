@@ -13,12 +13,20 @@ import meteoraPlatform from './meteora'
 import mosaicPlatform from './mosaic'
 import movepositionPlatform from './moveposition'
 import nirvanaPlatform from './nirvana'
+import neutralPlatform from './neutral'
 import orcaPlatform from './orca'
 import orePlatform from './ore'
+import project0Platform from './project0'
+import pythStakingPlatform from './pyth-staking'
 import ratexPlatform from './ratex'
 import raydiumPlatform from './raydium'
 import realmsPlatform from './realms'
+import saberPlatform from './saber'
+import savePlatform from './save'
+import wasabiPlatform from './wasabi'
+import titanPlatform from './titan'
 import yuzuPlatform from './yuzu'
+import zeusPlatform from './zeus'
 
 export const platforms = [
   carrotPlatform,
@@ -33,14 +41,22 @@ export const platforms = [
   mosaicPlatform,
   movepositionPlatform,
   nirvanaPlatform,
+  neutralPlatform,
   orcaPlatform,
   orePlatform,
+  project0Platform,
+  pythStakingPlatform,
   ratexPlatform,
   raydiumPlatform,
   realmsPlatform,
+  saberPlatform,
+  savePlatform,
+  wasabiPlatform,
+  titanPlatform,
   yuzuPlatform,
+  zeusPlatform,
   canopyPlatform,
-  echelonPlatform,
+  echelonPlatform
 ] as const satisfies readonly Platform[]
 
 export type PlatformId = (typeof platforms)[number]['id']

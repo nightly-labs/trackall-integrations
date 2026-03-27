@@ -6,7 +6,11 @@ import {
   fetchAccountsBatch,
   fetchProgramAccountsBatch,
 } from '../../../utils/solana'
-import { oreIntegration, testAddress } from './index'
+import {
+  accruedFromRewardFactorDelta,
+  oreIntegration,
+  testAddress,
+} from './index'
 
 const solanaRpcUrl =
   process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
@@ -23,6 +27,16 @@ const { getUserPositions } = oreIntegration
 if (!getUserPositions) throw new Error('getUserPositions not implemented')
 
 describe('ore integration', () => {
+  it('computes accrued rewards from I80F48 factor deltas', () => {
+    const one = 1n << 48n
+    const half = 1n << 47n
+
+    expect(accruedFromRewardFactorDelta(0n, one, 123n)).toBe(123n)
+    expect(accruedFromRewardFactorDelta(0n, half, 3n)).toBe(1n)
+    expect(accruedFromRewardFactorDelta(one, one, 500n)).toBe(0n)
+    expect(accruedFromRewardFactorDelta(one, half, 500n)).toBe(0n)
+  })
+
   it('fetches user positions', async () => {
     const connection = new Connection(solanaRpcUrl, 'confirmed')
     const tokens = new TokenPlugin()
@@ -55,6 +69,25 @@ describe('ore integration', () => {
     }
 
     expect(Array.isArray(positions)).toBe(true)
+
+    const minerPosition = positions.find(
+      (position) =>
+        position.positionKind === 'staking' &&
+        position.rewards?.some(
+          (reward) =>
+            reward.amount.token ===
+            'So11111111111111111111111111111111111111112',
+        ),
+    )
+    expect(minerPosition).toBeDefined()
+    const oreRewards = minerPosition?.rewards?.filter(
+      (reward) =>
+        reward.amount.token === 'oreoU2P8bN6jkk3jbaiVxYnG1dCXcYxwhwyK9jSybcp',
+    )
+    expect((oreRewards?.length ?? 0) >= 2).toBe(true)
+    const hasNegativeOreReward =
+      oreRewards?.some((reward) => BigInt(reward.amount.amount) < 0n) ?? false
+    expect(hasNegativeOreReward).toBe(true)
   }, 60000)
 
   it('fetches positions for multiple wallets in batched RPC calls', async () => {

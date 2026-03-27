@@ -213,6 +213,26 @@ function scaledWadsToRawAmount(value: bigint): bigint {
   return value / FARMS_WAD
 }
 
+function buildUsdValue(
+  amountRaw: bigint,
+  decimals: number,
+  priceUsd?: number,
+): string | undefined {
+  if (priceUsd === undefined) return undefined
+  if (amountRaw > BigInt(Number.MAX_SAFE_INTEGER)) return undefined
+
+  return ((Number(amountRaw) / 10 ** decimals) * priceUsd).toString()
+}
+
+function sumUsdValues(values: Array<string | undefined>): string | undefined {
+  const present = values.filter((value) => value !== undefined)
+  if (present.length === 0) return undefined
+
+  const total = present.reduce((sum, value) => sum + Number(value), 0)
+  if (!Number.isFinite(total)) return undefined
+  return total.toString()
+}
+
 function decodeKlendObligation(
   accountData: Uint8Array,
 ): KlendObligationDecoded {
@@ -479,10 +499,18 @@ export const kaminoIntegration: SolanaIntegration = {
           const userShares = userMintBalances.get(vault.sharesMint)
           if (!userShares || userShares <= 0n) continue
 
+          const token = tokens.get(vault.sharesMint)
+          const stakedUsdValue = buildUsdValue(
+            userShares,
+            vault.sharesDecimals,
+            token?.priceUsd,
+          )
+
           seenSharesMints.add(vault.sharesMint)
           kvaultSharePositions.push({
             platformId: 'kamino',
             positionKind: 'staking',
+            ...(stakedUsdValue !== undefined && { usdValue: stakedUsdValue }),
             staked: [
               {
                 amount: {
@@ -490,6 +518,10 @@ export const kaminoIntegration: SolanaIntegration = {
                   amount: userShares.toString(),
                   decimals: vault.sharesDecimals.toString(),
                 },
+                ...(token?.priceUsd !== undefined && {
+                  priceUsd: token.priceUsd.toString(),
+                }),
+                ...(stakedUsdValue !== undefined && { usdValue: stakedUsdValue }),
               },
             ],
           })
@@ -653,12 +685,18 @@ export const kaminoIntegration: SolanaIntegration = {
 
       const amountRaw = collateralToUnderlyingAmount(collateralBalance, reserve)
       const token = tokens.get(reserve.liquidityMint)
+      const usdValue = buildUsdValue(
+        amountRaw,
+        reserve.liquidityDecimals,
+        token?.priceUsd,
+      )
       collateralOnlySupplied.push({
         amount: {
           token: reserve.liquidityMint,
           amount: amountRaw.toString(),
           decimals: reserve.liquidityDecimals.toString(),
         },
+        ...(usdValue !== undefined && { usdValue }),
         ...(token?.priceUsd !== undefined && {
           priceUsd: token.priceUsd.toString(),
         }),
@@ -666,10 +704,14 @@ export const kaminoIntegration: SolanaIntegration = {
     }
 
     if (collateralOnlySupplied.length > 0) {
+      const usdValue = sumUsdValues(
+        collateralOnlySupplied.map((asset) => asset.usdValue),
+      )
       lendingPositions.push({
         platformId: 'kamino',
         positionKind: 'lending',
         supplied: collateralOnlySupplied,
+        ...(usdValue !== undefined && { usdValue }),
       })
     }
 
@@ -682,7 +724,20 @@ export const kaminoIntegration: SolanaIntegration = {
         aggregate.pendingWithdrawalUnstakeScaled,
       )
       const stakedToken = farm.token.mint.toString()
-      const stakedTokenDecimals = toNumber(farm.token.decimals).toString()
+      const stakedTokenDecimalsNum = toNumber(farm.token.decimals)
+      const stakedTokenDecimals = stakedTokenDecimalsNum.toString()
+      const stakedTokenInfo = tokens.get(stakedToken)
+      const stakedUsdValue = buildUsdValue(
+        stakedRaw,
+        stakedTokenDecimalsNum,
+        stakedTokenInfo?.priceUsd,
+      )
+      const pendingUsdValue = buildUsdValue(
+        pendingWithdrawalRaw,
+        stakedTokenDecimalsNum,
+        stakedTokenInfo?.priceUsd,
+      )
+      const rewardUsdValues: Array<string | undefined> = []
 
       const rewards = farm.rewardInfos
         .map((rewardInfo, index) => {
@@ -694,12 +749,26 @@ export const kaminoIntegration: SolanaIntegration = {
           ) {
             return null
           }
+          const rewardMint = rewardInfo.token.mint.toString()
+          const rewardDecimals = toNumber(rewardInfo.token.decimals)
+          const rewardToken = tokens.get(rewardMint)
+          const rewardUsdValue = buildUsdValue(
+            claimableAmountRaw,
+            rewardDecimals,
+            rewardToken?.priceUsd,
+          )
+          rewardUsdValues.push(rewardUsdValue)
+
           return {
             amount: {
-              token: rewardInfo.token.mint.toString(),
+              token: rewardMint,
               amount: claimableAmountRaw.toString(),
-              decimals: toNumber(rewardInfo.token.decimals).toString(),
+              decimals: rewardDecimals.toString(),
             },
+            ...(rewardToken?.priceUsd !== undefined && {
+              priceUsd: rewardToken.priceUsd.toString(),
+            }),
+            ...(rewardUsdValue !== undefined && { usdValue: rewardUsdValue }),
           }
         })
         .filter((entry) => entry !== null)
@@ -712,9 +781,16 @@ export const kaminoIntegration: SolanaIntegration = {
         continue
       }
 
+      const positionUsdValue = sumUsdValues([
+        stakedUsdValue,
+        pendingUsdValue,
+        ...rewardUsdValues,
+      ])
+
       farmsPositions.push({
         platformId: 'kamino',
         positionKind: 'staking',
+        ...(positionUsdValue !== undefined && { usdValue: positionUsdValue }),
         ...(stakedRaw > 0n && {
           staked: [
             {
@@ -723,6 +799,10 @@ export const kaminoIntegration: SolanaIntegration = {
                 amount: stakedRaw.toString(),
                 decimals: stakedTokenDecimals,
               },
+              ...(stakedTokenInfo?.priceUsd !== undefined && {
+                priceUsd: stakedTokenInfo.priceUsd.toString(),
+              }),
+              ...(stakedUsdValue !== undefined && { usdValue: stakedUsdValue }),
             },
           ],
         }),
@@ -734,6 +814,12 @@ export const kaminoIntegration: SolanaIntegration = {
                 amount: pendingWithdrawalRaw.toString(),
                 decimals: stakedTokenDecimals,
               },
+              ...(stakedTokenInfo?.priceUsd !== undefined && {
+                priceUsd: stakedTokenInfo.priceUsd.toString(),
+              }),
+              ...(pendingUsdValue !== undefined && {
+                usdValue: pendingUsdValue,
+              }),
             },
           ],
         }),
