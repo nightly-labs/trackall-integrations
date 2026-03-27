@@ -12,6 +12,7 @@ import meridianPlatform from './meridian'
 import meteoraPlatform from './meteora'
 import mosaicPlatform from './mosaic'
 import movepositionPlatform from './moveposition'
+import neutralPlatform from './neutral'
 import orcaPlatform from './orca'
 import orePlatform from './ore'
 import pythStakingPlatform from './pyth-staking'
@@ -36,6 +37,7 @@ export const platforms = [
   meridianPlatform,
   mosaicPlatform,
   movepositionPlatform,
+  neutralPlatform,
   orcaPlatform,
   orePlatform,
   pythStakingPlatform,
