@@ -19,6 +19,7 @@ import ratexPlatform from './ratex'
 import raydiumPlatform from './raydium'
 import realmsPlatform from './realms'
 import yuzuPlatform from './yuzu'
+import zeusPlatform from './zeus'
 
 export const platforms = [
   carrotPlatform,
@@ -39,6 +40,7 @@ export const platforms = [
   raydiumPlatform,
   realmsPlatform,
   yuzuPlatform,
+  zeusPlatform,
   canopyPlatform,
   echelonPlatform,
 ] as const satisfies readonly Platform[]
