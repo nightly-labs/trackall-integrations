@@ -1,4 +1,15 @@
-import { PublicKey } from '@solana/web3.js'
+import {
+  Connection,
+  PublicKey,
+  TransactionInstruction,
+  TransactionMessage,
+  VersionedTransaction,
+} from '@solana/web3.js'
+import {
+  createAssociatedTokenAccountInstruction,
+  getAssociatedTokenAddressSync,
+  TOKEN_PROGRAM_ID,
+} from '@solana/spl-token'
 import type {
   PositionValue,
   SolanaIntegration,
@@ -9,8 +20,11 @@ import type {
 } from '../../../types/index'
 
 const ZEUS_PROGRAM_ID = 'SYNMjud3ALEaeJhxuq8gpc2wJzC4XLHfxp9SgKmzQ8r'
+const ZEUS_MARKET = 'CyRC3kBmmhpew1J4Doahy9Lv9Wwkd9rNd82MQGD5Ri2K'
 const BTCSOL_MINT = 'BSoLov7Es6mGLkBq7Z89PSWDmk6Vsw4jVxdfE2UHrJTX'
 const BTCSOL_DECIMALS = 9
+const ZBTC_MINT = 'zBTCug3er3tLyffELcvDNrKkCymbPWysGcWihESYfLg'
+const ZBTC_DECIMALS = 8
 
 const USER_POSITION_DISCRIMINATOR = new Uint8Array([
   251, 248, 209, 245, 83, 234, 17, 27,
@@ -24,6 +38,12 @@ const USER_POSITION_DISCRIMINATOR_B64 = Buffer.from(
 const REDEEM_REQUEST_DISCRIMINATOR_B64 = Buffer.from(
   REDEEM_REQUEST_DISCRIMINATOR,
 ).toString('base64')
+const CLAIM_TREASURY_TOKEN_DISCRIMINATOR = new Uint8Array([
+  236, 254, 8, 227, 34, 205, 177, 58,
+])
+const TREASURY_TOKEN_CLAIMED_EVENT_DISCRIMINATOR = new Uint8Array([
+  2, 70, 156, 32, 177, 203, 105, 174,
+])
 
 const OWNER_OFFSET_IN_USER_POSITION = 40
 const STRATEGY_GROUP_OFFSET = 72
@@ -33,6 +53,15 @@ const UNDERLYING_MINT_OFFSET_IN_REDEEM_REQUEST = 104
 const SYNTHETIC_AMOUNT_REQUESTED_OFFSET = 136
 const UNDERLYING_AMOUNT_TO_REDEEM_OFFSET = 144
 const REFUNDABLE_AFTER_TS_OFFSET = 184
+
+const USER_POSITION_SEED = Buffer.from('user_position')
+const TREASURY_DISTRIBUTION_SEED = Buffer.from('treasury_distribution')
+const EVENT_DATA_LOG_PREFIX = 'Program data: '
+const TREASURY_TOKEN_CLAIMED_AMOUNT_OFFSET = 8 + 32 * 6
+
+const ZEUS_PROGRAM_PUBLIC_KEY = new PublicKey(ZEUS_PROGRAM_ID)
+const ZEUS_MARKET_PUBLIC_KEY = new PublicKey(ZEUS_MARKET)
+const ZBTC_MINT_PUBLIC_KEY = new PublicKey(ZBTC_MINT)
 
 const KNOWN_STRATEGY_GROUPS: Record<string, string> = {
   CMBwsHiUnih1VAzENzoNKTq8tyRaCpD2zBgBUm47sN6h: 'mSOL',
@@ -163,12 +192,178 @@ function convertSyntheticToUnderlying(
   return (syntheticAmount * EXCHANGE_RATIO_SCALE) / conversion.epochStartRatio
 }
 
+function deriveUserPositionAddress(
+  owner: PublicKey,
+  strategyGroup: PublicKey,
+): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [USER_POSITION_SEED, strategyGroup.toBuffer(), owner.toBuffer()],
+    ZEUS_PROGRAM_PUBLIC_KEY,
+  )[0]
+}
+
+function deriveTreasuryDistributionAddress(strategyGroup: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [
+      TREASURY_DISTRIBUTION_SEED,
+      strategyGroup.toBuffer(),
+      ZBTC_MINT_PUBLIC_KEY.toBuffer(),
+    ],
+    ZEUS_PROGRAM_PUBLIC_KEY,
+  )[0]
+}
+
+function hasPrefix(data: Uint8Array, prefix: Uint8Array): boolean {
+  if (data.length < prefix.length) return false
+  for (let i = 0; i < prefix.length; i++) {
+    if (data[i] !== prefix[i]) return false
+  }
+  return true
+}
+
+function parseTreasuryClaimedAmount(logs?: readonly string[] | null): bigint {
+  if (!logs) return 0n
+
+  let claimed = 0n
+  for (const log of logs) {
+    if (!log.startsWith(EVENT_DATA_LOG_PREFIX)) continue
+    const encoded = log.slice(EVENT_DATA_LOG_PREFIX.length).trim()
+    if (!encoded) continue
+
+    try {
+      const data = Buffer.from(encoded, 'base64')
+      if (!hasPrefix(data, TREASURY_TOKEN_CLAIMED_EVENT_DISCRIMINATOR)) continue
+      if (data.length < TREASURY_TOKEN_CLAIMED_AMOUNT_OFFSET + 8) continue
+      claimed = data.readBigUInt64LE(TREASURY_TOKEN_CLAIMED_AMOUNT_OFFSET)
+    } catch {
+      // Ignore malformed program data lines and keep scanning logs.
+    }
+  }
+
+  return claimed
+}
+
+async function simulateTreasuryClaimAmount(
+  connection: Connection,
+  owner: PublicKey,
+  strategyGroup: PublicKey,
+  receiverZbtcAta: PublicKey,
+  includeAtaCreate: boolean,
+): Promise<bigint> {
+  const userPosition = deriveUserPositionAddress(owner, strategyGroup)
+  const treasuryDistribution = deriveTreasuryDistributionAddress(strategyGroup)
+
+  const claimIx = new TransactionInstruction({
+    programId: ZEUS_PROGRAM_PUBLIC_KEY,
+    keys: [
+      { pubkey: owner, isSigner: true, isWritable: true },
+      { pubkey: ZEUS_MARKET_PUBLIC_KEY, isSigner: false, isWritable: false },
+      { pubkey: strategyGroup, isSigner: false, isWritable: true },
+      { pubkey: userPosition, isSigner: false, isWritable: true },
+      { pubkey: ZBTC_MINT_PUBLIC_KEY, isSigner: false, isWritable: false },
+      { pubkey: treasuryDistribution, isSigner: false, isWritable: true },
+      { pubkey: receiverZbtcAta, isSigner: false, isWritable: true },
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    ],
+    data: Buffer.from(CLAIM_TREASURY_TOKEN_DISCRIMINATOR),
+  })
+
+  const instructions = [
+    ...(includeAtaCreate
+      ? [
+          createAssociatedTokenAccountInstruction(
+            owner,
+            receiverZbtcAta,
+            owner,
+            ZBTC_MINT_PUBLIC_KEY,
+            TOKEN_PROGRAM_ID,
+          ),
+        ]
+      : []),
+    claimIx,
+  ]
+
+  const { blockhash } = await connection.getLatestBlockhash('confirmed')
+  const message = new TransactionMessage({
+    payerKey: owner,
+    recentBlockhash: blockhash,
+    instructions,
+  }).compileToV0Message()
+
+  const simulation = await connection.simulateTransaction(
+    new VersionedTransaction(message),
+  )
+  return parseTreasuryClaimedAmount(simulation.value.logs)
+}
+
+async function fetchTreasuryRewardsByStrategy(
+  address: string,
+  strategyGroups: readonly string[],
+  endpoint: string,
+): Promise<Map<string, bigint>> {
+  if (!strategyGroups.length) return new Map()
+
+  const connection = new Connection(endpoint, 'confirmed')
+  const owner = new PublicKey(address)
+  const zbtcAta = getAssociatedTokenAddressSync(
+    ZBTC_MINT_PUBLIC_KEY,
+    owner,
+    true,
+    TOKEN_PROGRAM_ID,
+  )
+  const zbtcAtaExists = (await connection.getAccountInfo(zbtcAta, 'confirmed')) !== null
+
+  const rewards = await Promise.all(
+    strategyGroups.map(async (strategyGroupAddress) => {
+      const strategyGroup = new PublicKey(strategyGroupAddress)
+
+      try {
+        const amount = await simulateTreasuryClaimAmount(
+          connection,
+          owner,
+          strategyGroup,
+          zbtcAta,
+          false,
+        )
+        if (amount > 0n) return [strategyGroupAddress, amount] as const
+      } catch {
+        // Fallback below.
+      }
+
+      if (zbtcAtaExists) return undefined
+
+      try {
+        const amount = await simulateTreasuryClaimAmount(
+          connection,
+          owner,
+          strategyGroup,
+          zbtcAta,
+          true,
+        )
+        if (amount > 0n) return [strategyGroupAddress, amount] as const
+      } catch {
+        // Treat simulation errors as no claimable rewards.
+      }
+
+      return undefined
+    }),
+  )
+
+  return new Map(
+    rewards.filter(
+      (
+        item,
+      ): item is readonly [string, bigint] => item !== undefined && item[1] > 0n,
+    ),
+  )
+}
+
 export const zeusIntegration: SolanaIntegration = {
   platformId: 'zeus',
 
   getUserPositions: async function* (
     address: string,
-    { tokens }: SolanaPlugins,
+    { endpoint, tokens }: SolanaPlugins,
   ): UserPositionsPlan {
     const nowUnix = BigInt(Math.floor(Date.now() / 1000))
     const strategyState = new Map<string, StrategyState>()
@@ -312,6 +507,16 @@ export const zeusIntegration: SolanaIntegration = {
       strategyState.set(strategyGroup, state)
     }
 
+    const activeStrategyGroups = [...strategyState.entries()]
+      .filter(([, state]) => state.staked > 0n || state.unbonding.length > 0)
+      .map(([strategyGroup]) => strategyGroup)
+
+    const treasuryRewardsByStrategy = await fetchTreasuryRewardsByStrategy(
+      address,
+      activeStrategyGroups,
+      endpoint,
+    )
+
     const positions: UserDefiPosition[] = []
 
     for (const [strategyGroup, state] of strategyState.entries()) {
@@ -329,6 +534,19 @@ export const zeusIntegration: SolanaIntegration = {
               assetToken?.priceUsd,
             )
           : undefined
+      const rewardAmount = treasuryRewardsByStrategy.get(strategyGroup) ?? 0n
+      const rewardToken = tokens.get(ZBTC_MINT)
+      const rewards =
+        rewardAmount > 0n
+          ? [
+              buildPositionValue(
+                ZBTC_MINT,
+                rewardAmount,
+                ZBTC_DECIMALS,
+                rewardToken?.priceUsd,
+              ),
+            ]
+          : undefined
 
       const strategyName = KNOWN_STRATEGY_GROUPS[strategyGroup] ?? 'unknown'
 
@@ -337,6 +555,7 @@ export const zeusIntegration: SolanaIntegration = {
         positionKind: 'staking',
         ...(stakedValue && { staked: [stakedValue] }),
         ...(state.unbonding.length > 0 && { unbonding: state.unbonding }),
+        ...(rewards && { rewards }),
         ...(state.latestUnlockAt !== undefined && {
           lockedUntil: state.latestUnlockAt.toString(),
         }),
@@ -351,6 +570,7 @@ export const zeusIntegration: SolanaIntegration = {
       const usdValue = mergeUsdValues([
         stakedValue?.usdValue,
         ...state.unbonding.map((entry) => entry.usdValue),
+        ...(rewards ?? []).map((reward) => reward.usdValue),
       ])
       if (usdValue !== undefined) {
         position.usdValue = usdValue
