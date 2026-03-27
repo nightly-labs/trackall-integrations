@@ -1,4 +1,5 @@
 import type { Platform } from '../types/platform'
+import banxPlatform from './banx'
 import canopyPlatform from './canopy'
 import carrotPlatform from './carrot'
 import driftPlatform from './drift'
@@ -31,6 +32,7 @@ import yuzuPlatform from './yuzu'
 import zeusPlatform from './zeus'
 
 export const platforms = [
+  banxPlatform,
   carrotPlatform,
   driftPlatform,
   gmtradePlatform,
