@@ -1,4 +1,12 @@
-import { BorshCoder } from '@coral-xyz/anchor'
+import { BN, BorshCoder } from '@coral-xyz/anchor'
+import {
+  CustomBorshAccountsCoder,
+  DRIFT_PROGRAM_ID,
+  getTokenAmount,
+  type SpotMarketAccount,
+} from '@drift-labs/sdk'
+import driftIdl from '@drift-labs/sdk/src/idl/drift.json'
+import { Reserve } from '@kamino-finance/klend-sdk'
 import { PublicKey } from '@solana/web3.js'
 import type {
   LendingBorrowedAsset,
@@ -14,8 +22,14 @@ import marginfiIdl from './idls/marginfi_0.1.7.json'
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
 const MARGINFI_PROGRAM_ID = 'MFv2hWf31Z9kbCa1snEPYctwafyhdvnV7FZnsebVacA'
+const KLEND_PROGRAM_ID = 'KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD'
+const DEFAULT_PUBKEY = '11111111111111111111111111111111'
 
-export const PROGRAM_IDS = [MARGINFI_PROGRAM_ID] as const
+export const PROGRAM_IDS = [
+  MARGINFI_PROGRAM_ID,
+  DRIFT_PROGRAM_ID,
+  KLEND_PROGRAM_ID,
+] as const
 
 const MARGINFI_ACCOUNT_DISC_B64 = accountDiscriminatorBase64(
   marginfiIdl as {
@@ -38,6 +52,7 @@ const ASSET_TAG_SOLEND = 5
 type OriginProtocol = 'project0' | 'kamino' | 'drift' | 'solend'
 
 const marginfiCoder = new BorshCoder(marginfiIdl as never)
+const driftAccountsCoder = new CustomBorshAccountsCoder(driftIdl as never)
 
 interface WrappedI80F48 {
   value: number[] | Uint8Array
@@ -46,6 +61,7 @@ interface WrappedI80F48 {
 interface MarginfiBalanceRaw {
   active: number | boolean
   bank_pk: PublicKey
+  bank_asset_tag?: number
   asset_shares: WrappedI80F48
   liability_shares: WrappedI80F48
 }
@@ -65,6 +81,37 @@ interface MarginfiBankRaw {
   liability_share_value: WrappedI80F48
   config: {
     asset_tag: number
+  }
+  integration_acc_1: PublicKey
+  integration_acc_2: PublicKey
+  integration_acc_3: PublicKey
+}
+
+interface KlendReserveDecoded {
+  liquidityMint: string
+  liquidityDecimals: number
+  collateralMint: string
+  liquidityAvailableAmount: bigint
+  liquidityBorrowedAmountSf: bigint
+  accumulatedProtocolFeesSf: bigint
+  accumulatedReferrerFeesSf: bigint
+  pendingReferrerFeesSf: bigint
+  collateralMintTotalSupply: bigint
+}
+
+interface KlendReserveWire {
+  liquidity: {
+    mintPubkey: string
+    mintDecimals: unknown
+    availableAmount: unknown
+    borrowedAmountSf: unknown
+    accumulatedProtocolFeesSf: unknown
+    accumulatedReferrerFeesSf: unknown
+    pendingReferrerFeesSf: unknown
+  }
+  collateral: {
+    mintPubkey: string
+    mintTotalSupply: unknown
   }
 }
 
@@ -113,6 +160,24 @@ function wrappedI80F48ToBigInt(value: WrappedI80F48): bigint {
   return decodeSignedI128LE(value.value)
 }
 
+function toBigInt(value: unknown): bigint {
+  if (typeof value === 'bigint') return value
+  if (typeof value === 'number') return BigInt(value)
+  if (value && typeof value === 'object' && 'toString' in value) {
+    return BigInt(String(value))
+  }
+  return 0n
+}
+
+function toNumber(value: unknown): number {
+  if (typeof value === 'number') return value
+  if (typeof value === 'bigint') return Number(value)
+  if (value && typeof value === 'object' && 'toString' in value) {
+    return Number(String(value))
+  }
+  return 0
+}
+
 function mulDivTrunc(
   numeratorA: bigint,
   numeratorB: bigint,
@@ -137,6 +202,51 @@ function computeAssetAmountRaw(
     wrappedI80F48ToBigInt(shareValue),
     I80F48_SCALE_SQUARED,
   )
+}
+
+function sfToLamports(valueSf: bigint): bigint {
+  return valueSf / (1n << 60n)
+}
+
+function decodeKlendReserve(accountData: Uint8Array): KlendReserveDecoded {
+  const decoded = Reserve.decode(Buffer.from(accountData)) as KlendReserveWire
+
+  return {
+    liquidityMint: decoded.liquidity.mintPubkey,
+    liquidityDecimals: toNumber(decoded.liquidity.mintDecimals),
+    collateralMint: decoded.collateral.mintPubkey,
+    liquidityAvailableAmount: toBigInt(decoded.liquidity.availableAmount),
+    liquidityBorrowedAmountSf: toBigInt(decoded.liquidity.borrowedAmountSf),
+    accumulatedProtocolFeesSf: toBigInt(
+      decoded.liquidity.accumulatedProtocolFeesSf,
+    ),
+    accumulatedReferrerFeesSf: toBigInt(
+      decoded.liquidity.accumulatedReferrerFeesSf,
+    ),
+    pendingReferrerFeesSf: toBigInt(decoded.liquidity.pendingReferrerFeesSf),
+    collateralMintTotalSupply: toBigInt(decoded.collateral.mintTotalSupply),
+  }
+}
+
+function collateralToUnderlyingAmount(
+  depositedCollateralAmount: bigint,
+  reserve: KlendReserveDecoded,
+): bigint {
+  const totalSupplyLamports =
+    reserve.liquidityAvailableAmount +
+    sfToLamports(reserve.liquidityBorrowedAmountSf) -
+    sfToLamports(reserve.accumulatedProtocolFeesSf) -
+    sfToLamports(reserve.accumulatedReferrerFeesSf) -
+    sfToLamports(reserve.pendingReferrerFeesSf)
+
+  if (reserve.collateralMintTotalSupply <= 0n || totalSupplyLamports <= 0n) {
+    return depositedCollateralAmount
+  }
+
+  const converted =
+    (depositedCollateralAmount * totalSupplyLamports) /
+    reserve.collateralMintTotalSupply
+  return converted > 0n ? converted : depositedCollateralAmount
 }
 
 function buildUsdValue(amountRaw: bigint, decimals: number, priceUsd?: number) {
@@ -224,6 +334,25 @@ function getOriginProtocol(assetTag: number): OriginProtocol | null {
     default:
       return null
   }
+}
+
+function getBalanceAssetTag(balance: MarginfiBalanceRaw, bank: MarginfiBankRaw) {
+  return balance.bank_asset_tag ?? bank.config.asset_tag
+}
+
+function convertDriftAmount(
+  amountRaw: bigint,
+  spotMarket: SpotMarketAccount,
+  isDeposit: boolean,
+): bigint {
+  const converted = BigInt(
+    getTokenAmount(
+      new BN(amountRaw.toString()),
+      spotMarket,
+      isDeposit ? { deposit: {} } : { borrow: {} },
+    ).toString(),
+  )
+  return converted > 0n ? converted : amountRaw
 }
 
 export const project0Integration: SolanaIntegration = {
@@ -319,6 +448,58 @@ export const project0Integration: SolanaIntegration = {
       }
     }
 
+    const kaminoReserveAddressSet = new Set<string>()
+    const driftSpotMarketAddressSet = new Set<string>()
+    for (const parsedAccount of parsedAccounts) {
+      for (const balance of parsedAccount.balances) {
+        const bank = decodedBanks.get(balance.bank_pk.toBase58())
+        if (!bank) continue
+        if (bank.group.toBase58() !== parsedAccount.group) continue
+
+        const assetTag = getBalanceAssetTag(balance, bank)
+        const externalAddress = bank.integration_acc_1.toBase58()
+        if (externalAddress === DEFAULT_PUBKEY) continue
+
+        if (assetTag === ASSET_TAG_KAMINO) kaminoReserveAddressSet.add(externalAddress)
+        if (assetTag === ASSET_TAG_DRIFT) driftSpotMarketAddressSet.add(externalAddress)
+      }
+    }
+
+    const externalAddresses = [
+      ...new Set([
+        ...kaminoReserveAddressSet,
+        ...driftSpotMarketAddressSet,
+      ]),
+    ]
+    const externalAccountsMap =
+      externalAddresses.length > 0 ? yield externalAddresses : {}
+    const kaminoReservesByAddress = new Map<string, KlendReserveDecoded>()
+    const driftSpotMarketsByAddress = new Map<string, SpotMarketAccount>()
+
+    for (const reserveAddress of kaminoReserveAddressSet) {
+      const account = externalAccountsMap[reserveAddress]
+      if (!account?.exists || account.programAddress !== KLEND_PROGRAM_ID) continue
+      try {
+        kaminoReservesByAddress.set(reserveAddress, decodeKlendReserve(account.data))
+      } catch {
+        // Ignore reserves that fail to decode.
+      }
+    }
+
+    for (const spotMarketAddress of driftSpotMarketAddressSet) {
+      const account = externalAccountsMap[spotMarketAddress]
+      if (!account?.exists || account.programAddress !== DRIFT_PROGRAM_ID) continue
+      try {
+        const spotMarket = driftAccountsCoder.decode(
+          'SpotMarket',
+          Buffer.from(account.data),
+        ) as SpotMarketAccount
+        driftSpotMarketsByAddress.set(spotMarketAddress, spotMarket)
+      } catch {
+        // Ignore spot markets that fail to decode.
+      }
+    }
+
     const positions: UserDefiPosition[] = []
 
     for (const parsedAccount of parsedAccounts) {
@@ -333,7 +514,8 @@ export const project0Integration: SolanaIntegration = {
         if (!bank) continue
 
         if (bank.group.toBase58() !== parsedAccount.group) continue
-        const originProtocol = getOriginProtocol(bank.config.asset_tag)
+        const assetTag = getBalanceAssetTag(balance, bank)
+        const originProtocol = getOriginProtocol(assetTag)
         if (!originProtocol) continue
 
         let aggregated = positionsByOrigin.get(originProtocol)
@@ -348,14 +530,34 @@ export const project0Integration: SolanaIntegration = {
         const mint = bank.mint.toBase58()
         const decimals = bank.mint_decimals
 
-        const suppliedRaw = computeAssetAmountRaw(
+        let suppliedRaw = computeAssetAmountRaw(
           balance.asset_shares,
           bank.asset_share_value,
         )
-        const borrowedRaw = computeAssetAmountRaw(
+        let borrowedRaw = computeAssetAmountRaw(
           balance.liability_shares,
           bank.liability_share_value,
         )
+
+        const externalAddress = bank.integration_acc_1.toBase58()
+        if (originProtocol === 'kamino' && suppliedRaw > 0n) {
+          const reserve = kaminoReservesByAddress.get(externalAddress)
+          if (reserve) {
+            suppliedRaw = collateralToUnderlyingAmount(suppliedRaw, reserve)
+          }
+        }
+
+        if (originProtocol === 'drift') {
+          const spotMarket = driftSpotMarketsByAddress.get(externalAddress)
+          if (spotMarket) {
+            if (suppliedRaw > 0n) {
+              suppliedRaw = convertDriftAmount(suppliedRaw, spotMarket, true)
+            }
+            if (borrowedRaw > 0n) {
+              borrowedRaw = convertDriftAmount(borrowedRaw, spotMarket, false)
+            }
+          }
+        }
 
         if (suppliedRaw > 0n) {
           pushAggregatedAmount(

@@ -11,6 +11,27 @@ const solanaRpcUrl =
   process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
 
 const allowedOrigins = new Set(['project0', 'drift', 'kamino', 'solend'])
+const USDT_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB'
+const WSOL_MINT = 'So11111111111111111111111111111111111111112'
+const KAMINO_UNCONVERTED_BASELINE = 21641n
+const DRIFT_UNCONVERTED_BASELINE = 56008803n
+
+function getSuppliedAmountByOriginAndMint(
+  positions: Awaited<ReturnType<typeof runIntegrations>>[number] | undefined,
+  originProtocol: string,
+  mint: string,
+): bigint {
+  let total = 0n
+  for (const position of positions ?? []) {
+    if (position.meta?.project0?.originProtocol !== originProtocol) continue
+    for (const asset of position.supplied ?? []) {
+      if (asset.amount.token !== mint) continue
+      total += BigInt(asset.amount.amount)
+    }
+  }
+
+  return total
+}
 
 describe('project0 integration', () => {
   it('fetches positions and tags origin protocol in metadata', async () => {
@@ -48,5 +69,19 @@ describe('project0 integration', () => {
       (origin) => origin !== 'project0',
     )
     expect(hasRoutedProtocol).toBe(true)
+
+    const kaminoUsdtSupplied = getSuppliedAmountByOriginAndMint(
+      positions,
+      'kamino',
+      USDT_MINT,
+    )
+    expect(kaminoUsdtSupplied > KAMINO_UNCONVERTED_BASELINE).toBe(true)
+
+    const driftWsolSupplied = getSuppliedAmountByOriginAndMint(
+      positions,
+      'drift',
+      WSOL_MINT,
+    )
+    expect(driftWsolSupplied > DRIFT_UNCONVERTED_BASELINE).toBe(true)
   }, 60_000)
 })
