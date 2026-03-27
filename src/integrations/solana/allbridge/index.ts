@@ -182,29 +182,45 @@ export const allbridgeIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
-    const userDepositsMap = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: ALLBRIDGE_BRIDGE_PROGRAM_ID,
-      filters: [
-        {
-          memcmp: {
-            offset: 0,
-            bytes: USER_DEPOSIT_DISCRIMINATOR_B64,
-            encoding: 'base64',
+    const combinedMap = yield [
+      {
+        kind: 'getProgramAccounts' as const,
+        programId: ALLBRIDGE_BRIDGE_PROGRAM_ID,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: USER_DEPOSIT_DISCRIMINATOR_B64,
+              encoding: 'base64',
+            },
           },
-        },
-        {
-          memcmp: {
-            offset: USER_DEPOSIT_OWNER_OFFSET,
-            bytes: address,
-            encoding: 'base58',
+          {
+            memcmp: {
+              offset: USER_DEPOSIT_OWNER_OFFSET,
+              bytes: address,
+              encoding: 'base58',
+            },
           },
-        },
-        { dataSize: USER_DEPOSIT_SIZE },
-      ],
-    }
+          { dataSize: USER_DEPOSIT_SIZE },
+        ],
+      },
+      {
+        kind: 'getProgramAccounts' as const,
+        programId: ALLBRIDGE_BRIDGE_PROGRAM_ID,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: POOL_DISCRIMINATOR_B64,
+              encoding: 'base64',
+            },
+          },
+          { dataSize: POOL_SIZE },
+        ],
+      },
+    ]
 
-    const userDeposits = Object.values(userDepositsMap)
+    const userDeposits = Object.values(combinedMap)
       .filter((account): account is SolanaAccount => account.exists)
       .map(parseUserDeposit)
       .filter(
@@ -214,23 +230,8 @@ export const allbridgeIntegration: SolanaIntegration = {
 
     if (userDeposits.length === 0) return []
 
-    const poolsMap = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: ALLBRIDGE_BRIDGE_PROGRAM_ID,
-      filters: [
-        {
-          memcmp: {
-            offset: 0,
-            bytes: POOL_DISCRIMINATOR_B64,
-            encoding: 'base64',
-          },
-        },
-        { dataSize: POOL_SIZE },
-      ],
-    }
-
     const poolsByMint = new Map<string, AllbridgePool>()
-    for (const account of Object.values(poolsMap)) {
+    for (const account of Object.values(combinedMap)) {
       if (!account.exists) continue
       const pool = parsePool(account)
       if (!pool) continue
