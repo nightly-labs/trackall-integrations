@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 import { Connection } from '@solana/web3.js'
-import { runIntegrations, TokenPlugin } from '../../../types/index'
+import {
+  runIntegrations,
+  TokenPlugin,
+  type LendingDefiPosition,
+} from '../../../types/index'
 import {
   fetchAccountsBatch,
   fetchProgramAccountsBatch,
@@ -16,6 +20,15 @@ const WSOL_MINT = 'So11111111111111111111111111111111111111112'
 const KAMINO_UNCONVERTED_BASELINE = 21641n
 const DRIFT_UNCONVERTED_BASELINE = 56008803n
 
+function isLendingPosition(position: unknown): position is LendingDefiPosition {
+  return (
+    typeof position === 'object' &&
+    position !== null &&
+    'positionKind' in position &&
+    (position as { positionKind?: unknown }).positionKind === 'lending'
+  )
+}
+
 function getSuppliedAmountByOriginAndMint(
   positions: Awaited<ReturnType<typeof runIntegrations>>[number] | undefined,
   originProtocol: string,
@@ -23,6 +36,7 @@ function getSuppliedAmountByOriginAndMint(
 ): bigint {
   let total = 0n
   for (const position of positions ?? []) {
+    if (!isLendingPosition(position)) continue
     if (position.meta?.project0?.originProtocol !== originProtocol) continue
     for (const asset of position.supplied ?? []) {
       if (asset.amount.token !== mint) continue
