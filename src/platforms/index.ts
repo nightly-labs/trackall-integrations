@@ -18,6 +18,7 @@ import pythStakingPlatform from './pyth-staking'
 import ratexPlatform from './ratex'
 import raydiumPlatform from './raydium'
 import realmsPlatform from './realms'
+import wasabiPlatform from './wasabi'
 import titanPlatform from './titan'
 import yuzuPlatform from './yuzu'
 import zeusPlatform from './zeus'
@@ -40,11 +41,12 @@ export const platforms = [
   ratexPlatform,
   raydiumPlatform,
   realmsPlatform,
+  wasabiPlatform,
   titanPlatform,
   yuzuPlatform,
   zeusPlatform,
   canopyPlatform,
-  echelonPlatform,
+  echelonPlatform
 ] as const satisfies readonly Platform[]
 
 export type PlatformId = (typeof platforms)[number]['id']
