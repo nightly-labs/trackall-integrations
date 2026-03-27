@@ -57,13 +57,41 @@ describe('kamino integration', () => {
 
     expect(Array.isArray(positions)).toBe(true)
 
+    for (const position of lendingPositions) {
+      let hasComponentUsd = false
+      if (position.supplied !== undefined) {
+        for (const supplied of position.supplied) {
+          if (supplied.priceUsd !== undefined) {
+            expect(supplied.usdValue).toBeDefined()
+          }
+          if (supplied.usdValue !== undefined) hasComponentUsd = true
+        }
+      }
+      if (position.borrowed !== undefined) {
+        for (const borrowed of position.borrowed) {
+          if (borrowed.priceUsd !== undefined) {
+            expect(borrowed.usdValue).toBeDefined()
+          }
+          if (borrowed.usdValue !== undefined) hasComponentUsd = true
+        }
+      }
+      if (hasComponentUsd) {
+        expect(position.usdValue).toBeDefined()
+      }
+    }
+
     for (const position of stakingPositions) {
+      let hasComponentUsd = false
       if (position.staked !== undefined) {
         expect(Array.isArray(position.staked)).toBe(true)
         for (const staked of position.staked) {
           expect(typeof staked.amount.token).toBe('string')
           expect(typeof staked.amount.amount).toBe('string')
           expect(typeof staked.amount.decimals).toBe('string')
+          if (staked.priceUsd !== undefined) {
+            expect(staked.usdValue).toBeDefined()
+          }
+          if (staked.usdValue !== undefined) hasComponentUsd = true
         }
       }
       if (position.unbonding !== undefined) {
@@ -72,6 +100,10 @@ describe('kamino integration', () => {
           expect(typeof unbonding.amount.token).toBe('string')
           expect(typeof unbonding.amount.amount).toBe('string')
           expect(typeof unbonding.amount.decimals).toBe('string')
+          if (unbonding.priceUsd !== undefined) {
+            expect(unbonding.usdValue).toBeDefined()
+          }
+          if (unbonding.usdValue !== undefined) hasComponentUsd = true
         }
       }
       if (position.rewards !== undefined) {
@@ -80,7 +112,14 @@ describe('kamino integration', () => {
           expect(typeof reward.amount.token).toBe('string')
           expect(typeof reward.amount.amount).toBe('string')
           expect(typeof reward.amount.decimals).toBe('string')
+          if (reward.priceUsd !== undefined) {
+            expect(reward.usdValue).toBeDefined()
+          }
+          if (reward.usdValue !== undefined) hasComponentUsd = true
         }
+      }
+      if (hasComponentUsd) {
+        expect(position.usdValue).toBeDefined()
       }
     }
   }, 90000)
