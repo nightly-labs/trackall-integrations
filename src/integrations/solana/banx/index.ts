@@ -388,49 +388,68 @@ export const banxIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
-    const lenderLoanMap = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: BONDS_PROGRAM_ID,
-      filters: [
-        { memcmp: { offset: 0, bytes: BOND_TRADE_TRANSACTION_DISCRIMINATOR_B58 } },
-        { memcmp: { offset: BTT_USER_OFFSET, bytes: address } },
-      ],
-    }
+    const initialProgramAccounts = yield [
+      {
+        kind: 'getProgramAccounts' as const,
+        programId: BONDS_PROGRAM_ID,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: BOND_TRADE_TRANSACTION_DISCRIMINATOR_B58,
+            },
+          },
+          { memcmp: { offset: BTT_USER_OFFSET, bytes: address } },
+        ],
+      },
+      {
+        kind: 'getProgramAccounts' as const,
+        programId: BONDS_PROGRAM_ID,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: BOND_TRADE_TRANSACTION_DISCRIMINATOR_B58,
+            },
+          },
+          { memcmp: { offset: BTT_SELLER_OFFSET, bytes: address } },
+        ],
+      },
+      {
+        kind: 'getProgramAccounts' as const,
+        programId: BONDS_PROGRAM_ID,
+        filters: [
+          { memcmp: { offset: 0, bytes: BOND_OFFER_DISCRIMINATOR_B58 } },
+          { memcmp: { offset: BOND_OFFER_ASSET_RECEIVER_OFFSET, bytes: address } },
+        ],
+      },
+      {
+        kind: 'getProgramAccounts' as const,
+        programId: BONDS_PROGRAM_ID,
+        filters: [
+          { memcmp: { offset: 0, bytes: USER_VAULT_DISCRIMINATOR_B58 } },
+          { memcmp: { offset: USER_VAULT_USER_OFFSET, bytes: address } },
+        ],
+      },
+      {
+        kind: 'getProgramAccounts' as const,
+        programId: BONDS_PROGRAM_V2_ID,
+        filters: [
+          { memcmp: { offset: 0, bytes: USER_VAULT_V2_DISCRIMINATOR_B58 } },
+          { memcmp: { offset: USER_VAULT_V2_USER_OFFSET, bytes: address } },
+        ],
+      },
+    ]
 
-    const borrowerLoanMap = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: BONDS_PROGRAM_ID,
-      filters: [
-        { memcmp: { offset: 0, bytes: BOND_TRADE_TRANSACTION_DISCRIMINATOR_B58 } },
-        { memcmp: { offset: BTT_SELLER_OFFSET, bytes: address } },
-      ],
-    }
-
-    const offersMap = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: BONDS_PROGRAM_ID,
-      filters: [
-        { memcmp: { offset: 0, bytes: BOND_OFFER_DISCRIMINATOR_B58 } },
-        { memcmp: { offset: BOND_OFFER_ASSET_RECEIVER_OFFSET, bytes: address } },
-      ],
-    }
-
-    const userVaultsMap = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: BONDS_PROGRAM_ID,
-      filters: [
-        { memcmp: { offset: 0, bytes: USER_VAULT_DISCRIMINATOR_B58 } },
-        { memcmp: { offset: USER_VAULT_USER_OFFSET, bytes: address } },
-      ],
-    }
-    const userVaultsV2Map = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: BONDS_PROGRAM_V2_ID,
-      filters: [
-        { memcmp: { offset: 0, bytes: USER_VAULT_V2_DISCRIMINATOR_B58 } },
-        { memcmp: { offset: USER_VAULT_V2_USER_OFFSET, bytes: address } },
-      ],
-    }
+    const loanAccountsMap = initialProgramAccounts
+    const offersMap = initialProgramAccounts
+    const userVaultsMap = initialProgramAccounts
+    const userVaultsV2Map = Object.fromEntries(
+      Object.entries(initialProgramAccounts).filter(
+        ([, account]) =>
+          account.exists && account.programAddress === BONDS_PROGRAM_V2_ID,
+      ),
+    )
 
     const userPubkey = new PublicKey(address)
     const banxTokenStakeAddress = PublicKey.findProgramAddressSync(
@@ -440,10 +459,7 @@ export const banxIntegration: SolanaIntegration = {
     const banxTokenStakeMap = yield [banxTokenStakeAddress]
 
     const activeLoans = new Map<string, ActiveLoan>()
-    for (const account of [
-      ...Object.values(lenderLoanMap),
-      ...Object.values(borrowerLoanMap),
-    ]) {
+    for (const account of Object.values(loanAccountsMap)) {
       if (!account.exists || activeLoans.has(account.address)) continue
       const decoded = decodeAccount<BondTradeTransactionV3Raw>(
         'bondTradeTransactionV3',
