@@ -18,6 +18,7 @@ import pythStakingPlatform from './pyth-staking'
 import ratexPlatform from './ratex'
 import raydiumPlatform from './raydium'
 import realmsPlatform from './realms'
+import titanPlatform from './titan'
 import yuzuPlatform from './yuzu'
 import zeusPlatform from './zeus'
 
@@ -39,6 +40,7 @@ export const platforms = [
   ratexPlatform,
   raydiumPlatform,
   realmsPlatform,
+  titanPlatform,
   yuzuPlatform,
   zeusPlatform,
   canopyPlatform,
