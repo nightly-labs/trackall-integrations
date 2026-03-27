@@ -8,6 +8,7 @@ import jupiterDaoPlatform from './jupiter-dao'
 import kaminoPlatform from './kamino'
 import luloPlatform from './lulo'
 import manifestPlatform from './manifest'
+import metadaoPlatform from './metadao'
 import meridianPlatform from './meridian'
 import meteoraPlatform from './meteora'
 import mosaicPlatform from './mosaic'
@@ -36,6 +37,7 @@ export const platforms = [
   kaminoPlatform,
   luloPlatform,
   manifestPlatform,
+  metadaoPlatform,
   meridianPlatform,
   mosaicPlatform,
   movepositionPlatform,
