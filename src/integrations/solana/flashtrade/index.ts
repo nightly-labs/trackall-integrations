@@ -5,8 +5,11 @@ import flashPoolConfig from 'flash-sdk/dist/PoolConfig.json'
 
 import type {
   PositionValue,
+  RewardDefiPosition,
   SolanaIntegration,
   SolanaPlugins,
+  StakedAsset,
+  StakingDefiPosition,
   TradingDefiPosition,
   TradingExposureSide,
   TradingOrder,
@@ -17,7 +20,12 @@ import type {
 const FLASH_PROGRAM_ID = 'FLASH6Lo6h3iasJKWDs2F8TkW2UKf3s15C8PMGuVfgBn'
 const POSITION_OWNER_OFFSET = 8
 const ORDER_OWNER_OFFSET = 8
+const FLP_STAKE_OWNER_OFFSET = 8
+const TOKEN_STAKE_OWNER_OFFSET = 8
 const PRICE_OUTPUT_DECIMALS = 8
+const DEFAULT_TOKEN_DECIMALS = 6
+const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+const FAF_MINT = 'FAFxVxnkzZHMCodkWyoccgUNgVScqMw2mhhQBYDFjFAF'
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 export const PROGRAM_IDS = [FLASH_PROGRAM_ID] as const
@@ -61,6 +69,34 @@ type DecodedOrder = {
   active_orders: number
 }
 
+type DecodedStakeStats = {
+  pending_activation: BigNumberish
+  active_amount: BigNumberish
+  pending_deactivation: BigNumberish
+  deactivated_amount: BigNumberish
+}
+
+type DecodedFlpStake = {
+  owner: PublicKey
+  pool: PublicKey
+  stake_stats: DecodedStakeStats
+  unclaimed_rewards: BigNumberish
+}
+
+type DecodedWithdrawRequest = {
+  withdrawable_amount: BigNumberish
+  locked_amount: BigNumberish
+  time_remaining: BigNumberish
+}
+
+type DecodedTokenStake = {
+  owner: PublicKey
+  active_stake_amount: BigNumberish
+  reward_tokens: BigNumberish
+  unclaimed_revenue_amount: BigNumberish
+  withdraw_request: DecodedWithdrawRequest[]
+}
+
 type FlashPoolConfigFile = {
   pools: FlashPool[]
 }
@@ -69,7 +105,11 @@ type FlashPool = {
   cluster: string
   isDeprecated: boolean
   poolName: string
+  poolAddress: string
   programId: string
+  stakedLpTokenMint: string
+  stakedLpTokenSymbol: string
+  lpDecimals: number
   custodies: FlashCustody[]
   markets: FlashMarket[]
 }
@@ -80,6 +120,7 @@ type FlashCustody = {
   symbol: string
   mintKey: string
   decimals: number
+  isStable?: boolean
 }
 
 type FlashMarket = {
@@ -108,6 +149,17 @@ type MarketMeta = {
   collateralSymbol?: string
 }
 
+type PoolMeta = {
+  poolName: string
+  poolAddress: string
+  stakedLpMint: string
+  stakedLpSymbol: string
+  lpDecimals: number
+  rewardMint: string
+  rewardSymbol: string
+  rewardDecimals: number
+}
+
 type Bucket = {
   marketAddress: string
   marketSymbol: string
@@ -127,8 +179,11 @@ const FLASH_IDL = flashPerpetualsIdl as Idl & {
 const flashCoder = new BorshCoder(FLASH_IDL)
 const POSITION_DISCRIMINATOR_B64 = accountDiscriminatorB64('Position')
 const ORDER_DISCRIMINATOR_B64 = accountDiscriminatorB64('Order')
+const FLP_STAKE_DISCRIMINATOR_B64 = accountDiscriminatorB64('FlpStake')
+const TOKEN_STAKE_DISCRIMINATOR_B64 = accountDiscriminatorB64('TokenStake')
 
-const { marketMetaByAddress, custodyMetaByPoolAndUid } = buildStaticMetadata()
+const { marketMetaByAddress, custodyMetaByPoolAndUid, poolMetaByAddress } =
+  buildStaticMetadata()
 
 function accountDiscriminatorB64(accountName: string): string {
   const account = FLASH_IDL.accounts?.find(
@@ -215,6 +270,15 @@ function buildPositionValue(
     ...(priceUsd !== undefined && { priceUsd: priceUsd.toString() }),
     ...(usdValue !== undefined && { usdValue }),
   }
+}
+
+function sumFinite(values: Array<string | undefined>): string | undefined {
+  const numbers = values
+    .filter((value): value is string => value !== undefined)
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value))
+  if (numbers.length === 0) return undefined
+  return numbers.reduce((sum, value) => sum + value, 0).toString()
 }
 
 function decodeAccount<T>(accountName: string, data: Uint8Array): T | null {
@@ -316,6 +380,7 @@ function buildStaticMetadata() {
 
   const custodyMetaByPoolAndUid = new Map<string, CustodyMeta>()
   const marketMetaByAddress = new Map<string, MarketMeta>()
+  const poolMetaByAddress = new Map<string, PoolMeta>()
 
   for (const pool of pools) {
     const custodyByAddress = new Map<string, CustodyMeta>()
@@ -355,9 +420,27 @@ function buildStaticMetadata() {
 
       marketMetaByAddress.set(market.marketAccount, marketMeta)
     }
+
+    const rewardCustody =
+      pool.custodies.find((custody) => custody.symbol === 'USDC') ??
+      pool.custodies.find((custody) => custody.isStable) ??
+      pool.custodies[0]
+
+    if (rewardCustody) {
+      poolMetaByAddress.set(pool.poolAddress, {
+        poolName: pool.poolName,
+        poolAddress: pool.poolAddress,
+        stakedLpMint: pool.stakedLpTokenMint,
+        stakedLpSymbol: pool.stakedLpTokenSymbol,
+        lpDecimals: pool.lpDecimals,
+        rewardMint: rewardCustody.mintKey,
+        rewardSymbol: rewardCustody.symbol,
+        rewardDecimals: rewardCustody.decimals,
+      })
+    }
   }
 
-  return { marketMetaByAddress, custodyMetaByPoolAndUid }
+  return { marketMetaByAddress, custodyMetaByPoolAndUid, poolMetaByAddress }
 }
 
 export const flashtradeIntegration: SolanaIntegration = {
@@ -408,12 +491,58 @@ export const flashtradeIntegration: SolanaIntegration = {
           },
         ],
       },
+      {
+        kind: 'getProgramAccounts' as const,
+        programId,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: FLP_STAKE_DISCRIMINATOR_B64,
+              encoding: 'base64' as const,
+            },
+          },
+          {
+            memcmp: {
+              offset: FLP_STAKE_OWNER_OFFSET,
+              bytes: address,
+              encoding: 'base58' as const,
+            },
+          },
+        ],
+      },
+      {
+        kind: 'getProgramAccounts' as const,
+        programId,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: TOKEN_STAKE_DISCRIMINATOR_B64,
+              encoding: 'base64' as const,
+            },
+          },
+          {
+            memcmp: {
+              offset: TOKEN_STAKE_OWNER_OFFSET,
+              bytes: address,
+              encoding: 'base58' as const,
+            },
+          },
+        ],
+      },
     ])
 
     const accounts = yield requests
     const decodedPositions: Array<{ address: string; data: DecodedPosition }> =
       []
     const decodedOrders: Array<{ address: string; data: DecodedOrder }> = []
+    const decodedFlpStakes: Array<{ address: string; data: DecodedFlpStake }> =
+      []
+    const decodedTokenStakes: Array<{
+      address: string
+      data: DecodedTokenStake
+    }> = []
 
     for (const account of Object.values(accounts)) {
       if (!account.exists) continue
@@ -428,6 +557,21 @@ export const flashtradeIntegration: SolanaIntegration = {
       const order = decodeAccount<DecodedOrder>('Order', account.data)
       if (order) {
         decodedOrders.push({ address: account.address, data: order })
+        continue
+      }
+
+      const flpStake = decodeAccount<DecodedFlpStake>('FlpStake', account.data)
+      if (flpStake) {
+        decodedFlpStakes.push({ address: account.address, data: flpStake })
+        continue
+      }
+
+      const tokenStake = decodeAccount<DecodedTokenStake>(
+        'TokenStake',
+        account.data,
+      )
+      if (tokenStake) {
+        decodedTokenStakes.push({ address: account.address, data: tokenStake })
       }
     }
 
@@ -620,6 +764,265 @@ export const flashtradeIntegration: SolanaIntegration = {
       }
 
       result.push(tradingPosition)
+    }
+
+    for (const { address: stakeAddress, data: flpStake } of decodedFlpStakes) {
+      const activeAmount = toBigInt(flpStake.stake_stats.active_amount)
+      const unclaimedRewards = toBigInt(flpStake.unclaimed_rewards)
+      if (activeAmount <= 0n && unclaimedRewards <= 0n) continue
+
+      const poolAddress = flpStake.pool.toBase58()
+      const poolMeta = poolMetaByAddress.get(poolAddress)
+
+      const stakedMint = poolMeta?.stakedLpMint
+      const stakedDecimals = tokenDecimals(
+        stakedMint,
+        _plugins,
+        poolMeta?.lpDecimals ?? DEFAULT_TOKEN_DECIMALS,
+      )
+      const stakedPrice = tokenPriceUsd(stakedMint, _plugins)
+      const rewardMint = poolMeta?.rewardMint ?? USDC_MINT
+      const rewardDecimals = tokenDecimals(
+        rewardMint,
+        _plugins,
+        poolMeta?.rewardDecimals ?? DEFAULT_TOKEN_DECIMALS,
+      )
+      const rewardPrice = tokenPriceUsd(rewardMint, _plugins)
+
+      const claimableReward =
+        unclaimedRewards > 0n
+          ? buildPositionValue(
+              rewardMint,
+              unclaimedRewards,
+              rewardDecimals,
+              rewardPrice,
+            )
+          : undefined
+
+      if (activeAmount > 0n && stakedMint) {
+        const staked: StakedAsset[] = [
+          {
+            ...buildPositionValue(
+              stakedMint,
+              activeAmount,
+              stakedDecimals,
+              stakedPrice,
+            ),
+            ...(claimableReward && { claimableReward }),
+          },
+        ]
+
+        const usdValue = sumFinite([
+          ...staked.map((value) => value.usdValue),
+          ...staked
+            .map((value) => value.claimableReward?.usdValue)
+            .filter((value): value is string => value !== undefined),
+        ])
+
+        const stakingPosition: StakingDefiPosition = {
+          platformId: 'flashtrade',
+          positionKind: 'staking',
+          staked,
+          ...(usdValue && { usdValue }),
+          meta: {
+            flashtrade: {
+              stakingType: 'flp',
+              pool: poolMeta?.poolName ?? poolAddress,
+              poolAddress,
+              stakedSymbol: poolMeta?.stakedLpSymbol,
+              rewardSymbol: poolMeta?.rewardSymbol,
+              stakeAccount: stakeAddress,
+            },
+          },
+        }
+
+        result.push(stakingPosition)
+      } else if (claimableReward) {
+        const rewardPosition: RewardDefiPosition = {
+          platformId: 'flashtrade',
+          positionKind: 'reward',
+          claimable: [claimableReward],
+          meta: {
+            flashtrade: {
+              source: 'flp-stake',
+              pool: poolMeta?.poolName ?? poolAddress,
+              poolAddress,
+              stakeAccount: stakeAddress,
+            },
+          },
+        }
+
+        result.push(rewardPosition)
+      }
+    }
+
+    for (const {
+      address: tokenStakeAddress,
+      data: tokenStake,
+    } of decodedTokenStakes) {
+      const activeStakeAmount = toBigInt(tokenStake.active_stake_amount)
+      const rewardTokens = toBigInt(tokenStake.reward_tokens)
+      const unclaimedRevenueAmount = toBigInt(
+        tokenStake.unclaimed_revenue_amount,
+      )
+      const withdrawRequests = (tokenStake.withdraw_request ?? []).map(
+        (request) => ({
+          withdrawableAmount: toBigInt(request.withdrawable_amount),
+          lockedAmount: toBigInt(request.locked_amount),
+          timeRemaining: Number(toBigInt(request.time_remaining)),
+        }),
+      )
+
+      const stakedMint = FAF_MINT
+      const stakedDecimals = tokenDecimals(
+        stakedMint,
+        _plugins,
+        DEFAULT_TOKEN_DECIMALS,
+      )
+      const stakedPrice = tokenPriceUsd(stakedMint, _plugins)
+      const revenueMint = USDC_MINT
+      const revenueDecimals = tokenDecimals(
+        revenueMint,
+        _plugins,
+        DEFAULT_TOKEN_DECIMALS,
+      )
+      const revenuePrice = tokenPriceUsd(revenueMint, _plugins)
+
+      if (
+        activeStakeAmount <= 0n &&
+        rewardTokens <= 0n &&
+        unclaimedRevenueAmount <= 0n &&
+        withdrawRequests.every(
+          (request) =>
+            request.withdrawableAmount <= 0n && request.lockedAmount <= 0n,
+        )
+      ) {
+        continue
+      }
+
+      if (activeStakeAmount > 0n) {
+        const claimableReward =
+          rewardTokens > 0n
+            ? buildPositionValue(
+                stakedMint,
+                rewardTokens,
+                stakedDecimals,
+                stakedPrice,
+              )
+            : undefined
+        const stakingUsdValue = sumFinite([claimableReward?.usdValue])
+
+        const stakingPosition: StakingDefiPosition = {
+          platformId: 'flashtrade',
+          positionKind: 'staking',
+          staked: [
+            {
+              ...buildPositionValue(
+                stakedMint,
+                activeStakeAmount,
+                stakedDecimals,
+                stakedPrice,
+              ),
+              ...(claimableReward && { claimableReward }),
+            },
+          ],
+          ...(stakingUsdValue && { usdValue: stakingUsdValue }),
+          meta: {
+            flashtrade: {
+              stakingType: 'token',
+              tokenStakeAccount: tokenStakeAddress,
+              token: 'FAF',
+            },
+          },
+        }
+
+        result.push(stakingPosition)
+      }
+
+      const claimable = []
+      if (rewardTokens > 0n) {
+        claimable.push(
+          buildPositionValue(
+            stakedMint,
+            rewardTokens,
+            stakedDecimals,
+            stakedPrice,
+          ),
+        )
+      }
+      if (unclaimedRevenueAmount > 0n) {
+        claimable.push(
+          buildPositionValue(
+            revenueMint,
+            unclaimedRevenueAmount,
+            revenueDecimals,
+            revenuePrice,
+          ),
+        )
+      }
+      for (const [index, request] of withdrawRequests.entries()) {
+        if (request.withdrawableAmount > 0n) {
+          claimable.push(
+            buildPositionValue(
+              stakedMint,
+              request.withdrawableAmount,
+              stakedDecimals,
+              stakedPrice,
+            ),
+          )
+        }
+        if (request.lockedAmount > 0n) {
+          claimable.push(
+            buildPositionValue(
+              stakedMint,
+              request.lockedAmount,
+              stakedDecimals,
+              stakedPrice,
+            ),
+          )
+          if (request.timeRemaining > 0) {
+            const unlockAt =
+              Math.floor(Date.now() / 1000) + request.timeRemaining
+            const rewardPosition: RewardDefiPosition = {
+              platformId: 'flashtrade',
+              positionKind: 'reward',
+              claimable: [
+                buildPositionValue(
+                  stakedMint,
+                  request.lockedAmount,
+                  stakedDecimals,
+                  stakedPrice,
+                ),
+              ],
+              claimableFrom: new Date(unlockAt * 1000).toISOString(),
+              meta: {
+                flashtrade: {
+                  source: 'token-withdraw-request',
+                  tokenStakeAccount: tokenStakeAddress,
+                  requestIndex: index,
+                },
+              },
+            }
+            result.push(rewardPosition)
+          }
+        }
+      }
+
+      if (claimable.length > 0) {
+        const rewardPosition: RewardDefiPosition = {
+          platformId: 'flashtrade',
+          positionKind: 'reward',
+          claimable,
+          meta: {
+            flashtrade: {
+              source: 'token-stake',
+              tokenStakeAccount: tokenStakeAddress,
+            },
+          },
+        }
+
+        result.push(rewardPosition)
+      }
     }
 
     return result
