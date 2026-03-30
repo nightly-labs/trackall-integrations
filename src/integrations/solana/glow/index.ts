@@ -8,7 +8,7 @@ import type {
   SolanaIntegration,
   SolanaPlugins,
   UserDefiPosition,
-  UserPositionsPlan,
+  UserPositionsPlan
 } from '../../../types/index'
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
@@ -17,11 +17,7 @@ const MARGIN_PROGRAM_ID = 'GLoWMgcn3VbyFKiC2FGMgfKxYSyTJS7uKFwKY2CSkq9X'
 const MARGIN_POOL_PROGRAM_ID = 'CWPeEXnSpELj7tSz9W4oQAGGRbavBtdnhY2bWMyPoo1'
 const AIRSPACE_PROGRAM_ID = 'AmAJeyNxxjNHfhBoCpsNMgWxhukdv3DSu3XpLfJspace'
 
-export const PROGRAM_IDS = [
-  MARGIN_PROGRAM_ID,
-  MARGIN_POOL_PROGRAM_ID,
-  AIRSPACE_PROGRAM_ID,
-] as const
+export const PROGRAM_IDS = [MARGIN_PROGRAM_ID, MARGIN_POOL_PROGRAM_ID, AIRSPACE_PROGRAM_ID] as const
 
 const MARGIN_ACCOUNT_DISC_B64 = 'hdyt1bPTK+4='
 const TOKEN_CONFIG_DISC_B64 = 'XEn/K2szdWU='
@@ -116,7 +112,7 @@ function decodeMarginAccount(account: SolanaAccount): MarginAccountLite | null {
     address: account.address,
     owner,
     airspace,
-    liquidator,
+    liquidator
   }
 }
 
@@ -146,34 +142,19 @@ function decodeTokenConfig(account: SolanaAccount): TokenConfigLite | null {
   return {
     mint,
     airspace,
-    kind,
+    kind
   }
 }
 
 function decodeMarginPool(account: SolanaAccount): MarginPoolLite | null {
   if (!hasDiscriminator(account.data, MARGIN_POOL_DISC_B64)) return null
 
-  const depositNoteMint = readPubkey(
-    account.data,
-    MARGIN_POOL_DEPOSIT_NOTE_MINT_OFFSET,
-  )
-  const loanNoteMint = readPubkey(
-    account.data,
-    MARGIN_POOL_LOAN_NOTE_MINT_OFFSET,
-  )
+  const depositNoteMint = readPubkey(account.data, MARGIN_POOL_DEPOSIT_NOTE_MINT_OFFSET)
+  const loanNoteMint = readPubkey(account.data, MARGIN_POOL_LOAN_NOTE_MINT_OFFSET)
   const tokenMint = readPubkey(account.data, MARGIN_POOL_TOKEN_MINT_OFFSET)
-  const borrowedTokens = readGlowNumber(
-    account.data,
-    MARGIN_POOL_BORROWED_TOKENS_OFFSET,
-  )
-  const uncollectedFees = readGlowNumber(
-    account.data,
-    MARGIN_POOL_UNCOLLECTED_FEES_OFFSET,
-  )
-  const depositTokens = readU64(
-    account.data,
-    MARGIN_POOL_DEPOSIT_TOKENS_OFFSET,
-  )
+  const borrowedTokens = readGlowNumber(account.data, MARGIN_POOL_BORROWED_TOKENS_OFFSET)
+  const uncollectedFees = readGlowNumber(account.data, MARGIN_POOL_UNCOLLECTED_FEES_OFFSET)
+  const depositTokens = readU64(account.data, MARGIN_POOL_DEPOSIT_TOKENS_OFFSET)
   const depositNotes = readU64(account.data, MARGIN_POOL_DEPOSIT_NOTES_OFFSET)
   const loanNotes = readU64(account.data, MARGIN_POOL_LOAN_NOTES_OFFSET)
 
@@ -191,15 +172,11 @@ function decodeMarginPool(account: SolanaAccount): MarginPoolLite | null {
   }
 
   const totalValue = borrowedTokens + depositTokens * GLOW_NUMBER_SCALE
-  const totalValueWithoutFees =
-    totalValue > uncollectedFees ? totalValue - uncollectedFees : 0n
+  const totalValueWithoutFees = totalValue > uncollectedFees ? totalValue - uncollectedFees : 0n
   const depositRateNumerator =
-    totalValueWithoutFees > GLOW_NUMBER_SCALE
-      ? totalValueWithoutFees
-      : GLOW_NUMBER_SCALE
+    totalValueWithoutFees > GLOW_NUMBER_SCALE ? totalValueWithoutFees : GLOW_NUMBER_SCALE
   const depositNotesDenominator = depositNotes > 1n ? depositNotes : 1n
-  const loanRateNumerator =
-    borrowedTokens > GLOW_NUMBER_SCALE ? borrowedTokens : GLOW_NUMBER_SCALE
+  const loanRateNumerator = borrowedTokens > GLOW_NUMBER_SCALE ? borrowedTokens : GLOW_NUMBER_SCALE
   const loanNotesDenominator = loanNotes > 1n ? loanNotes : 1n
 
   return {
@@ -208,7 +185,7 @@ function decodeMarginPool(account: SolanaAccount): MarginPoolLite | null {
     loanNoteMint,
     tokenMint,
     depositNoteExchangeRate: depositRateNumerator / depositNotesDenominator,
-    loanNoteExchangeRate: loanRateNumerator / loanNotesDenominator,
+    loanNoteExchangeRate: loanRateNumerator / loanNotesDenominator
   }
 }
 
@@ -230,10 +207,7 @@ function readGlowNumber(data: Uint8Array, offset: number): bigint | null {
   return value
 }
 
-function convertNoteAmountToUnderlying(
-  noteAmountRaw: bigint,
-  exchangeRate: bigint,
-): bigint {
+function convertNoteAmountToUnderlying(noteAmountRaw: bigint, exchangeRate: bigint): bigint {
   return (noteAmountRaw * exchangeRate) / GLOW_NUMBER_SCALE
 }
 
@@ -243,23 +217,23 @@ function toAccountInfo(account: SolanaAccount): AccountInfo<Buffer> {
     executable: false,
     lamports: Number(account.lamports),
     owner: new PublicKey(account.programAddress),
-    rentEpoch: 0,
+    rentEpoch: 0
   }
 }
 
 function decodeTokenBalance(
-  account: SolanaAccount,
+  account: SolanaAccount
 ): { mint: string; owner: string; amount: bigint } | null {
   try {
     const decoded = unpackAccount(
       new PublicKey(account.address),
       toAccountInfo(account),
-      new PublicKey(account.programAddress),
+      new PublicKey(account.programAddress)
     )
     return {
       mint: decoded.mint.toBase58(),
       owner: decoded.owner.toBase58(),
-      amount: decoded.amount,
+      amount: decoded.amount
     }
   } catch {
     return null
@@ -271,7 +245,7 @@ function decodeMintDecimals(account: SolanaAccount): number | undefined {
     const decoded = unpackMint(
       new PublicKey(account.address),
       toAccountInfo(account),
-      new PublicKey(account.programAddress),
+      new PublicKey(account.programAddress)
     )
     return decoded.decimals
   } catch {
@@ -279,14 +253,10 @@ function decodeMintDecimals(account: SolanaAccount): number | undefined {
   }
 }
 
-function buildPdaAddress(
-  programId: string,
-  marginAccount: string,
-  mint: string,
-): string {
+function buildPdaAddress(programId: string, marginAccount: string, mint: string): string {
   return PublicKey.findProgramAddressSync(
     [new PublicKey(marginAccount).toBuffer(), new PublicKey(mint).toBuffer()],
-    new PublicKey(programId),
+    new PublicKey(programId)
   )[0].toBase58()
 }
 
@@ -294,7 +264,7 @@ function buildPositionValue(
   mint: string,
   amountRaw: bigint,
   decimals: number,
-  plugins: SolanaPlugins,
+  plugins: SolanaPlugins
 ): LendingSuppliedAsset {
   const token = plugins.tokens.get(mint)
   const priceUsd = token?.priceUsd
@@ -307,15 +277,15 @@ function buildPositionValue(
     amount: {
       token: mint,
       amount: amountRaw.toString(),
-      decimals: decimals.toString(),
+      decimals: decimals.toString()
     },
     ...(priceUsd !== undefined && { priceUsd: priceUsd.toString() }),
-    ...(usdValue !== undefined && { usdValue }),
+    ...(usdValue !== undefined && { usdValue })
   }
 }
 
 function groupTokenConfigsByAirspace(
-  tokenConfigs: TokenConfigLite[],
+  tokenConfigs: TokenConfigLite[]
 ): Map<string, TokenConfigLite[]> {
   const grouped = new Map<string, Map<string, TokenConfigLite>>()
 
@@ -333,20 +303,14 @@ function groupTokenConfigsByAirspace(
   }
 
   return new Map(
-    [...grouped.entries()].map(([airspace, byMint]) => [
-      airspace,
-      [...byMint.values()],
-    ]),
+    [...grouped.entries()].map(([airspace, byMint]) => [airspace, [...byMint.values()]])
   )
 }
 
 export const glowIntegration: SolanaIntegration = {
   platformId: 'glow',
 
-  getUserPositions: async function* (
-    address: string,
-    plugins: SolanaPlugins,
-  ): UserPositionsPlan {
+  getUserPositions: async function* (address: string, plugins: SolanaPlugins): UserPositionsPlan {
     const marginAccountsMap = yield {
       kind: 'getProgramAccounts' as const,
       programId: MARGIN_PROGRAM_ID,
@@ -355,17 +319,17 @@ export const glowIntegration: SolanaIntegration = {
           memcmp: {
             offset: 0,
             bytes: MARGIN_ACCOUNT_DISC_B64,
-            encoding: 'base64',
-          },
+            encoding: 'base64'
+          }
         },
         {
           memcmp: {
             offset: OWNER_OFFSET,
             bytes: address,
-            encoding: 'base58',
-          },
-        },
-      ],
+            encoding: 'base58'
+          }
+        }
+      ]
     }
 
     const marginAccounts: MarginAccountLite[] = []
@@ -379,85 +343,82 @@ export const glowIntegration: SolanaIntegration = {
 
     if (marginAccounts.length === 0) return []
 
-    const tokenConfigsMap = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: MARGIN_PROGRAM_ID,
-      cacheTtlMs: TOKEN_CONFIG_CACHE_TTL_MS,
-      filters: [
-        {
-          memcmp: {
-            offset: 0,
-            bytes: TOKEN_CONFIG_DISC_B64,
-            encoding: 'base64',
-          },
-        },
-      ],
-    }
+    const round1Map = yield [
+      {
+        kind: 'getProgramAccounts' as const,
+        programId: MARGIN_PROGRAM_ID,
+        cacheTtlMs: TOKEN_CONFIG_CACHE_TTL_MS,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: TOKEN_CONFIG_DISC_B64,
+              encoding: 'base64'
+            }
+          }
+        ]
+      },
+      {
+        kind: 'getProgramAccounts' as const,
+        programId: MARGIN_POOL_PROGRAM_ID,
+        cacheTtlMs: MARGIN_POOL_CACHE_TTL_MS,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: MARGIN_POOL_DISC_B64,
+              encoding: 'base64'
+            }
+          }
+        ]
+      }
+    ]
 
     const tokenConfigs: TokenConfigLite[] = []
-    for (const account of Object.values(tokenConfigsMap)) {
-      if (!account.exists) continue
-      const decoded = decodeTokenConfig(account)
-      if (!decoded) continue
-      tokenConfigs.push(decoded)
-    }
-
-    if (tokenConfigs.length === 0) return []
-
-    const tokenConfigsByAirspace = groupTokenConfigsByAirspace(tokenConfigs)
-    const marginPoolsMap = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: MARGIN_POOL_PROGRAM_ID,
-      cacheTtlMs: MARGIN_POOL_CACHE_TTL_MS,
-      filters: [
-        {
-          memcmp: {
-            offset: 0,
-            bytes: MARGIN_POOL_DISC_B64,
-            encoding: 'base64',
-          },
-        },
-      ],
-    }
 
     const noteMintToUnderlyingMint = new Map<string, string>()
     const noteMintToPool = new Map<string, string>()
     const noteMintToExchangeRate = new Map<string, bigint>()
 
-    for (const account of Object.values(marginPoolsMap)) {
+    for (const account of Object.values(round1Map)) {
       if (!account.exists) continue
-      const decoded = decodeMarginPool(account)
-      if (!decoded) continue
+      const decodedTokenConfig = decodeTokenConfig(account)
+      if (decodedTokenConfig) {
+        tokenConfigs.push(decodedTokenConfig)
+        continue
+      }
 
-      noteMintToUnderlyingMint.set(decoded.depositNoteMint, decoded.tokenMint)
-      noteMintToUnderlyingMint.set(decoded.loanNoteMint, decoded.tokenMint)
-      noteMintToPool.set(decoded.depositNoteMint, decoded.address)
-      noteMintToPool.set(decoded.loanNoteMint, decoded.address)
+      const decodedMarginPool = decodeMarginPool(account)
+      if (!decodedMarginPool) continue
+
+      noteMintToUnderlyingMint.set(decodedMarginPool.depositNoteMint, decodedMarginPool.tokenMint)
+      noteMintToUnderlyingMint.set(decodedMarginPool.loanNoteMint, decodedMarginPool.tokenMint)
+      noteMintToPool.set(decodedMarginPool.depositNoteMint, decodedMarginPool.address)
+      noteMintToPool.set(decodedMarginPool.loanNoteMint, decodedMarginPool.address)
       noteMintToExchangeRate.set(
-        decoded.depositNoteMint,
-        decoded.depositNoteExchangeRate,
+        decodedMarginPool.depositNoteMint,
+        decodedMarginPool.depositNoteExchangeRate
       )
-      noteMintToExchangeRate.set(decoded.loanNoteMint, decoded.loanNoteExchangeRate)
+      noteMintToExchangeRate.set(
+        decodedMarginPool.loanNoteMint,
+        decodedMarginPool.loanNoteExchangeRate
+      )
     }
 
+    if (tokenConfigs.length === 0) return []
+
+    const tokenConfigsByAirspace = groupTokenConfigsByAirspace(tokenConfigs)
     const derivedTokenAccounts: DerivedTokenAccount[] = []
     for (const marginAccount of marginAccounts) {
       const configs = tokenConfigsByAirspace.get(marginAccount.airspace) ?? []
       for (const tokenConfig of configs) {
-        const programId =
-          tokenConfig.kind === 'Claim'
-            ? MARGIN_POOL_PROGRAM_ID
-            : MARGIN_PROGRAM_ID
+        const programId = tokenConfig.kind === 'Claim' ? MARGIN_POOL_PROGRAM_ID : MARGIN_PROGRAM_ID
 
         derivedTokenAccounts.push({
           marginAccount: marginAccount.address,
           mint: tokenConfig.mint,
           kind: tokenConfig.kind,
-          tokenAccount: buildPdaAddress(
-            programId,
-            marginAccount.address,
-            tokenConfig.mint,
-          ),
+          tokenAccount: buildPdaAddress(programId, marginAccount.address, tokenConfig.mint)
         })
       }
     }
@@ -465,15 +426,25 @@ export const glowIntegration: SolanaIntegration = {
     if (derivedTokenAccounts.length === 0) return []
 
     const tokenAccountAddresses = [
-      ...new Set(derivedTokenAccounts.map((entry) => entry.tokenAccount)),
+      ...new Set(derivedTokenAccounts.map(entry => entry.tokenAccount))
     ]
-    const tokenAccountsMap = yield tokenAccountAddresses
-
     const decodedBalances: DecodedTokenBalance[] = []
-    const mintSet = new Set<string>()
+    const mintAddressesSet = new Set<string>()
 
     for (const derived of derivedTokenAccounts) {
-      const account = tokenAccountsMap[derived.tokenAccount]
+      mintAddressesSet.add(derived.mint)
+      const underlyingMint = noteMintToUnderlyingMint.get(derived.mint)
+      if (underlyingMint) {
+        mintAddressesSet.add(underlyingMint)
+      }
+    }
+    const mintAddresses = [...mintAddressesSet]
+
+    const round2Addresses = [...new Set([...tokenAccountAddresses, ...mintAddresses])]
+    const round2Map = yield round2Addresses
+
+    for (const derived of derivedTokenAccounts) {
+      const account = round2Map[derived.tokenAccount]
       if (!account?.exists) continue
 
       const decoded = decodeTokenBalance(account)
@@ -486,24 +457,16 @@ export const glowIntegration: SolanaIntegration = {
         kind: derived.kind,
         tokenAccount: derived.tokenAccount,
         tokenOwner: decoded.owner,
-        amountRaw: decoded.amount,
+        amountRaw: decoded.amount
       })
-      mintSet.add(derived.mint)
-
-      const underlyingMint = noteMintToUnderlyingMint.get(derived.mint)
-      if (underlyingMint) {
-        mintSet.add(underlyingMint)
-      }
     }
 
-    if (decodedBalances.length === 0 || mintSet.size === 0) return []
+    if (decodedBalances.length === 0) return []
 
-    const mintAddresses = [...mintSet]
-    const mintAccountsMap = yield mintAddresses
     const decimalsByMint = new Map<string, number>()
 
     for (const mint of mintAddresses) {
-      const account = mintAccountsMap[mint]
+      const account = round2Map[mint]
       if (!account?.exists) continue
       const decimals = decodeMintDecimals(account)
       if (decimals !== undefined) {
@@ -530,8 +493,7 @@ export const glowIntegration: SolanaIntegration = {
       balances.sort((left, right) => left.mint.localeCompare(right.mint))
 
       for (const balance of balances) {
-        const displayMint =
-          noteMintToUnderlyingMint.get(balance.mint) ?? balance.mint
+        const displayMint = noteMintToUnderlyingMint.get(balance.mint) ?? balance.mint
         const exchangeRate = noteMintToExchangeRate.get(balance.mint)
         const displayAmountRaw =
           exchangeRate !== undefined
@@ -544,12 +506,7 @@ export const glowIntegration: SolanaIntegration = {
           plugins.tokens.get(balance.mint)?.decimals ??
           0
 
-        const value = buildPositionValue(
-          displayMint,
-          displayAmountRaw,
-          decimals,
-          plugins,
-        )
+        const value = buildPositionValue(displayMint, displayAmountRaw, decimals, plugins)
 
         if (balance.kind === 'Claim') {
           borrowed.push(value)
@@ -571,7 +528,7 @@ export const glowIntegration: SolanaIntegration = {
             owner: marginAccount.owner,
             airspace: marginAccount.airspace,
             liquidator: marginAccount.liquidator,
-            noteAccounts: balances.map((balance) => ({
+            noteAccounts: balances.map(balance => ({
               kind: balance.kind,
               mint: noteMintToUnderlyingMint.get(balance.mint) ?? balance.mint,
               noteMint: balance.mint,
@@ -580,22 +537,21 @@ export const glowIntegration: SolanaIntegration = {
               tokenAccount: balance.tokenAccount,
               tokenOwner: balance.tokenOwner,
               amountRaw: balance.amountRaw.toString(),
-              underlyingAmountRaw:
-                (noteMintToExchangeRate.has(balance.mint)
-                  ? convertNoteAmountToUnderlying(
-                      balance.amountRaw,
-                      noteMintToExchangeRate.get(balance.mint) ?? 0n,
-                    )
-                  : balance.amountRaw
-                ).toString(),
-            })),
-          },
-        },
+              underlyingAmountRaw: (noteMintToExchangeRate.has(balance.mint)
+                ? convertNoteAmountToUnderlying(
+                    balance.amountRaw,
+                    noteMintToExchangeRate.get(balance.mint) ?? 0n
+                  )
+                : balance.amountRaw
+              ).toString()
+            }))
+          }
+        }
       } satisfies LendingDefiPosition)
     }
 
     return positions
-  },
+  }
 }
 
 export default glowIntegration
