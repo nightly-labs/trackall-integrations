@@ -6,6 +6,7 @@ import carrotPlatform from './carrot'
 import defitunaPlatform from './defituna'
 import driftPlatform from './drift'
 import echelonPlatform from './echelon'
+import glowPlatform from './glow'
 import flashtradePlatform from './flashtrade'
 import gmtradePlatform from './gmtrade'
 import jupiterLendPlatform from './jupiter'
@@ -28,10 +29,10 @@ import pythStakingPlatform from './pyth-staking'
 import ratexPlatform from './ratex'
 import raydiumPlatform from './raydium'
 import realmsPlatform from './realms'
-import tramplinPlatform from './tramplin'
 import saberPlatform from './saber'
 import savePlatform from './save'
 import titanPlatform from './titan'
+import tramplinPlatform from './tramplin'
 import wasabiPlatform from './wasabi'
 import yuzuPlatform from './yuzu'
 import zelofiPlatform from './zelofi'
@@ -43,6 +44,7 @@ export const platforms = [
   carrotPlatform,
   defitunaPlatform,
   driftPlatform,
+  glowPlatform,
   flashtradePlatform,
   gmtradePlatform,
   meteoraPlatform,
@@ -74,7 +76,7 @@ export const platforms = [
   zelofiPlatform,
   zeusPlatform,
   canopyPlatform,
-  echelonPlatform,
+  echelonPlatform
 ] as const satisfies readonly Platform[]
 
 export type PlatformId = (typeof platforms)[number]['id']
