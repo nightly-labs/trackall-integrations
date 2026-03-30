@@ -7,6 +7,9 @@ const yuzuPlatform = {
   image: 'https://www.yuzu.finance/fruit-logo.png',
   description: 'Yuzu CLMM on Movement',
   tags: [],
+  links: {
+    website: 'https://app.yuzu.finance',
+  },
   defiLlamaId: 'yuzu',
 } satisfies Platform
 

@@ -7,6 +7,9 @@ const meteoraPlatform = {
   image: 'https://www.meteora.ag/icons/v2.svg',
   description: 'Meteora DLMM liquidity pools on Solana',
   tags: [],
+  links: {
+    website: 'https://app.meteora.ag',
+  },
   defiLlamaId: 'meteora',
 } satisfies Platform
 

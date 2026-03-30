@@ -8,6 +8,9 @@ const carrotPlatform = {
   description:
     'Carrot is a leveraged yield farming protocol for JLP, FLP.1, and ONyc on Solana.',
   tags: [],
+  links: {
+    website: 'https://boost.deficarrot.com',
+  },
 } satisfies Platform
 
 export default carrotPlatform
