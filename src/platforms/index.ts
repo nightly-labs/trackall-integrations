@@ -1,4 +1,5 @@
 import type { Platform } from '../types/platform'
+import allbridgePlatform from './allbridge'
 import banxPlatform from './banx'
 import canopyPlatform from './canopy'
 import carrotPlatform from './carrot'
@@ -32,6 +33,7 @@ import yuzuPlatform from './yuzu'
 import zeusPlatform from './zeus'
 
 export const platforms = [
+  allbridgePlatform,
   banxPlatform,
   carrotPlatform,
   driftPlatform,
