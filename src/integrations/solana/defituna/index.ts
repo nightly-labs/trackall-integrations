@@ -1,5 +1,13 @@
+import { BN } from '@coral-xyz/anchor'
+import type { WhirlpoolData } from '@orca-so/whirlpools-sdk'
+import {
+  ParsableWhirlpool,
+  PoolUtil,
+  PriceMath,
+} from '@orca-so/whirlpools-sdk'
 import { PublicKey } from '@solana/web3.js'
 import type {
+  MaybeSolanaAccount,
   AccountsMap,
   ConstantProductLiquidityDefiPosition,
   LendingDefiPosition,
@@ -73,6 +81,8 @@ const LP_LOAN_FUNDS_A_OFFSET = 211
 const LP_LOAN_FUNDS_B_OFFSET = 219
 const LP_LEFTOVERS_A_OFFSET = 227
 const LP_LEFTOVERS_B_OFFSET = 235
+const LP_COMPOUNDED_YIELD_A_OFFSET = 257
+const LP_COMPOUNDED_YIELD_B_OFFSET = 265
 const LP_MARKET_MAKER_OFFSET = 277
 
 const SPOT_AUTHORITY_OFFSET = 11
@@ -127,6 +137,8 @@ interface TunaLpPositionRaw {
   loanFundsB: bigint
   leftoversA: bigint
   leftoversB: bigint
+  compoundedYieldA: bigint
+  compoundedYieldB: bigint
   marketMaker: number
 }
 
@@ -280,6 +292,8 @@ function parseTunaLpPosition(
   const loanFundsB = readU64LE(data, LP_LOAN_FUNDS_B_OFFSET)
   const leftoversA = readU64LE(data, LP_LEFTOVERS_A_OFFSET)
   const leftoversB = readU64LE(data, LP_LEFTOVERS_B_OFFSET)
+  const compoundedYieldA = readU64LE(data, LP_COMPOUNDED_YIELD_A_OFFSET)
+  const compoundedYieldB = readU64LE(data, LP_COMPOUNDED_YIELD_B_OFFSET)
   const marketMaker = readU8(data, LP_MARKET_MAKER_OFFSET)
 
   if (
@@ -297,6 +311,8 @@ function parseTunaLpPosition(
     loanFundsB === null ||
     leftoversA === null ||
     leftoversB === null ||
+    compoundedYieldA === null ||
+    compoundedYieldB === null ||
     marketMaker === null
   ) {
     return null
@@ -318,8 +334,31 @@ function parseTunaLpPosition(
     loanFundsB,
     leftoversA,
     leftoversB,
+    compoundedYieldA,
+    compoundedYieldB,
     marketMaker,
   }
+}
+
+function toAccountInfo(
+  account: MaybeSolanaAccount | undefined,
+): import('@solana/web3.js').AccountInfo<Buffer> | null {
+  if (!account?.exists) return null
+
+  return {
+    data: Buffer.from(account.data),
+    owner: new PublicKey(account.programAddress),
+    lamports: Number(account.lamports),
+    executable: false,
+    rentEpoch: 0,
+  }
+}
+
+function parseWhirlpool(
+  address: string,
+  account: MaybeSolanaAccount | undefined,
+): WhirlpoolData | null {
+  return ParsableWhirlpool.parse(new PublicKey(address), toAccountInfo(account))
 }
 
 function parseTunaSpotPosition(
@@ -535,52 +574,7 @@ export const defitunaIntegration: SolanaIntegration = {
         filters: [
           {
             memcmp: {
-              offset: 0,
-              bytes: LENDING_POSITION_DISCRIMINATOR_B64,
-              encoding: 'base64' as const,
-            },
-          },
-          {
-            memcmp: {
               offset: LENDING_AUTHORITY_OFFSET,
-              bytes: address,
-            },
-          },
-        ],
-      },
-      {
-        kind: 'getProgramAccounts' as const,
-        programId: TUNA_PROGRAM_ID,
-        filters: [
-          {
-            memcmp: {
-              offset: 0,
-              bytes: TUNA_LP_POSITION_DISCRIMINATOR_B64,
-              encoding: 'base64' as const,
-            },
-          },
-          {
-            memcmp: {
-              offset: LP_AUTHORITY_OFFSET,
-              bytes: address,
-            },
-          },
-        ],
-      },
-      {
-        kind: 'getProgramAccounts' as const,
-        programId: TUNA_PROGRAM_ID,
-        filters: [
-          {
-            memcmp: {
-              offset: 0,
-              bytes: TUNA_SPOT_POSITION_DISCRIMINATOR_B64,
-              encoding: 'base64' as const,
-            },
-          },
-          {
-            memcmp: {
-              offset: SPOT_AUTHORITY_OFFSET,
               bytes: address,
             },
           },
@@ -697,6 +691,20 @@ export const defitunaIntegration: SolanaIntegration = {
 
     const mintAccounts =
       mintAddresses.size > 0 ? yield [...mintAddresses] : {}
+    const orcaPoolAddresses = [
+      ...new Set(
+        lpAccounts
+          .filter((position) => position.marketMaker === MARKET_MAKER_ORCA)
+          .map((position) => position.pool),
+      ),
+    ]
+    const orcaPoolAccounts =
+      orcaPoolAddresses.length > 0 ? yield orcaPoolAddresses : {}
+    const whirlpoolByAddress = new Map<string, WhirlpoolData>()
+    for (const poolAddress of orcaPoolAddresses) {
+      const whirlpool = parseWhirlpool(poolAddress, orcaPoolAccounts[poolAddress])
+      if (whirlpool) whirlpoolByAddress.set(poolAddress, whirlpool)
+    }
 
     const positions: UserDefiPosition[] = []
 
@@ -776,27 +784,89 @@ export const defitunaIntegration: SolanaIntegration = {
         ? sharesToFunds(lp.loanSharesB, vaultB.borrowedFunds, vaultB.borrowedShares)
         : lp.loanFundsB
 
-      const exposureA = borrowedA + lp.leftoversA
-      const exposureB = borrowedB + lp.leftoversB
-
       const decimalsA = resolveMintDecimals(lp.mintA, mintAccounts, tokens)
       const decimalsB = resolveMintDecimals(lp.mintB, mintAccounts, tokens)
       const tokenA = tokens.get(lp.mintA)
       const tokenB = tokens.get(lp.mintB)
+      const whirlpool =
+        lp.marketMaker === MARKET_MAKER_ORCA
+          ? whirlpoolByAddress.get(lp.pool)
+          : undefined
+
+      let principalA = 0n
+      let principalB = 0n
+      if (whirlpool) {
+        try {
+          const principal = PoolUtil.getTokenAmountsFromLiquidity(
+            new BN(lp.liquidity.toString()),
+            whirlpool.sqrtPrice,
+            PriceMath.tickIndexToSqrtPriceX64(lp.tickLowerIndex),
+            PriceMath.tickIndexToSqrtPriceX64(lp.tickUpperIndex),
+            false,
+          )
+          principalA = BigInt(principal.tokenA.toString())
+          principalB = BigInt(principal.tokenB.toString())
+        } catch {
+          // Fall back to debt + leftovers if whirlpool quote fails.
+        }
+      }
+      const hasWhirlpoolPrincipal = whirlpool !== undefined
+      const suppliedA = hasWhirlpoolPrincipal ? principalA : borrowedA
+      const suppliedB = hasWhirlpoolPrincipal ? principalB : borrowedB
 
       const poolTokens: PositionValue[] = []
-      if (exposureA > 0n) {
+      if (suppliedA > 0n) {
         poolTokens.push(
-          buildPositionValue(lp.mintA, exposureA, decimalsA, tokenA?.priceUsd),
+          buildPositionValue(lp.mintA, suppliedA, decimalsA, tokenA?.priceUsd),
         )
       }
-      if (exposureB > 0n) {
+      if (suppliedB > 0n) {
         poolTokens.push(
-          buildPositionValue(lp.mintB, exposureB, decimalsB, tokenB?.priceUsd),
+          buildPositionValue(lp.mintB, suppliedB, decimalsB, tokenB?.priceUsd),
+        )
+      }
+      if (lp.leftoversA > 0n) {
+        poolTokens.push(
+          buildPositionValue(lp.mintA, lp.leftoversA, decimalsA, tokenA?.priceUsd),
+        )
+      }
+      if (lp.leftoversB > 0n) {
+        poolTokens.push(
+          buildPositionValue(lp.mintB, lp.leftoversB, decimalsB, tokenB?.priceUsd),
         )
       }
 
-      if (poolTokens.length === 0 && lp.liquidity === 0n) continue
+      const rewards: PositionValue[] = []
+      if (lp.compoundedYieldA > 0n) {
+        rewards.push(
+          buildPositionValue(
+            lp.mintA,
+            lp.compoundedYieldA,
+            decimalsA,
+            tokenA?.priceUsd,
+          ),
+        )
+      }
+      if (lp.compoundedYieldB > 0n) {
+        rewards.push(
+          buildPositionValue(
+            lp.mintB,
+            lp.compoundedYieldB,
+            decimalsB,
+            tokenB?.priceUsd,
+          ),
+        )
+      }
+
+      if (
+        poolTokens.length === 0 &&
+        rewards.length === 0 &&
+        borrowedA === 0n &&
+        borrowedB === 0n &&
+        lp.liquidity === 0n
+      ) {
+        continue
+      }
 
       const liquidityPosition: ConstantProductLiquidityDefiPosition = {
         platformId: 'defituna',
@@ -805,6 +875,7 @@ export const defitunaIntegration: SolanaIntegration = {
         poolAddress: lp.pool,
         poolTokens,
         lpTokenAmount: lp.liquidity.toString(),
+        ...(rewards.length > 0 && { rewards }),
         meta: {
           defitunaLp: {
             account: lp.address,
@@ -819,12 +890,26 @@ export const defitunaIntegration: SolanaIntegration = {
             loanFundsBRaw: lp.loanFundsB.toString(),
             leftoversARaw: lp.leftoversA.toString(),
             leftoversBRaw: lp.leftoversB.toString(),
-            valuationMode: 'partial-exposure',
+            compoundedYieldARaw: lp.compoundedYieldA.toString(),
+            compoundedYieldBRaw: lp.compoundedYieldB.toString(),
+            borrowed: {
+              tokenA: borrowedA.toString(),
+              tokenB: borrowedB.toString(),
+            },
+            supplied: {
+              tokenA: (suppliedA + lp.leftoversA).toString(),
+              tokenB: (suppliedB + lp.leftoversB).toString(),
+            },
+            valuationMode: whirlpool
+              ? 'orca-principal-minus-borrowed'
+              : 'partial-exposure-fallback',
           },
         },
       }
 
-      const usdValue = sumUsdValues(poolTokens.map((tokenValue) => tokenValue.usdValue))
+      const usdValue = sumUsdValues(
+        [...poolTokens, ...rewards].map((tokenValue) => tokenValue.usdValue),
+      )
       if (usdValue !== undefined) {
         liquidityPosition.usdValue = usdValue
       }
