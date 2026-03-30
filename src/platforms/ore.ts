@@ -7,6 +7,9 @@ const orePlatform = {
   image: 'https://ore.supply/assets/logo-black.svg',
   description: 'Proof-of-work mining and staking protocol on Solana',
   tags: [],
+  links: {
+    website: 'https://ore.fyi',
+  },
   defiLlamaId: 'ore',
 } satisfies Platform
 

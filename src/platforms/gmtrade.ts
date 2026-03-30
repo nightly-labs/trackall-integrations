@@ -4,7 +4,7 @@ const gmtradePlatform = {
   id: 'gmtrade' as const,
   networks: ['solana'],
   name: 'GMTrade',
-  image: 'https://gmtrade.xyz/public.png',
+  image: 'https://gmtrade.xyz/favicon/favicon-192x192.svg',
   description: 'Perpetual futures and RWA markets on Solana',
   tags: ['dex', 'defi'],
   links: {

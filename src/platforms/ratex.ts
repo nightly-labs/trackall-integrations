@@ -7,6 +7,9 @@ const ratexPlatform = {
   image: 'https://icons.llama.fi/ratex-dex.jpg',
   description: "World's 1st Leveraged Yield Exchange on Solana",
   tags: [],
+  links: {
+    website: 'https://app.rate-x.io',
+  },
   defiLlamaId: 'ratex-dex',
 } satisfies Platform
 

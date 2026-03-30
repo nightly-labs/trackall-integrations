@@ -8,6 +8,9 @@ const jupiterLendPlatform = {
   description:
     'Jupiter Lend earn — supply assets and track borrow positions on Solana',
   tags: ['lending'],
+  links: {
+    website: 'https://jup.ag/lend',
+  },
   defiLlamaId: 'jupiter-lend',
 } satisfies Platform
 

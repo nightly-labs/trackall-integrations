@@ -7,6 +7,9 @@ const nirvanaPlatform = {
   image: 'https://app.nirvana.finance/favicon.png',
   description: 'ANA staking and prANA rewards on Solana',
   tags: ['staking', 'governance'],
+  links: {
+    website: 'https://app.nirvana.finance',
+  },
 } satisfies Platform
 
 export default nirvanaPlatform

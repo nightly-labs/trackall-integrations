@@ -6,6 +6,7 @@ import carrotPlatform from './carrot'
 import driftPlatform from './drift'
 import echelonPlatform from './echelon'
 import glowPlatform from './glow'
+import flashtradePlatform from './flashtrade'
 import gmtradePlatform from './gmtrade'
 import jupiterLendPlatform from './jupiter'
 import jupiterDaoPlatform from './jupiter-dao'
@@ -42,6 +43,7 @@ export const platforms = [
   carrotPlatform,
   driftPlatform,
   glowPlatform,
+  flashtradePlatform,
   gmtradePlatform,
   meteoraPlatform,
   jupiterDaoPlatform,
@@ -72,7 +74,7 @@ export const platforms = [
   zelofiPlatform,
   zeusPlatform,
   canopyPlatform,
-  echelonPlatform,
+  echelonPlatform
 ] as const satisfies readonly Platform[]
 
 export type PlatformId = (typeof platforms)[number]['id']
