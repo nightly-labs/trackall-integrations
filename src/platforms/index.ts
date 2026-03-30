@@ -22,6 +22,7 @@ import mosaicPlatform from './mosaic'
 import movepositionPlatform from './moveposition'
 import neutralPlatform from './neutral'
 import nirvanaPlatform from './nirvana'
+import omnipairPlatform from './omnipair'
 import orcaPlatform from './orca'
 import orePlatform from './ore'
 import project0Platform from './project0'
@@ -60,6 +61,7 @@ export const platforms = [
   movepositionPlatform,
   nirvanaPlatform,
   neutralPlatform,
+  omnipairPlatform,
   orcaPlatform,
   orePlatform,
   project0Platform,
