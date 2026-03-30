@@ -3,6 +3,7 @@ import allbridgePlatform from './allbridge'
 import banxPlatform from './banx'
 import canopyPlatform from './canopy'
 import carrotPlatform from './carrot'
+import defitunaPlatform from './defituna'
 import driftPlatform from './drift'
 import echelonPlatform from './echelon'
 import glowPlatform from './glow'
@@ -41,6 +42,7 @@ export const platforms = [
   allbridgePlatform,
   banxPlatform,
   carrotPlatform,
+  defitunaPlatform,
   driftPlatform,
   glowPlatform,
   flashtradePlatform,
