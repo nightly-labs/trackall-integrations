@@ -1,0 +1,18 @@
+import type { Platform } from '../types/platform'
+
+const zelofiPlatform = {
+  id: 'zelofi' as const,
+  networks: ['solana'],
+  name: 'Zelo Finance',
+  image: 'https://www.zelofi.io/images/logo.svg',
+  description: 'Solana lossless lottery savings protocol',
+  tags: ['staking', 'defi'],
+  links: {
+    website: 'https://www.zelofi.io/dapp',
+    documentation: 'https://blocksmithlabs-1.gitbook.io/zelo-docs',
+    twitter: 'https://x.com/BlocksmithLabs',
+    discord: 'https://discord.gg/blocksmithlabs',
+  },
+} satisfies Platform
+
+export default zelofiPlatform

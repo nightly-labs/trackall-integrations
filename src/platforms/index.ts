@@ -31,6 +31,7 @@ import savePlatform from './save'
 import wasabiPlatform from './wasabi'
 import titanPlatform from './titan'
 import yuzuPlatform from './yuzu'
+import zelofiPlatform from './zelofi'
 import zeusPlatform from './zeus'
 
 export const platforms = [
@@ -64,6 +65,7 @@ export const platforms = [
   wasabiPlatform,
   titanPlatform,
   yuzuPlatform,
+  zelofiPlatform,
   zeusPlatform,
   canopyPlatform,
   echelonPlatform
