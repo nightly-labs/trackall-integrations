@@ -40,6 +40,14 @@ const MARGIN_POOL_CACHE_TTL_MS = 5 * 60 * 1000
 const MARGIN_POOL_DEPOSIT_NOTE_MINT_OFFSET = 106
 const MARGIN_POOL_LOAN_NOTE_MINT_OFFSET = 138
 const MARGIN_POOL_TOKEN_MINT_OFFSET = 170
+const MARGIN_POOL_BORROWED_TOKENS_OFFSET = 280
+const MARGIN_POOL_UNCOLLECTED_FEES_OFFSET = 304
+const MARGIN_POOL_DEPOSIT_TOKENS_OFFSET = 328
+const MARGIN_POOL_DEPOSIT_NOTES_OFFSET = 336
+const MARGIN_POOL_LOAN_NOTES_OFFSET = 344
+const U64_SIZE = 8
+const GLOW_NUMBER_SIZE = 24
+const GLOW_NUMBER_SCALE = 1_000_000_000_000_000n
 
 type TokenKind = 'Collateral' | 'Claim' | 'AdapterCollateral'
 
@@ -77,6 +85,8 @@ interface MarginPoolLite {
   depositNoteMint: string
   loanNoteMint: string
   tokenMint: string
+  depositNoteExchangeRate: bigint
+  loanNoteExchangeRate: bigint
 }
 
 function hasDiscriminator(data: Uint8Array, discriminatorB64: string): boolean {
@@ -152,15 +162,79 @@ function decodeMarginPool(account: SolanaAccount): MarginPoolLite | null {
     MARGIN_POOL_LOAN_NOTE_MINT_OFFSET,
   )
   const tokenMint = readPubkey(account.data, MARGIN_POOL_TOKEN_MINT_OFFSET)
+  const borrowedTokens = readGlowNumber(
+    account.data,
+    MARGIN_POOL_BORROWED_TOKENS_OFFSET,
+  )
+  const uncollectedFees = readGlowNumber(
+    account.data,
+    MARGIN_POOL_UNCOLLECTED_FEES_OFFSET,
+  )
+  const depositTokens = readU64(
+    account.data,
+    MARGIN_POOL_DEPOSIT_TOKENS_OFFSET,
+  )
+  const depositNotes = readU64(account.data, MARGIN_POOL_DEPOSIT_NOTES_OFFSET)
+  const loanNotes = readU64(account.data, MARGIN_POOL_LOAN_NOTES_OFFSET)
 
-  if (!depositNoteMint || !loanNoteMint || !tokenMint) return null
+  if (
+    !depositNoteMint ||
+    !loanNoteMint ||
+    !tokenMint ||
+    borrowedTokens === null ||
+    uncollectedFees === null ||
+    depositTokens === null ||
+    depositNotes === null ||
+    loanNotes === null
+  ) {
+    return null
+  }
+
+  const totalValue = borrowedTokens + depositTokens * GLOW_NUMBER_SCALE
+  const totalValueWithoutFees =
+    totalValue > uncollectedFees ? totalValue - uncollectedFees : 0n
+  const depositRateNumerator =
+    totalValueWithoutFees > GLOW_NUMBER_SCALE
+      ? totalValueWithoutFees
+      : GLOW_NUMBER_SCALE
+  const depositNotesDenominator = depositNotes > 1n ? depositNotes : 1n
+  const loanRateNumerator =
+    borrowedTokens > GLOW_NUMBER_SCALE ? borrowedTokens : GLOW_NUMBER_SCALE
+  const loanNotesDenominator = loanNotes > 1n ? loanNotes : 1n
 
   return {
     address: account.address,
     depositNoteMint,
     loanNoteMint,
     tokenMint,
+    depositNoteExchangeRate: depositRateNumerator / depositNotesDenominator,
+    loanNoteExchangeRate: loanRateNumerator / loanNotesDenominator,
   }
+}
+
+function readU64(data: Uint8Array, offset: number): bigint | null {
+  if (offset + U64_SIZE > data.length) return null
+  let value = 0n
+  for (let idx = 0; idx < U64_SIZE; idx++) {
+    value |= BigInt(data[offset + idx] ?? 0) << (8n * BigInt(idx))
+  }
+  return value
+}
+
+function readGlowNumber(data: Uint8Array, offset: number): bigint | null {
+  if (offset + GLOW_NUMBER_SIZE > data.length) return null
+  let value = 0n
+  for (let idx = 0; idx < GLOW_NUMBER_SIZE; idx++) {
+    value |= BigInt(data[offset + idx] ?? 0) << (8n * BigInt(idx))
+  }
+  return value
+}
+
+function convertNoteAmountToUnderlying(
+  noteAmountRaw: bigint,
+  exchangeRate: bigint,
+): bigint {
+  return (noteAmountRaw * exchangeRate) / GLOW_NUMBER_SCALE
 }
 
 function toAccountInfo(account: SolanaAccount): AccountInfo<Buffer> {
@@ -348,6 +422,7 @@ export const glowIntegration: SolanaIntegration = {
 
     const noteMintToUnderlyingMint = new Map<string, string>()
     const noteMintToPool = new Map<string, string>()
+    const noteMintToExchangeRate = new Map<string, bigint>()
 
     for (const account of Object.values(marginPoolsMap)) {
       if (!account.exists) continue
@@ -358,6 +433,11 @@ export const glowIntegration: SolanaIntegration = {
       noteMintToUnderlyingMint.set(decoded.loanNoteMint, decoded.tokenMint)
       noteMintToPool.set(decoded.depositNoteMint, decoded.address)
       noteMintToPool.set(decoded.loanNoteMint, decoded.address)
+      noteMintToExchangeRate.set(
+        decoded.depositNoteMint,
+        decoded.depositNoteExchangeRate,
+      )
+      noteMintToExchangeRate.set(decoded.loanNoteMint, decoded.loanNoteExchangeRate)
     }
 
     const derivedTokenAccounts: DerivedTokenAccount[] = []
@@ -452,6 +532,11 @@ export const glowIntegration: SolanaIntegration = {
       for (const balance of balances) {
         const displayMint =
           noteMintToUnderlyingMint.get(balance.mint) ?? balance.mint
+        const exchangeRate = noteMintToExchangeRate.get(balance.mint)
+        const displayAmountRaw =
+          exchangeRate !== undefined
+            ? convertNoteAmountToUnderlying(balance.amountRaw, exchangeRate)
+            : balance.amountRaw
         const decimals =
           decimalsByMint.get(displayMint) ??
           plugins.tokens.get(displayMint)?.decimals ??
@@ -461,7 +546,7 @@ export const glowIntegration: SolanaIntegration = {
 
         const value = buildPositionValue(
           displayMint,
-          balance.amountRaw,
+          displayAmountRaw,
           decimals,
           plugins,
         )
@@ -491,9 +576,18 @@ export const glowIntegration: SolanaIntegration = {
               mint: noteMintToUnderlyingMint.get(balance.mint) ?? balance.mint,
               noteMint: balance.mint,
               pool: noteMintToPool.get(balance.mint),
+              exchangeRate: noteMintToExchangeRate.get(balance.mint)?.toString(),
               tokenAccount: balance.tokenAccount,
               tokenOwner: balance.tokenOwner,
               amountRaw: balance.amountRaw.toString(),
+              underlyingAmountRaw:
+                (noteMintToExchangeRate.has(balance.mint)
+                  ? convertNoteAmountToUnderlying(
+                      balance.amountRaw,
+                      noteMintToExchangeRate.get(balance.mint) ?? 0n,
+                    )
+                  : balance.amountRaw
+                ).toString(),
             })),
           },
         },
