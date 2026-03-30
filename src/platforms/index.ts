@@ -5,6 +5,7 @@ import canopyPlatform from './canopy'
 import carrotPlatform from './carrot'
 import driftPlatform from './drift'
 import echelonPlatform from './echelon'
+import flashtradePlatform from './flashtrade'
 import gmtradePlatform from './gmtrade'
 import jupiterLendPlatform from './jupiter'
 import jupiterDaoPlatform from './jupiter-dao'
@@ -12,13 +13,13 @@ import kaminoPlatform from './kamino'
 import loopscalePlatform from './loopscale'
 import luloPlatform from './lulo'
 import manifestPlatform from './manifest'
-import metadaoPlatform from './metadao'
 import meridianPlatform from './meridian'
+import metadaoPlatform from './metadao'
 import meteoraPlatform from './meteora'
 import mosaicPlatform from './mosaic'
 import movepositionPlatform from './moveposition'
-import nirvanaPlatform from './nirvana'
 import neutralPlatform from './neutral'
+import nirvanaPlatform from './nirvana'
 import orcaPlatform from './orca'
 import orePlatform from './ore'
 import project0Platform from './project0'
@@ -28,8 +29,8 @@ import raydiumPlatform from './raydium'
 import realmsPlatform from './realms'
 import saberPlatform from './saber'
 import savePlatform from './save'
-import wasabiPlatform from './wasabi'
 import titanPlatform from './titan'
+import wasabiPlatform from './wasabi'
 import yuzuPlatform from './yuzu'
 import zeusPlatform from './zeus'
 
@@ -38,6 +39,7 @@ export const platforms = [
   banxPlatform,
   carrotPlatform,
   driftPlatform,
+  flashtradePlatform,
   gmtradePlatform,
   meteoraPlatform,
   jupiterDaoPlatform,
@@ -66,7 +68,7 @@ export const platforms = [
   yuzuPlatform,
   zeusPlatform,
   canopyPlatform,
-  echelonPlatform
+  echelonPlatform,
 ] as const satisfies readonly Platform[]
 
 export type PlatformId = (typeof platforms)[number]['id']
