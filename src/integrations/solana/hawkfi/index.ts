@@ -6,8 +6,15 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
-import { meteoraIntegration } from '../meteora'
-import { orcaIntegration } from '../orca'
+import {
+  meteoraIntegration,
+  PROGRAM_IDS as METEORA_PROGRAM_IDS,
+} from '../meteora'
+import { orcaIntegration, PROGRAM_IDS as ORCA_PROGRAM_IDS } from '../orca'
+import {
+  PROGRAM_IDS as RAYDIUM_PROGRAM_IDS,
+  raydiumIntegration,
+} from '../raydium'
 
 const HAWKFI_PLATFORM_ID = 'hawkfi' as const
 const HAWKFI_MAIN_PROGRAM_ID = 'FqGg2Y1FNxMiGd51Q6UETixQWkF5fB92MysbYogRJb3P'
@@ -25,6 +32,9 @@ export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 export const PROGRAM_IDS = [
   HAWKFI_MAIN_PROGRAM_ID,
   HAWKFI_EXTENSION_PROGRAM_ID,
+  ...ORCA_PROGRAM_IDS,
+  ...METEORA_PROGRAM_IDS,
+  ...RAYDIUM_PROGRAM_IDS,
 ] as const
 
 function deriveUserPda(wallet: string, farm: string): string {
@@ -111,7 +121,11 @@ export const hawkfiIntegration: SolanaIntegration = {
     if (existingUserPdas.length === 0) return []
 
     const result: UserDefiPosition[] = []
-    const sourceIntegrations = [orcaIntegration, meteoraIntegration]
+    const sourceIntegrations = [
+      orcaIntegration,
+      meteoraIntegration,
+      raydiumIntegration,
+    ]
 
     for (const userPda of existingUserPdas) {
       const farm = userPdaToFarm.get(userPda)
@@ -122,21 +136,14 @@ export const hawkfiIntegration: SolanaIntegration = {
 
         const sourcePlatform = sourceIntegration.platformId
 
-        try {
-          const sourcePositions = yield* sourceIntegration.getUserPositions(
-            userPda,
-            { endpoint, tokens },
-          )
+        const sourcePositions = yield* sourceIntegration.getUserPositions(
+          userPda,
+          { endpoint, tokens },
+        )
 
-          for (const sourcePosition of sourcePositions) {
-            result.push(
-              attachHawkfiMeta(sourcePosition, sourcePlatform, userPda, farm),
-            )
-          }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error)
-          console.warn(
-            `[hawkfi] skipped ${sourcePlatform} for ${userPda}: ${message}`,
+        for (const sourcePosition of sourcePositions) {
+          result.push(
+            attachHawkfiMeta(sourcePosition, sourcePlatform, userPda, farm),
           )
         }
       }
