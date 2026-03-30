@@ -8,6 +8,9 @@ const raydiumPlatform = {
     'https://img.raydium.io/icon/4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R.png',
   description: 'Raydium CLMM and CP swap pools on Solana',
   tags: [],
+  links: {
+    website: 'https://raydium.io',
+  },
   defiLlamaId: 'raydium',
 } satisfies Platform
 
