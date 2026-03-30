@@ -9,6 +9,7 @@ import gmtradePlatform from './gmtrade'
 import jupiterLendPlatform from './jupiter'
 import jupiterDaoPlatform from './jupiter-dao'
 import kaminoPlatform from './kamino'
+import loopscalePlatform from './loopscale'
 import luloPlatform from './lulo'
 import manifestPlatform from './manifest'
 import metadaoPlatform from './metadao'
@@ -42,6 +43,7 @@ export const platforms = [
   jupiterDaoPlatform,
   jupiterLendPlatform,
   kaminoPlatform,
+  loopscalePlatform,
   luloPlatform,
   manifestPlatform,
   metadaoPlatform,
