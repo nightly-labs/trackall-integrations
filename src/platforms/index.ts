@@ -26,6 +26,7 @@ import nirvanaPlatform from './nirvana'
 import omnipairPlatform from './omnipair'
 import orcaPlatform from './orca'
 import orePlatform from './ore'
+import pancakeswapPlatform from './pancakeswap'
 import project0Platform from './project0'
 import pythStakingPlatform from './pyth-staking'
 import ratexPlatform from './ratex'
@@ -66,6 +67,7 @@ export const platforms = [
   omnipairPlatform,
   orcaPlatform,
   orePlatform,
+  pancakeswapPlatform,
   project0Platform,
   pythStakingPlatform,
   ratexPlatform,
