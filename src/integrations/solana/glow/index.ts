@@ -25,6 +25,7 @@ export const PROGRAM_IDS = [
 
 const MARGIN_ACCOUNT_DISC_B64 = 'hdyt1bPTK+4='
 const TOKEN_CONFIG_DISC_B64 = 'XEn/K2szdWU='
+const MARGIN_POOL_DISC_B64 = 'jv8cIMSoqq8='
 
 const OWNER_OFFSET = 16
 const AIRSPACE_OFFSET = 48
@@ -34,6 +35,11 @@ const TOKEN_CONFIG_MINT_OFFSET = 8
 const TOKEN_CONFIG_AIRSPACE_OFFSET = 136
 const TOKEN_CONFIG_KIND_OFFSET = 168
 const TOKEN_CONFIG_CACHE_TTL_MS = 5 * 60 * 1000
+const MARGIN_POOL_CACHE_TTL_MS = 5 * 60 * 1000
+
+const MARGIN_POOL_DEPOSIT_NOTE_MINT_OFFSET = 106
+const MARGIN_POOL_LOAN_NOTE_MINT_OFFSET = 138
+const MARGIN_POOL_TOKEN_MINT_OFFSET = 170
 
 type TokenKind = 'Collateral' | 'Claim' | 'AdapterCollateral'
 
@@ -64,6 +70,13 @@ interface DecodedTokenBalance {
   tokenAccount: string
   tokenOwner: string
   amountRaw: bigint
+}
+
+interface MarginPoolLite {
+  address: string
+  depositNoteMint: string
+  loanNoteMint: string
+  tokenMint: string
 }
 
 function hasDiscriminator(data: Uint8Array, discriminatorB64: string): boolean {
@@ -124,6 +137,29 @@ function decodeTokenConfig(account: SolanaAccount): TokenConfigLite | null {
     mint,
     airspace,
     kind,
+  }
+}
+
+function decodeMarginPool(account: SolanaAccount): MarginPoolLite | null {
+  if (!hasDiscriminator(account.data, MARGIN_POOL_DISC_B64)) return null
+
+  const depositNoteMint = readPubkey(
+    account.data,
+    MARGIN_POOL_DEPOSIT_NOTE_MINT_OFFSET,
+  )
+  const loanNoteMint = readPubkey(
+    account.data,
+    MARGIN_POOL_LOAN_NOTE_MINT_OFFSET,
+  )
+  const tokenMint = readPubkey(account.data, MARGIN_POOL_TOKEN_MINT_OFFSET)
+
+  if (!depositNoteMint || !loanNoteMint || !tokenMint) return null
+
+  return {
+    address: account.address,
+    depositNoteMint,
+    loanNoteMint,
+    tokenMint,
   }
 }
 
@@ -295,6 +331,34 @@ export const glowIntegration: SolanaIntegration = {
     if (tokenConfigs.length === 0) return []
 
     const tokenConfigsByAirspace = groupTokenConfigsByAirspace(tokenConfigs)
+    const marginPoolsMap = yield {
+      kind: 'getProgramAccounts' as const,
+      programId: MARGIN_POOL_PROGRAM_ID,
+      cacheTtlMs: MARGIN_POOL_CACHE_TTL_MS,
+      filters: [
+        {
+          memcmp: {
+            offset: 0,
+            bytes: MARGIN_POOL_DISC_B64,
+            encoding: 'base64',
+          },
+        },
+      ],
+    }
+
+    const noteMintToUnderlyingMint = new Map<string, string>()
+    const noteMintToPool = new Map<string, string>()
+
+    for (const account of Object.values(marginPoolsMap)) {
+      if (!account.exists) continue
+      const decoded = decodeMarginPool(account)
+      if (!decoded) continue
+
+      noteMintToUnderlyingMint.set(decoded.depositNoteMint, decoded.tokenMint)
+      noteMintToUnderlyingMint.set(decoded.loanNoteMint, decoded.tokenMint)
+      noteMintToPool.set(decoded.depositNoteMint, decoded.address)
+      noteMintToPool.set(decoded.loanNoteMint, decoded.address)
+    }
 
     const derivedTokenAccounts: DerivedTokenAccount[] = []
     for (const marginAccount of marginAccounts) {
@@ -345,6 +409,11 @@ export const glowIntegration: SolanaIntegration = {
         amountRaw: decoded.amount,
       })
       mintSet.add(derived.mint)
+
+      const underlyingMint = noteMintToUnderlyingMint.get(derived.mint)
+      if (underlyingMint) {
+        mintSet.add(underlyingMint)
+      }
     }
 
     if (decodedBalances.length === 0 || mintSet.size === 0) return []
@@ -381,13 +450,17 @@ export const glowIntegration: SolanaIntegration = {
       balances.sort((left, right) => left.mint.localeCompare(right.mint))
 
       for (const balance of balances) {
+        const displayMint =
+          noteMintToUnderlyingMint.get(balance.mint) ?? balance.mint
         const decimals =
+          decimalsByMint.get(displayMint) ??
+          plugins.tokens.get(displayMint)?.decimals ??
           decimalsByMint.get(balance.mint) ??
           plugins.tokens.get(balance.mint)?.decimals ??
           0
 
         const value = buildPositionValue(
-          balance.mint,
+          displayMint,
           balance.amountRaw,
           decimals,
           plugins,
@@ -415,7 +488,9 @@ export const glowIntegration: SolanaIntegration = {
             liquidator: marginAccount.liquidator,
             noteAccounts: balances.map((balance) => ({
               kind: balance.kind,
-              mint: balance.mint,
+              mint: noteMintToUnderlyingMint.get(balance.mint) ?? balance.mint,
+              noteMint: balance.mint,
+              pool: noteMintToPool.get(balance.mint),
               tokenAccount: balance.tokenAccount,
               tokenOwner: balance.tokenOwner,
               amountRaw: balance.amountRaw.toString(),
