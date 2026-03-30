@@ -813,30 +813,42 @@ export const defitunaIntegration: SolanaIntegration = {
       const hasWhirlpoolPrincipal = whirlpool !== undefined
       const suppliedA = hasWhirlpoolPrincipal ? principalA : borrowedA
       const suppliedB = hasWhirlpoolPrincipal ? principalB : borrowedB
+      const hasBorrowedExposure = borrowedA > 0n || borrowedB > 0n
+      const includeZeroTokenRows = hasBorrowedExposure
 
       const poolTokens: PositionValue[] = []
-      if (suppliedA > 0n) {
+      if (suppliedA > 0n || includeZeroTokenRows) {
         poolTokens.push(
           buildPositionValue(lp.mintA, suppliedA, decimalsA, tokenA?.priceUsd),
         )
       }
-      if (suppliedB > 0n) {
+      if (suppliedB > 0n || includeZeroTokenRows) {
         poolTokens.push(
           buildPositionValue(lp.mintB, suppliedB, decimalsB, tokenB?.priceUsd),
         )
       }
-      if (lp.leftoversA > 0n) {
+      if (hasBorrowedExposure && (lp.leftoversA > 0n || includeZeroTokenRows)) {
         poolTokens.push(
           buildPositionValue(lp.mintA, lp.leftoversA, decimalsA, tokenA?.priceUsd),
         )
       }
-      if (lp.leftoversB > 0n) {
+      if (hasBorrowedExposure && (lp.leftoversB > 0n || includeZeroTokenRows)) {
         poolTokens.push(
           buildPositionValue(lp.mintB, lp.leftoversB, decimalsB, tokenB?.priceUsd),
         )
       }
 
       const rewards: PositionValue[] = []
+      if (!hasBorrowedExposure && lp.leftoversA > 0n) {
+        rewards.push(
+          buildPositionValue(lp.mintA, lp.leftoversA, decimalsA, tokenA?.priceUsd),
+        )
+      }
+      if (!hasBorrowedExposure && lp.leftoversB > 0n) {
+        rewards.push(
+          buildPositionValue(lp.mintB, lp.leftoversB, decimalsB, tokenB?.priceUsd),
+        )
+      }
       if (lp.compoundedYieldA > 0n) {
         rewards.push(
           buildPositionValue(
