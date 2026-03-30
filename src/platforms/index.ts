@@ -26,11 +26,13 @@ import pythStakingPlatform from './pyth-staking'
 import ratexPlatform from './ratex'
 import raydiumPlatform from './raydium'
 import realmsPlatform from './realms'
+import tramplinPlatform from './tramplin'
 import saberPlatform from './saber'
 import savePlatform from './save'
 import wasabiPlatform from './wasabi'
 import titanPlatform from './titan'
 import yuzuPlatform from './yuzu'
+import zelofiPlatform from './zelofi'
 import zeusPlatform from './zeus'
 
 export const platforms = [
@@ -59,11 +61,13 @@ export const platforms = [
   ratexPlatform,
   raydiumPlatform,
   realmsPlatform,
+  tramplinPlatform,
   saberPlatform,
   savePlatform,
   wasabiPlatform,
   titanPlatform,
   yuzuPlatform,
+  zelofiPlatform,
   zeusPlatform,
   canopyPlatform,
   echelonPlatform
