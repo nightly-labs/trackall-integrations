@@ -972,14 +972,6 @@ export const flashtradeIntegration: SolanaIntegration = {
           )
         }
         if (request.lockedAmount > 0n) {
-          claimable.push(
-            buildPositionValue(
-              stakedMint,
-              request.lockedAmount,
-              stakedDecimals,
-              stakedPrice,
-            ),
-          )
           if (request.timeRemaining > 0) {
             const unlockAt =
               Math.floor(Date.now() / 1000) + request.timeRemaining
@@ -1004,6 +996,15 @@ export const flashtradeIntegration: SolanaIntegration = {
               },
             }
             result.push(rewardPosition)
+          } else {
+            claimable.push(
+              buildPositionValue(
+                stakedMint,
+                request.lockedAmount,
+                stakedDecimals,
+                stakedPrice,
+              ),
+            )
           }
         }
       }
