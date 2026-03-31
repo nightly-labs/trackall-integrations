@@ -38,6 +38,7 @@ import realmsPlatform from './realms'
 import saberPlatform from './saber'
 import sandglassPlatform from './sandglass'
 import savePlatform from './save'
+import symmetryPlatform from './symmetry'
 import snsPlatform from './sns'
 import stabblePlatform from './stabble'
 import titanPlatform from './titan'
@@ -88,6 +89,7 @@ export const platforms = [
   stabblePlatform,
   sandglassPlatform,
   savePlatform,
+  symmetryPlatform,
   wasabiPlatform,
   titanPlatform,
   yuzuPlatform,
