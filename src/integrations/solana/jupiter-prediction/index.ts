@@ -360,64 +360,64 @@ export const jupiterPredictionIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
-    const positionMap = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: PROGRAM_ID,
-      filters: [
-        {
-          memcmp: {
-            offset: 0,
-            bytes: POSITION_DISCRIMINATOR_B64,
-            encoding: 'base64',
+    const phase0Map = yield [
+      {
+        kind: 'getProgramAccounts' as const,
+        programId: PROGRAM_ID,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: POSITION_DISCRIMINATOR_B64,
+              encoding: 'base64',
+            },
           },
-        },
-        {
-          memcmp: {
-            offset: OWNER_OFFSET,
-            bytes: address,
+          {
+            memcmp: {
+              offset: OWNER_OFFSET,
+              bytes: address,
+            },
           },
-        },
-      ],
-    }
+        ],
+      },
+      {
+        kind: 'getProgramAccounts' as const,
+        programId: PROGRAM_ID,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: ORDER_DISCRIMINATOR_B64,
+              encoding: 'base64',
+            },
+          },
+          {
+            memcmp: {
+              offset: OWNER_OFFSET,
+              bytes: address,
+            },
+          },
+        ],
+      },
+      {
+        kind: 'getProgramAccounts' as const,
+        programId: PROGRAM_ID,
+        cacheTtlMs: 5 * 60 * 1000,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: VAULT_DISCRIMINATOR_B64,
+              encoding: 'base64',
+            },
+          },
+        ],
+      },
+    ]
 
-    const orderMap = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: PROGRAM_ID,
-      filters: [
-        {
-          memcmp: {
-            offset: 0,
-            bytes: ORDER_DISCRIMINATOR_B64,
-            encoding: 'base64',
-          },
-        },
-        {
-          memcmp: {
-            offset: OWNER_OFFSET,
-            bytes: address,
-          },
-        },
-      ],
-    }
-
-    const vaultMap = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: PROGRAM_ID,
-      cacheTtlMs: 5 * 60 * 1000,
-      filters: [
-        {
-          memcmp: {
-            offset: 0,
-            bytes: VAULT_DISCRIMINATOR_B64,
-            encoding: 'base64',
-          },
-        },
-      ],
-    }
-
-    const positions = decodePositions(positionMap)
-    const orders = decodePendingOrders(orderMap)
-    const vaults = decodeVaults(vaultMap)
+    const positions = decodePositions(phase0Map)
+    const orders = decodePendingOrders(phase0Map)
+    const vaults = decodeVaults(phase0Map)
 
     if (positions.length === 0 && orders.length === 0) return []
 
