@@ -33,6 +33,7 @@ import raydiumPlatform from './raydium'
 import realmsPlatform from './realms'
 import saberPlatform from './saber'
 import savePlatform from './save'
+import snsPlatform from './sns'
 import titanPlatform from './titan'
 import tramplinPlatform from './tramplin'
 import wasabiPlatform from './wasabi'
@@ -73,6 +74,7 @@ export const platforms = [
   realmsPlatform,
   tramplinPlatform,
   saberPlatform,
+  snsPlatform,
   savePlatform,
   wasabiPlatform,
   titanPlatform,
