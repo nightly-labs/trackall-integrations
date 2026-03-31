@@ -21,6 +21,7 @@ const TOKEN_ACCOUNT_MINT_OFFSET = 0
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
 const MINT_AUTHORITY_OPTION_OFFSET = 0
 const MINT_AUTHORITY_OFFSET = 4
+const MINT_DECIMALS_OFFSET = 44
 const MINT_ACCOUNT_SIZE = 82
 
 const STRATEGY_SHARES_MINT_OFFSET = 720
@@ -87,9 +88,10 @@ function buildPositionValue(
   mint: string,
   amountRaw: bigint,
   plugins: SolanaPlugins,
+  decimalsByMint?: Map<string, number>,
 ): PositionValue {
   const token = plugins.tokens.get(mint)
-  const decimals = token?.decimals ?? 0
+  const decimals = token?.decimals ?? decimalsByMint?.get(mint) ?? 0
   const value: PositionValue = {
     amount: {
       token: mint,
@@ -315,8 +317,40 @@ export const hubbleEarnIntegration: SolanaIntegration = {
 
     const positions: UserDefiPosition[] = []
 
+    const allMints = new Set<string>()
+    for (const { strategy } of matched) {
+      allMints.add(strategy.shareMint)
+      allMints.add(strategy.tokenAMint)
+      allMints.add(strategy.tokenBMint)
+      for (const reward of strategy.rewards) {
+        if (reward.amount <= 0n) continue
+        const rewardMint = rewardMintByVault.get(reward.vault)
+        if (rewardMint) allMints.add(rewardMint)
+      }
+    }
+
+    const mintAccountsToDecode =
+      allMints.size > 0 ? yield [...allMints] : {}
+    const decimalsByMint = new Map<string, number>()
+    for (const [mint, account] of Object.entries(mintAccountsToDecode)) {
+      if (!account.exists) continue
+      const tokenDecimals = plugins.tokens.get(mint)?.decimals
+      if (tokenDecimals !== undefined) {
+        decimalsByMint.set(mint, tokenDecimals)
+        continue
+      }
+      const data = Buffer.from(account.data)
+      if (data.length <= MINT_DECIMALS_OFFSET) continue
+      decimalsByMint.set(mint, data.readUInt8(MINT_DECIMALS_OFFSET))
+    }
+
     for (const { strategy, userShares } of matched) {
-      const stakingValue = buildPositionValue(strategy.shareMint, userShares, plugins)
+      const stakingValue = buildPositionValue(
+        strategy.shareMint,
+        userShares,
+        plugins,
+        decimalsByMint,
+      )
       const staking: StakingDefiPosition = {
         platformId: 'hubble-earn',
         positionKind: 'staking',
@@ -339,10 +373,20 @@ export const hubbleEarnIntegration: SolanaIntegration = {
       const suppliedB = mulDivFloor(strategy.tokenBAmount, userShares, strategy.sharesIssued)
       const suppliedValues = [
         suppliedA > 0n
-          ? buildPositionValue(strategy.tokenAMint, suppliedA, plugins)
+          ? buildPositionValue(
+              strategy.tokenAMint,
+              suppliedA,
+              plugins,
+              decimalsByMint,
+            )
           : null,
         suppliedB > 0n
-          ? buildPositionValue(strategy.tokenBMint, suppliedB, plugins)
+          ? buildPositionValue(
+              strategy.tokenBMint,
+              suppliedB,
+              plugins,
+              decimalsByMint,
+            )
           : null,
       ].filter((value): value is PositionValue => value !== null)
 
@@ -371,7 +415,7 @@ export const hubbleEarnIntegration: SolanaIntegration = {
           if (!rewardMint) return null
           const amount = mulDivFloor(reward.amount, userShares, strategy.sharesIssued)
           if (amount <= 0n) return null
-          return buildPositionValue(rewardMint, amount, plugins)
+          return buildPositionValue(rewardMint, amount, plugins, decimalsByMint)
         })
         .filter((value): value is PositionValue => value !== null)
 
