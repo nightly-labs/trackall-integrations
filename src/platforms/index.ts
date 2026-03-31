@@ -36,6 +36,7 @@ import realmsPlatform from './realms'
 import saberPlatform from './saber'
 import sandglassPlatform from './sandglass'
 import savePlatform from './save'
+import snsPlatform from './sns'
 import stabblePlatform from './stabble'
 import titanPlatform from './titan'
 import tramplinPlatform from './tramplin'
@@ -79,6 +80,7 @@ export const platforms = [
   realmsPlatform,
   tramplinPlatform,
   saberPlatform,
+  snsPlatform,
   stabblePlatform,
   sandglassPlatform,
   savePlatform,
@@ -88,7 +90,7 @@ export const platforms = [
   zelofiPlatform,
   zeusPlatform,
   canopyPlatform,
-  echelonPlatform,
+  echelonPlatform
 ] as const satisfies readonly Platform[]
 
 export type PlatformId = (typeof platforms)[number]['id']
