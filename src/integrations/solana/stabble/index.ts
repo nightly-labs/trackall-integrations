@@ -29,12 +29,18 @@ const POOL_MINT_OFFSET = 72
 const REWARDER_MINER_POOL_OFFSET = 8
 const REWARDER_MINER_BENEFICIARY_OFFSET = 72
 const REWARDER_MINER_AMOUNT_OFFSET = 105
+const REWARDER_MINER_REWARDS_DEBT_OFFSET = 113
+const REWARDER_MINER_REWARDS_CREDIT_OFFSET = 121
 const REWARDER_POOL_REWARDER_OFFSET = 8
 const REWARDER_POOL_MINT_OFFSET = 40
 const REWARDER_POOL_DECIMALS_OFFSET = 72
+const REWARDER_POOL_REWARDS_PER_AMOUNT_OFFSET = 125
+const REWARDER_ACCOUNT_MINT_OFFSET = 40
+const REWARDER_ACCOUNT_DECIMALS_OFFSET = 72
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
 const MINT_SUPPLY_OFFSET = 36
+const REWARDS_PER_AMOUNT_PRECISION = 1_000_000_000n
 
 type PoolKind = 'stable' | 'weighted'
 
@@ -62,10 +68,18 @@ type MinerCandidate = {
   address: string
   pool: string
   amount: bigint
+  rewardsDebt: bigint
+  rewardsCredit: bigint
 }
 
 type DecodedRewarderPool = {
   rewarder: string
+  mint: string
+  decimals: number
+  rewardsPerAmount: bigint
+}
+
+type DecodedRewarder = {
   mint: string
   decimals: number
 }
@@ -109,6 +123,13 @@ function readU8(data: Uint8Array, offset: number): number | null {
   const buf = Buffer.from(data)
   if (buf.length < offset + 1) return null
   return buf.readUInt8(offset)
+}
+
+function readU128(data: Uint8Array, offset: number): bigint | null {
+  const low = readU64(data, offset)
+  const high = readU64(data, offset + 8)
+  if (low === null || high === null) return null
+  return low + (high << 64n)
 }
 
 function decodePoolTokens(
@@ -178,10 +199,25 @@ function decodeRewarderPool(data: Uint8Array): DecodedRewarderPool | null {
   const rewarder = readPubkey(data, REWARDER_POOL_REWARDER_OFFSET)
   const mint = readPubkey(data, REWARDER_POOL_MINT_OFFSET)
   const decimals = readU8(data, REWARDER_POOL_DECIMALS_OFFSET)
-  if (!rewarder || !mint || decimals === null) return null
+  const rewardsPerAmount = readU128(data, REWARDER_POOL_REWARDS_PER_AMOUNT_OFFSET)
+  if (!rewarder || !mint || decimals === null || rewardsPerAmount === null) {
+    return null
+  }
 
   return {
     rewarder,
+    mint,
+    decimals,
+    rewardsPerAmount,
+  }
+}
+
+function decodeRewarder(data: Uint8Array): DecodedRewarder | null {
+  const mint = readPubkey(data, REWARDER_ACCOUNT_MINT_OFFSET)
+  const decimals = readU8(data, REWARDER_ACCOUNT_DECIMALS_OFFSET)
+  if (!mint || decimals === null) return null
+
+  return {
     mint,
     decimals,
   }
@@ -330,12 +366,27 @@ export const stabbleIntegration: SolanaIntegration = {
       if (account.programAddress === REWARDER_PROGRAM_ID) {
         const pool = readPubkey(account.data, REWARDER_MINER_POOL_OFFSET)
         const amount = readU64(account.data, REWARDER_MINER_AMOUNT_OFFSET)
-        if (!pool || amount === null || amount === 0n) continue
+        const rewardsDebt = readU64(account.data, REWARDER_MINER_REWARDS_DEBT_OFFSET)
+        const rewardsCredit = readU64(
+          account.data,
+          REWARDER_MINER_REWARDS_CREDIT_OFFSET,
+        )
+        if (
+          !pool ||
+          amount === null ||
+          amount === 0n ||
+          rewardsDebt === null ||
+          rewardsCredit === null
+        ) {
+          continue
+        }
 
         miners.push({
           address: account.address,
           pool,
           amount,
+          rewardsDebt,
+          rewardsCredit,
         })
         continue
       }
@@ -420,20 +471,21 @@ export const stabbleIntegration: SolanaIntegration = {
       const farmPoolsMap = yield uniqueFarmPools
 
       const stakedByPool = new Map<string, bigint>()
-      const minerAddressesByPool = new Map<string, string[]>()
+      const minersByPool = new Map<string, MinerCandidate[]>()
       for (const miner of miners) {
         stakedByPool.set(
           miner.pool,
           (stakedByPool.get(miner.pool) ?? 0n) + miner.amount,
         )
-        const current = minerAddressesByPool.get(miner.pool) ?? []
-        current.push(miner.address)
-        minerAddressesByPool.set(miner.pool, current)
+        const current = minersByPool.get(miner.pool) ?? []
+        current.push(miner)
+        minersByPool.set(miner.pool, current)
       }
 
-      for (const [poolAddress, amount] of stakedByPool) {
-        if (amount <= 0n) continue
-
+      const decodedFarmPools = new Map<string, DecodedRewarderPool>()
+      const farmPoolMints = new Set<string>()
+      const rewarderAddresses = new Set<string>()
+      for (const [poolAddress] of stakedByPool) {
         const poolAccount = farmPoolsMap[poolAddress]
         if (!poolAccount?.exists) continue
         if (poolAccount.programAddress !== REWARDER_PROGRAM_ID) continue
@@ -441,23 +493,96 @@ export const stabbleIntegration: SolanaIntegration = {
         const pool = decodeRewarderPool(poolAccount.data)
         if (!pool) continue
 
+        decodedFarmPools.set(poolAddress, pool)
+        farmPoolMints.add(pool.mint)
+        rewarderAddresses.add(pool.rewarder)
+      }
+
+      const farmRound1 = yield [...farmPoolMints, ...rewarderAddresses]
+      const poolCandidatesByMint = new Map<string, PoolCandidate>()
+      for (const candidate of poolCandidates) {
+        poolCandidatesByMint.set(candidate.poolMint, candidate)
+      }
+
+      for (const [poolAddress, amount] of stakedByPool) {
+        if (amount <= 0n) continue
+
+        const pool = decodedFarmPools.get(poolAddress)
+        if (!pool) continue
+
         const tokenInfo = tokens.get(pool.mint)
         const tokenDecimals = tokenInfo?.decimals ?? pool.decimals
 
-        const staked = [
-          buildPositionValue(pool.mint, amount, tokenDecimals, tokenInfo?.priceUsd),
-        ]
+        const poolCandidate = poolCandidatesByMint.get(pool.mint)
+        const poolMintAccount = farmRound1[pool.mint]
+        const decodedAmmPool = poolCandidate
+          ? decodePool(poolCandidate.data, poolCandidate.kind)
+          : null
+
+        let staked: PositionValue[] = []
+        if (decodedAmmPool && poolMintAccount?.exists) {
+          const lpSupply = readMintSupply(poolMintAccount.data)
+          if (lpSupply !== null && lpSupply > 0n) {
+            for (const tokenData of decodedAmmPool.tokens) {
+              const normalizedPoolBalance = normalizePoolTokenAmount(tokenData)
+              const userTokenAmount = (normalizedPoolBalance * amount) / lpSupply
+              const underlyingInfo = tokens.get(tokenData.mint)
+
+              staked.push(
+                buildPositionValue(
+                  tokenData.mint,
+                  userTokenAmount,
+                  tokenData.decimals,
+                  underlyingInfo?.priceUsd,
+                ),
+              )
+            }
+          }
+        }
+
+        if (staked.length === 0) {
+          staked = [
+            buildPositionValue(pool.mint, amount, tokenDecimals, tokenInfo?.priceUsd),
+          ]
+        }
+
+        const rewarderAccount = farmRound1[pool.rewarder]
+        const rewarder = rewarderAccount?.exists
+          ? decodeRewarder(rewarderAccount.data)
+          : null
+        const minersForPool = minersByPool.get(poolAddress) ?? []
+        const claimableRewardRaw = minersForPool.reduce((sum, miner) => {
+          const accrued =
+            (miner.amount * pool.rewardsPerAmount) / REWARDS_PER_AMOUNT_PRECISION
+          const pending = accrued - miner.rewardsDebt + miner.rewardsCredit
+          return pending > 0n ? sum + pending : sum
+        }, 0n)
+        const rewards =
+          rewarder && claimableRewardRaw > 0n
+            ? [
+                buildPositionValue(
+                  rewarder.mint,
+                  claimableRewardRaw,
+                  rewarder.decimals,
+                  tokens.get(rewarder.mint)?.priceUsd,
+                ),
+              ]
+            : undefined
+
         const usdValue = sumUsdValues(staked)
 
         const position: StakingDefiPosition = {
           positionKind: 'staking',
           platformId: 'stabble',
           staked,
+          ...(rewards && { rewards }),
           meta: {
             farm: {
               poolAddress,
               rewarderAddress: pool.rewarder,
-              minerAddresses: minerAddressesByPool.get(poolAddress) ?? [],
+              minerAddresses: minersForPool.map((miner) => miner.address),
+              stakedMint: pool.mint,
+              rewardsPerAmount: pool.rewardsPerAmount.toString(),
             },
           },
         }
