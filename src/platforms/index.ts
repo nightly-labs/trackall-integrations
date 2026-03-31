@@ -26,12 +26,14 @@ import nirvanaPlatform from './nirvana'
 import omnipairPlatform from './omnipair'
 import orcaPlatform from './orca'
 import orePlatform from './ore'
+import pancakeswapPlatform from './pancakeswap'
 import project0Platform from './project0'
 import pythStakingPlatform from './pyth-staking'
 import ratexPlatform from './ratex'
 import raydiumPlatform from './raydium'
 import realmsPlatform from './realms'
 import saberPlatform from './saber'
+import sandglassPlatform from './sandglass'
 import savePlatform from './save'
 import stabblePlatform from './stabble'
 import titanPlatform from './titan'
@@ -67,6 +69,7 @@ export const platforms = [
   omnipairPlatform,
   orcaPlatform,
   orePlatform,
+  pancakeswapPlatform,
   project0Platform,
   pythStakingPlatform,
   ratexPlatform,
@@ -75,6 +78,7 @@ export const platforms = [
   tramplinPlatform,
   saberPlatform,
   stabblePlatform,
+  sandglassPlatform,
   savePlatform,
   wasabiPlatform,
   titanPlatform,
