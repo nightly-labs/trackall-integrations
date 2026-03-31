@@ -17,6 +17,8 @@ const VAULT_MINT = 'VAULTVXqi93aaq9FsyPKgdgp6Ge1H1HoSvNC4ZbqFDs'
 const VAULT_DECIMALS = 6
 const VSOL_MINT = 'vSoLxydx6akxyMD9XEcPvGYNGq6Nn66oqVb3UkGkei7'
 const VSOL_DECIMALS = 9
+const SABER_VSOL_SOL_LP_MINT = 'VLPa8SifUUNL6JvzUuLrjgRibkx7iGr5eVpX6MRR4Qx'
+const VAULT_UNSTAKE_LP_MINT = 'EUWoTx5vQQrxaDFdeK2PLUVbnmRWjw4x6sBbmcxBaHjF'
 
 const ESCROW_ACCOUNT_SIZE = 161
 const ESCROW_LOCKER_OFFSET = 8
@@ -82,8 +84,13 @@ function buildPositionValue(
   return value
 }
 
-function collectVsolBalance(accounts: Record<string, { exists: boolean; data?: Uint8Array }>): bigint {
-  let total = 0n
+type BasicAccount = {
+  exists: boolean
+  data?: Uint8Array
+}
+
+function collectBalancesByMint(accounts: Record<string, BasicAccount>): Map<string, bigint> {
+  const balancesByMint = new Map<string, bigint>()
 
   for (const account of Object.values(accounts)) {
     if (!account.exists || !account.data) continue
@@ -91,12 +98,11 @@ function collectVsolBalance(accounts: Record<string, { exists: boolean; data?: U
     const mint = readPubkey(account.data, TOKEN_ACCOUNT_MINT_OFFSET)
     const amount = readU64(account.data, TOKEN_ACCOUNT_AMOUNT_OFFSET)
     if (!mint || amount === null || amount <= 0n) continue
-    if (mint !== VSOL_MINT) continue
 
-    total += amount
+    balancesByMint.set(mint, (balancesByMint.get(mint) ?? 0n) + amount)
   }
 
-  return total
+  return balancesByMint
 }
 
 export const thevaultIntegration: SolanaIntegration = {
@@ -195,7 +201,8 @@ export const thevaultIntegration: SolanaIntegration = {
       positions.push(position)
     }
 
-    const vsolBalance = collectVsolBalance(round0)
+    const balancesByMint = collectBalancesByMint(round0)
+    const vsolBalance = balancesByMint.get(VSOL_MINT) ?? 0n
     if (vsolBalance > 0n) {
       const vsolToken = tokens.get(VSOL_MINT)
       const staked = buildPositionValue(
@@ -214,6 +221,49 @@ export const thevaultIntegration: SolanaIntegration = {
           thevault: {
             source: 'stake-pool-token',
             stakePool: STAKE_POOL_ADDRESS,
+          },
+        },
+      } satisfies StakingDefiPosition)
+    }
+
+    const deprecatedVaults = [
+      {
+        mint: SABER_VSOL_SOL_LP_MINT,
+        decimals: 9,
+        name: 'Saber vSOL-SOL',
+        sourceId: 'saber-vsol-sol',
+      },
+      {
+        mint: VAULT_UNSTAKE_LP_MINT,
+        decimals: 9,
+        name: 'Vault Unstake LP',
+        sourceId: 'vault-unstake-lp',
+      },
+    ] as const
+
+    for (const vault of deprecatedVaults) {
+      const balance = balancesByMint.get(vault.mint) ?? 0n
+      if (balance <= 0n) continue
+
+      const token = tokens.get(vault.mint)
+      const staked = buildPositionValue(
+        vault.mint,
+        balance,
+        vault.decimals,
+        token?.priceUsd,
+      )
+
+      positions.push({
+        platformId: 'thevault',
+        positionKind: 'staking',
+        staked: [staked],
+        ...(staked.usdValue !== undefined && { usdValue: staked.usdValue }),
+        meta: {
+          thevault: {
+            source: 'deprecated-vault',
+            deprecated: true,
+            vault: vault.sourceId,
+            name: vault.name,
           },
         },
       } satisfies StakingDefiPosition)
