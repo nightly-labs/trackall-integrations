@@ -4,6 +4,7 @@ import banxPlatform from './banx'
 import canopyPlatform from './canopy'
 import carrotPlatform from './carrot'
 import defitunaPlatform from './defituna'
+import diversifiPlatform from './diversifi'
 import dflowPlatform from './dflow'
 import driftPlatform from './drift'
 import echelonPlatform from './echelon'
@@ -45,6 +46,7 @@ export const platforms = [
   banxPlatform,
   carrotPlatform,
   defitunaPlatform,
+  diversifiPlatform,
   dflowPlatform,
   driftPlatform,
   glowPlatform,
