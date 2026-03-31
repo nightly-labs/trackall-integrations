@@ -35,6 +35,7 @@ import realmsPlatform from './realms'
 import saberPlatform from './saber'
 import sandglassPlatform from './sandglass'
 import savePlatform from './save'
+import stabblePlatform from './stabble'
 import titanPlatform from './titan'
 import tramplinPlatform from './tramplin'
 import wasabiPlatform from './wasabi'
@@ -76,6 +77,7 @@ export const platforms = [
   realmsPlatform,
   tramplinPlatform,
   saberPlatform,
+  stabblePlatform,
   sandglassPlatform,
   savePlatform,
   wasabiPlatform,
