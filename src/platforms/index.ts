@@ -1,14 +1,15 @@
 import type { Platform } from '../types/platform'
 import allbridgePlatform from './allbridge'
 import banxPlatform from './banx'
+import byrealPlatform from './byreal'
 import canopyPlatform from './canopy'
 import carrotPlatform from './carrot'
 import defitunaPlatform from './defituna'
 import dflowPlatform from './dflow'
 import driftPlatform from './drift'
 import echelonPlatform from './echelon'
-import glowPlatform from './glow'
 import flashtradePlatform from './flashtrade'
+import glowPlatform from './glow'
 import gmtradePlatform from './gmtrade'
 import jupiterLendPlatform from './jupiter'
 import jupiterDaoPlatform from './jupiter-dao'
@@ -26,14 +27,17 @@ import nirvanaPlatform from './nirvana'
 import omnipairPlatform from './omnipair'
 import orcaPlatform from './orca'
 import orePlatform from './ore'
+import pancakeswapPlatform from './pancakeswap'
 import project0Platform from './project0'
 import pythStakingPlatform from './pyth-staking'
 import ratexPlatform from './ratex'
 import raydiumPlatform from './raydium'
 import realmsPlatform from './realms'
 import saberPlatform from './saber'
+import sandglassPlatform from './sandglass'
 import savePlatform from './save'
 import snsPlatform from './sns'
+import stabblePlatform from './stabble'
 import titanPlatform from './titan'
 import tramplinPlatform from './tramplin'
 import wasabiPlatform from './wasabi'
@@ -44,6 +48,7 @@ import zeusPlatform from './zeus'
 export const platforms = [
   allbridgePlatform,
   banxPlatform,
+  byrealPlatform,
   carrotPlatform,
   defitunaPlatform,
   dflowPlatform,
@@ -67,6 +72,7 @@ export const platforms = [
   omnipairPlatform,
   orcaPlatform,
   orePlatform,
+  pancakeswapPlatform,
   project0Platform,
   pythStakingPlatform,
   ratexPlatform,
@@ -75,6 +81,8 @@ export const platforms = [
   tramplinPlatform,
   saberPlatform,
   snsPlatform,
+  stabblePlatform,
+  sandglassPlatform,
   savePlatform,
   wasabiPlatform,
   titanPlatform,
