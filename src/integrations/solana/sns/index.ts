@@ -1,4 +1,4 @@
-import { CategoryOffer, NAME_OFFERS_ID, Offer } from '@bonfida/name-offers'
+import { CategoryOffer, NAME_OFFERS_ID, Offer, Tag } from '@bonfida/name-offers'
 import {
   NAME_PROGRAM_ID,
   ROOT_DOMAIN_ACCOUNT,
@@ -119,52 +119,57 @@ export const snsIntegration: SolanaIntegration = {
       return []
     }
 
-    const activeOfferAccounts = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: NAME_OFFERS_ID.toBase58(),
-      filters: [
-        { memcmp: { offset: 0, bytes: ACTIVE_OFFER_TAG_B58 } },
-        {
-          memcmp: {
-            offset: ACTIVE_OFFER_OWNER_OFFSET,
-            bytes: address,
-            encoding: 'base58',
+    const discoveredOfferAccounts = yield [
+      {
+        kind: 'getProgramAccounts' as const,
+        programId: NAME_OFFERS_ID.toBase58(),
+        filters: [
+          { memcmp: { offset: 0, bytes: ACTIVE_OFFER_TAG_B58 } },
+          {
+            memcmp: {
+              offset: ACTIVE_OFFER_OWNER_OFFSET,
+              bytes: address,
+              encoding: 'base58',
+            },
           },
-        },
-      ],
-    }
-
-    const categoryOfferAccounts = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: NAME_OFFERS_ID.toBase58(),
-      filters: [
-        { memcmp: { offset: 0, bytes: CATEGORY_OFFER_TAG_B58 } },
-        {
-          memcmp: {
-            offset: CATEGORY_OFFER_OWNER_OFFSET,
-            bytes: address,
-            encoding: 'base58',
+        ],
+      },
+      {
+        kind: 'getProgramAccounts' as const,
+        programId: NAME_OFFERS_ID.toBase58(),
+        filters: [
+          { memcmp: { offset: 0, bytes: CATEGORY_OFFER_TAG_B58 } },
+          {
+            memcmp: {
+              offset: CATEGORY_OFFER_OWNER_OFFSET,
+              bytes: address,
+              encoding: 'base58',
+            },
           },
-        },
-      ],
-    }
+        ],
+      },
+    ]
 
     const activeOffers: ActiveOfferSource[] = []
-    for (const account of Object.values(activeOfferAccounts)) {
-      if (!account.exists) continue
-      if (account.programAddress !== NAME_OFFERS_ID.toBase58()) continue
-      const decoded = decodeActiveOffer(account)
-      if (!decoded) continue
-      activeOffers.push(decoded)
-    }
-
     const categoryOffers: CategoryOfferSource[] = []
-    for (const account of Object.values(categoryOfferAccounts)) {
+
+    for (const account of Object.values(discoveredOfferAccounts)) {
       if (!account.exists) continue
       if (account.programAddress !== NAME_OFFERS_ID.toBase58()) continue
-      const decoded = decodeCategoryOffer(account)
-      if (!decoded) continue
-      categoryOffers.push(decoded)
+      if (account.data.length === 0) continue
+
+      if (account.data[0] === Tag.ActiveOffer) {
+        const decoded = decodeActiveOffer(account)
+        if (!decoded) continue
+        activeOffers.push(decoded)
+        continue
+      }
+
+      if (account.data[0] === Tag.CategoryOffer) {
+        const decoded = decodeCategoryOffer(account)
+        if (!decoded) continue
+        categoryOffers.push(decoded)
+      }
     }
 
     const nameAccounts = [...new Set(activeOffers.map((offer) => offer.nameAccount))]
