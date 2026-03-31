@@ -10,6 +10,7 @@ import echelonPlatform from './echelon'
 import glowPlatform from './glow'
 import flashtradePlatform from './flashtrade'
 import gmtradePlatform from './gmtrade'
+import hawkfiPlatform from './hawkfi'
 import jupiterLendPlatform from './jupiter'
 import jupiterDaoPlatform from './jupiter-dao'
 import kaminoPlatform from './kamino'
@@ -51,6 +52,7 @@ export const platforms = [
   glowPlatform,
   flashtradePlatform,
   gmtradePlatform,
+  hawkfiPlatform,
   meteoraPlatform,
   jupiterDaoPlatform,
   jupiterLendPlatform,
