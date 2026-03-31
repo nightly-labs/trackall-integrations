@@ -1,14 +1,15 @@
 import type { Platform } from '../types/platform'
 import allbridgePlatform from './allbridge'
 import banxPlatform from './banx'
+import byrealPlatform from './byreal'
 import canopyPlatform from './canopy'
 import carrotPlatform from './carrot'
 import defitunaPlatform from './defituna'
 import dflowPlatform from './dflow'
 import driftPlatform from './drift'
 import echelonPlatform from './echelon'
-import glowPlatform from './glow'
 import flashtradePlatform from './flashtrade'
+import glowPlatform from './glow'
 import gmtradePlatform from './gmtrade'
 import jupiterLendPlatform from './jupiter'
 import jupiterDaoPlatform from './jupiter-dao'
@@ -43,6 +44,7 @@ import zeusPlatform from './zeus'
 export const platforms = [
   allbridgePlatform,
   banxPlatform,
+  byrealPlatform,
   carrotPlatform,
   defitunaPlatform,
   dflowPlatform,
@@ -80,7 +82,7 @@ export const platforms = [
   zelofiPlatform,
   zeusPlatform,
   canopyPlatform,
-  echelonPlatform
+  echelonPlatform,
 ] as const satisfies readonly Platform[]
 
 export type PlatformId = (typeof platforms)[number]['id']
