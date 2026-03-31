@@ -5,14 +5,13 @@ import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk'
 
 import { type AptosTokenData, AptosTokenPlugin } from './tokens'
 
-const MOVEMENT_RPC_URL =
-  process.env.MOVEMENT_RPC_URL ?? 'https://mainnet.movementnetwork.xyz/v1'
+const MOVEMENT_RPC_URL = process.env.MOVEMENT_RPC_URL ?? 'https://mainnet.movementnetwork.xyz/v1'
 const movementClient = new Aptos(
   new AptosConfig({
     network: Network.CUSTOM,
     fullnode: MOVEMENT_RPC_URL,
-    clientConfig: { http2: false },
-  }),
+    clientConfig: { http2: false }
+  })
 )
 const TARGET_TOKEN_COUNT = 100
 const TOKEN_ADDRESSES_FILE = new URL('./token-addresses.json', import.meta.url)
@@ -23,11 +22,7 @@ async function loadAptosTokenAddresses(): Promise<string[]> {
 
   const cached = (await Bun.file(TOKEN_ADDRESSES_FILE).json()) as string[]
   cachedAddresses = [
-    ...new Set(
-      cached.filter(
-        (item): item is string => typeof item === 'string' && item.length > 0,
-      ),
-    ),
+    ...new Set(cached.filter((item): item is string => typeof item === 'string' && item.length > 0))
   ]
   return cachedAddresses
 }
@@ -36,7 +31,7 @@ function testDbPath(name: string): string {
   return join(
     process.cwd(),
     '.cache',
-    `${name}-${Date.now()}-${Math.random().toString(16).slice(2)}.sqlite`,
+    `${name}-${Date.now()}-${Math.random().toString(16).slice(2)}.sqlite`
   )
 }
 
@@ -49,14 +44,10 @@ function createTokensTable(db: Database): void {
   `)
 }
 
-function queryRows(
-  dbPath: string,
-): Array<{ token_address: string; token_data: string }> {
+function queryRows(dbPath: string): Array<{ token_address: string; token_data: string }> {
   const db = new Database(dbPath, { strict: true })
   try {
-    return db
-      .query('SELECT token_address, token_data FROM tokens')
-      .all() as Array<{
+    return db.query('SELECT token_address, token_data FROM tokens').all() as Array<{
       token_address: string
       token_data: string
     }>
@@ -75,12 +66,41 @@ function closeAndDeleteDb(plugin: AptosTokenPlugin, dbPath: string): void {
 }
 
 describe('AptosTokenPlugin', () => {
+  describe('price updates', () => {
+    it('updates price fields and clears stale 24h change when missing', () => {
+      const plugin = new AptosTokenPlugin({} as unknown as Aptos, ':memory:')
+      const token: AptosTokenData = {
+        tokenId: '0x1::aptos_coin::AptosCoin',
+        standard: 'coin',
+        decimals: 8,
+        priceUsd: 1,
+        pctPriceChange24h: 4
+      }
+      ;(plugin as unknown as { map: Map<string, AptosTokenData> }).map.set(token.tokenId, token)
+
+      const updated = plugin.updatePrices(
+        new Map([
+          ['0x1::aptos_coin::AptosCoin', { priceUsd: 1.5 }],
+          ['0x2::aptos_coin::AnotherCoin', { priceUsd: 2.5, pctPriceChange24h: 1 }]
+        ])
+      )
+
+      expect(updated).toEqual(['0x1::aptos_coin::AptosCoin'])
+      expect(plugin.get('0x1::aptos_coin::AptosCoin')?.priceUsd).toBe(1.5)
+      expect(plugin.get('0x1::aptos_coin::AptosCoin')?.pctPriceChange24h).toBeUndefined()
+
+      closeAptosTokenPluginDb(plugin)
+    })
+  })
+
   describe('fetchMany()', () => {
     it('accepts exactly 100 addresses and rejects 101', async () => {
       const tokenAddresses = await loadAptosTokenAddresses()
       if (tokenAddresses.length < TARGET_TOKEN_COUNT + 1) {
         throw new Error(
-          `Expected at least ${TARGET_TOKEN_COUNT + 1} token addresses, got ${tokenAddresses.length}`,
+          `Expected at least ${TARGET_TOKEN_COUNT + 1} token addresses, got ${
+            tokenAddresses.length
+          }`
         )
       }
 
@@ -91,19 +111,19 @@ describe('AptosTokenPlugin', () => {
       const tooMany = tokenAddresses.slice(0, TARGET_TOKEN_COUNT + 1)
       const uncachedCheckPlugin = new AptosTokenPlugin(movementClient)
       await expect(uncachedCheckPlugin.fetchMany(tooMany)).rejects.toThrow(
-        `fetchMany supports at most ${TARGET_TOKEN_COUNT} token ids per call`,
+        `fetchMany supports at most ${TARGET_TOKEN_COUNT} token ids per call`
       )
     }, 60_000)
 
     it('returns undefined for unknown token identifier', async () => {
       const plugin = new AptosTokenPlugin(movementClient)
       const result = await plugin.fetchMany([
-        '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef::unknown::Token',
+        '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef::unknown::Token'
       ])
       expect(
         result.get(
-          '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef::unknown::Token',
-        ),
+          '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef::unknown::Token'
+        )
       ).toBeUndefined()
     }, 10_000)
 
@@ -130,16 +150,15 @@ describe('AptosTokenPlugin', () => {
         standard: 'coin',
         decimals: 8,
         name: 'Move Coin',
-        symbol: 'MOVE',
+        symbol: 'MOVE'
       }
 
-      const validInsert = db.prepare(
-        'INSERT INTO tokens (token_address, token_data) VALUES (?, ?)',
-      )
+      const validInsert = db.prepare('INSERT INTO tokens (token_address, token_data) VALUES (?, ?)')
       validInsert.run(validToken.tokenId, JSON.stringify(validToken))
-      db.prepare(
-        'INSERT INTO tokens (token_address, token_data) VALUES (?, ?)',
-      ).run('bad-identifier', '{ this is: not json }')
+      db.prepare('INSERT INTO tokens (token_address, token_data) VALUES (?, ?)').run(
+        'bad-identifier',
+        '{ this is: not json }'
+      )
       db.close()
 
       const plugin = new AptosTokenPlugin({} as unknown as Aptos, dbPath)
@@ -161,11 +180,12 @@ describe('AptosTokenPlugin', () => {
         standard: 'coin',
         decimals: 6,
         name: 'Old Token B',
-        symbol: 'BTOK',
+        symbol: 'BTOK'
       }
-      db.prepare(
-        'INSERT INTO tokens (token_address, token_data) VALUES (?, ?)',
-      ).run(initialToken.tokenId, JSON.stringify(initialToken))
+      db.prepare('INSERT INTO tokens (token_address, token_data) VALUES (?, ?)').run(
+        initialToken.tokenId,
+        JSON.stringify(initialToken)
+      )
       db.close()
 
       const plugin = new AptosTokenPlugin({} as unknown as Aptos, dbPath)
@@ -179,14 +199,14 @@ describe('AptosTokenPlugin', () => {
         standard: 'fungible_asset',
         decimals: 4,
         name: 'New Token A',
-        symbol: 'ATOK',
+        symbol: 'ATOK'
       }
       const updatedTokenB: AptosTokenData = {
         tokenId: '0x2::some_module::TokenB',
         standard: 'coin',
         decimals: 8,
         name: 'Should Not Persist',
-        symbol: 'BUPD',
+        symbol: 'BUPD'
       }
 
       pluginAny.map.set(tokenA.tokenId, tokenA)
@@ -196,10 +216,8 @@ describe('AptosTokenPlugin', () => {
       const rows = queryRows(dbPath)
       expect(rows).toHaveLength(2)
 
-      const tokenARow = rows.find((r) => r.token_address === tokenA.tokenId)
-      const tokenBRow = rows.find(
-        (r) => r.token_address === initialToken.tokenId,
-      )
+      const tokenARow = rows.find(r => r.token_address === tokenA.tokenId)
+      const tokenBRow = rows.find(r => r.token_address === initialToken.tokenId)
 
       expect(tokenARow).toBeDefined()
       expect(tokenBRow).toBeDefined()
@@ -226,7 +244,7 @@ describe('AptosTokenPlugin', () => {
         standard: 'coin',
         decimals: 3,
         name: 'Full Save Token',
-        symbol: 'C',
+        symbol: 'C'
       }
       pluginAny.map.set(token.tokenId, token)
 
@@ -246,11 +264,9 @@ describe('AptosTokenPlugin', () => {
       const db = new Database(dbPath)
       createTokensTable(db)
 
-      db.prepare(
-        'INSERT INTO tokens (token_address, token_data) VALUES (?, ?)',
-      ).run(
+      db.prepare('INSERT INTO tokens (token_address, token_data) VALUES (?, ?)').run(
         '0x5::some_module::TokenD',
-        JSON.stringify({ standard: 'coin', decimals: 6, name: 'No ID Token' }),
+        JSON.stringify({ standard: 'coin', decimals: 6, name: 'No ID Token' })
       )
       db.close()
 
