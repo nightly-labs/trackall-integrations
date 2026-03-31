@@ -174,6 +174,32 @@ function marketKey(marketId: string, isYes: boolean): string {
   return `${marketId}:${isYes ? 'yes' : 'no'}`
 }
 
+function parseMarketId(marketId: string): {
+  raw: string
+  series: string
+  index?: number
+  source?: string
+  label: string
+} {
+  const parts = marketId.split('-')
+  const series = parts[0] ?? marketId
+  const maybeIndex = parts.length > 1 ? Number(parts[1]) : Number.NaN
+  const index = Number.isFinite(maybeIndex) ? maybeIndex : undefined
+  const source = parts.length > 2 ? parts.slice(2).join('-') : undefined
+
+  const labelParts = [series]
+  if (index !== undefined) labelParts.push(`#${index}`)
+  if (source) labelParts.push(`(${source})`)
+
+  return {
+    raw: marketId,
+    series,
+    label: labelParts.join(' '),
+    ...(index !== undefined && { index }),
+    ...(source && { source }),
+  }
+}
+
 function groupPositions(
   positions: PredictionPosition[],
   orders: PredictionOrder[],
@@ -454,6 +480,7 @@ export const jupiterPredictionIntegration: SolanaIntegration = {
 
     for (const group of grouped) {
       const position = group.position
+      const marketName = parseMarketId(group.marketId)
       const pendingOrders = [...group.orders].sort((left, right) =>
         left.address.localeCompare(right.address),
       )
@@ -566,13 +593,22 @@ export const jupiterPredictionIntegration: SolanaIntegration = {
         ...(isSettled && { usdValue: formatDecimal(payoutRaw, settlementDecimals) }),
         meta: {
           jupiterPrediction: {
+            marketName,
             marketId: group.marketId,
             isYes: group.isYes,
+            outcome: group.isYes ? 'yes' : 'no',
+            status: isSettled ? 'settled' : 'open',
             settlementMint,
+            payoutPerContract: formatDecimal(10n ** BigInt(settlementDecimals), settlementDecimals),
             contracts: contracts.toString(),
             payoutClaimed: position?.payoutClaimed ?? false,
             openOrders: pendingOrders.length,
             positionAddress: position?.address,
+            ...(isSettled && marketResult && {
+              settlementTimeIso: new Date(
+                Number(marketResult.settlementTime) * 1000,
+              ).toISOString(),
+            }),
             marketResult:
               marketResult && isSettled
                 ? {
@@ -609,10 +645,17 @@ export const jupiterPredictionIntegration: SolanaIntegration = {
           ],
           meta: {
             jupiterPrediction: {
+              marketName,
               marketId: group.marketId,
               isYes: group.isYes,
+              outcome: group.isYes ? 'yes' : 'no',
               positionAddress: position?.address,
               settlementMint,
+              ...(isSettled && marketResult && {
+                settlementTimeIso: new Date(
+                  Number(marketResult.settlementTime) * 1000,
+                ).toISOString(),
+              }),
             },
           },
         }
