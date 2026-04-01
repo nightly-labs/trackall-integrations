@@ -1,6 +1,8 @@
 import { PublicKey } from '@solana/web3.js'
 import type {
+  ConstantProductLiquidityDefiPosition,
   GetProgramAccountsRequest,
+  PositionValue,
   SolanaAccount,
   SolanaIntegration,
   SolanaPlugins,
@@ -22,6 +24,8 @@ const TOKEN_AMOUNT_OFFSET = 64
 const HOUSE_MINT_OFFSET = 104
 const HOUSE_CURRENCY_OFFSET = 136
 const HOUSE_CURRENCY_DECIMALS_OFFSET = 168
+const HOUSE_TOKEN_SUPPLY_OFFSET = 175
+const HOUSE_LIQUIDITY_OFFSET = 183
 
 const MINT_DECIMALS_OFFSET = 44
 
@@ -38,6 +42,8 @@ type HouseInfo = {
   houseMint: string
   currencyMint: string
   currencyDecimals: number
+  houseTokenSupply: bigint
+  liquidity: bigint
 }
 
 function readPubkey(data: Uint8Array, offset: number): string | null {
@@ -59,13 +65,18 @@ function parseHouse(account: SolanaAccount): HouseInfo | null {
 
   const houseMint = readPubkey(account.data, HOUSE_MINT_OFFSET)
   const currencyMint = readPubkey(account.data, HOUSE_CURRENCY_OFFSET)
-  if (!houseMint || !currencyMint) return null
+  const houseTokenSupply = readU64(account.data, HOUSE_TOKEN_SUPPLY_OFFSET)
+  const liquidity = readU64(account.data, HOUSE_LIQUIDITY_OFFSET)
+  if (!houseMint || !currencyMint || houseTokenSupply === null || liquidity === null)
+    return null
 
   return {
     address: account.address,
     houseMint,
     currencyMint,
-    currencyDecimals: account.data[HOUSE_CURRENCY_DECIMALS_OFFSET] ?? 0
+    currencyDecimals: account.data[HOUSE_CURRENCY_DECIMALS_OFFSET] ?? 0,
+    houseTokenSupply,
+    liquidity
   }
 }
 
@@ -86,6 +97,29 @@ function buildStakedAsset(
   priceUsd: number | undefined
 ): StakedAsset {
   const value: StakedAsset = {
+    amount: {
+      token,
+      amount: amount.toString(),
+      decimals: decimals.toString()
+    }
+  }
+
+  if (priceUsd !== undefined) {
+    value.priceUsd = priceUsd.toString()
+    const usdValue = toUsdValue(amount, decimals, priceUsd)
+    if (usdValue !== undefined) value.usdValue = usdValue
+  }
+
+  return value
+}
+
+function buildPoolToken(
+  token: string,
+  amount: bigint,
+  decimals: number,
+  priceUsd: number | undefined
+): PositionValue {
+  const value: PositionValue = {
     amount: {
       token,
       amount: amount.toString(),
@@ -190,9 +224,32 @@ export const divvyIntegration: SolanaIntegration = {
     const mintAccounts = yield uniqueMints
 
     const positions: UserDefiPosition[] = []
+    const liquidityByMint = new Map<
+      string,
+      { amount: bigint; decimals: number }
+    >()
+
     for (const house of relevantHouses) {
       const amount = balancesByMint.get(house.houseMint)
       if (amount === undefined || amount <= 0n) continue
+
+      if (house.houseTokenSupply > 0n && house.liquidity > 0n) {
+        const underlying = (amount * house.liquidity) / house.houseTokenSupply
+        if (underlying > 0n) {
+          const current = liquidityByMint.get(house.currencyMint)
+          if (current) {
+            liquidityByMint.set(house.currencyMint, {
+              amount: current.amount + underlying,
+              decimals: current.decimals
+            })
+          } else {
+            liquidityByMint.set(house.currencyMint, {
+              amount: underlying,
+              decimals: house.currencyDecimals
+            })
+          }
+        }
+      }
 
       const mintAccount = mintAccounts[house.houseMint]
       const mintDecimals =
@@ -221,7 +278,49 @@ export const divvyIntegration: SolanaIntegration = {
       positions.push(position)
     }
 
+    if (liquidityByMint.size > 0) {
+      const poolTokens: PositionValue[] = [...liquidityByMint.entries()].map(
+        ([mint, { amount, decimals }]) =>
+          buildPoolToken(mint, amount, decimals, tokens.get(mint)?.priceUsd),
+      )
+
+      const usdValue = poolTokens
+        .map((tokenValue) => tokenValue.usdValue)
+        .filter((value): value is string => value !== undefined)
+        .map(Number)
+        .reduce<number | undefined>(
+          (sum, value) => (sum === undefined ? value : sum + value),
+          undefined,
+        )
+
+      const liquidityPosition: ConstantProductLiquidityDefiPosition = {
+        platformId: 'divvy',
+        positionKind: 'liquidity',
+        liquidityModel: 'constant-product',
+        poolTokens,
+        poolAddress: 'divvy:house-liquidity',
+        ...(usdValue !== undefined && Number.isFinite(usdValue)
+          ? { usdValue: usdValue.toString() }
+          : {}),
+        meta: {
+          divvy: {
+            houseCount: relevantHouses.length.toString(),
+          },
+        },
+      }
+
+      positions.push(liquidityPosition)
+    }
+
     positions.sort((left, right) => {
+      const kindRank = (kind: UserDefiPosition['positionKind']) => {
+        if (kind === 'staking') return 0
+        if (kind === 'liquidity') return 1
+        return 2
+      }
+      const rankDiff = kindRank(left.positionKind) - kindRank(right.positionKind)
+      if (rankDiff !== 0) return rankDiff
+
       const leftHouse = String(left.meta?.divvy?.houseAddress ?? '')
       const rightHouse = String(right.meta?.divvy?.houseAddress ?? '')
       return leftHouse.localeCompare(rightHouse)
