@@ -148,9 +148,9 @@ export const divvyIntegration: SolanaIntegration = {
 
     if (houses.length === 0) return []
 
-    const tokenRequests = houses.flatMap((house) => [
+    const tokenRequests: GetProgramAccountsRequest[] = houses.flatMap((house) => [
       {
-        kind: 'getProgramAccounts' as const,
+        kind: 'getProgramAccounts',
         programId: TOKEN_PROGRAM_ID,
         filters: [
           { dataSize: TOKEN_ACCOUNT_SIZE },
@@ -171,7 +171,7 @@ export const divvyIntegration: SolanaIntegration = {
         ],
       },
       {
-        kind: 'getProgramAccounts' as const,
+        kind: 'getProgramAccounts',
         programId: TOKEN_2022_PROGRAM_ID,
         filters: [
           { dataSize: TOKEN_ACCOUNT_SIZE },
