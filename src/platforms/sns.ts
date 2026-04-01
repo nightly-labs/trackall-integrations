@@ -4,7 +4,7 @@ const snsPlatform = {
   id: 'sns' as const,
   networks: ['solana'],
   name: 'SNS',
-  image: 'https://v1.sns.id/favicon.ico',
+  image: 'https://www.sns.id/favicon-light.png',
   description: 'Solana Name Service domain offers marketplace',
   tags: ['defi', 'nft'],
   links: {
