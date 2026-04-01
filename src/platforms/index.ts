@@ -40,6 +40,7 @@ import sandglassPlatform from './sandglass'
 import savePlatform from './save'
 import snsPlatform from './sns'
 import stabblePlatform from './stabble'
+import thevaultPlatform from './thevault'
 import titanPlatform from './titan'
 import tramplinPlatform from './tramplin'
 import wasabiPlatform from './wasabi'
@@ -89,6 +90,7 @@ export const platforms = [
   sandglassPlatform,
   savePlatform,
   wasabiPlatform,
+  thevaultPlatform,
   titanPlatform,
   yuzuPlatform,
   zelofiPlatform,
