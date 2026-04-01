@@ -20,7 +20,9 @@ const AMM_POOL_DISCRIMINATOR = [241, 154, 109, 4, 17, 177, 109, 188] as const
 const AMM_POOL_DISCRIMINATOR_B64 = Buffer.from(AMM_POOL_DISCRIMINATOR).toString(
   'base64',
 )
-const REWARDER_MINER_DISCRIMINATOR = [223, 113, 15, 54, 123, 122, 140, 100] as const
+const REWARDER_MINER_DISCRIMINATOR = [
+  223, 113, 15, 54, 123, 122, 140, 100,
+] as const
 const REWARDER_MINER_DISCRIMINATOR_B64 = Buffer.from(
   REWARDER_MINER_DISCRIMINATOR,
 ).toString('base64')
@@ -199,7 +201,10 @@ function decodeRewarderPool(data: Uint8Array): DecodedRewarderPool | null {
   const rewarder = readPubkey(data, REWARDER_POOL_REWARDER_OFFSET)
   const mint = readPubkey(data, REWARDER_POOL_MINT_OFFSET)
   const decimals = readU8(data, REWARDER_POOL_DECIMALS_OFFSET)
-  const rewardsPerAmount = readU128(data, REWARDER_POOL_REWARDS_PER_AMOUNT_OFFSET)
+  const rewardsPerAmount = readU128(
+    data,
+    REWARDER_POOL_REWARDS_PER_AMOUNT_OFFSET,
+  )
   if (!rewarder || !mint || decimals === null || rewardsPerAmount === null) {
     return null
   }
@@ -366,7 +371,10 @@ export const stabbleIntegration: SolanaIntegration = {
       if (account.programAddress === REWARDER_PROGRAM_ID) {
         const pool = readPubkey(account.data, REWARDER_MINER_POOL_OFFSET)
         const amount = readU64(account.data, REWARDER_MINER_AMOUNT_OFFSET)
-        const rewardsDebt = readU64(account.data, REWARDER_MINER_REWARDS_DEBT_OFFSET)
+        const rewardsDebt = readU64(
+          account.data,
+          REWARDER_MINER_REWARDS_DEBT_OFFSET,
+        )
         const rewardsCredit = readU64(
           account.data,
           REWARDER_MINER_REWARDS_CREDIT_OFFSET,
@@ -413,7 +421,9 @@ export const stabbleIntegration: SolanaIntegration = {
       )
 
       if (matchedPools.length > 0) {
-        const round1 = yield [...new Set(matchedPools.map((pool) => pool.poolMint))]
+        const round1 = yield [
+          ...new Set(matchedPools.map((pool) => pool.poolMint)),
+        ]
 
         for (const pool of matchedPools) {
           const userLpAmount = lpBalancesByMint.get(pool.poolMint)
@@ -429,7 +439,8 @@ export const stabbleIntegration: SolanaIntegration = {
           const poolTokens: PositionValue[] = []
           for (const tokenData of decoded.tokens) {
             const normalizedPoolBalance = normalizePoolTokenAmount(tokenData)
-            const userTokenAmount = (normalizedPoolBalance * userLpAmount) / lpSupply
+            const userTokenAmount =
+              (normalizedPoolBalance * userLpAmount) / lpSupply
             const tokenInfo = tokens.get(tokenData.mint)
 
             poolTokens.push(
@@ -525,7 +536,8 @@ export const stabbleIntegration: SolanaIntegration = {
           if (lpSupply !== null && lpSupply > 0n) {
             for (const tokenData of decodedAmmPool.tokens) {
               const normalizedPoolBalance = normalizePoolTokenAmount(tokenData)
-              const userTokenAmount = (normalizedPoolBalance * amount) / lpSupply
+              const userTokenAmount =
+                (normalizedPoolBalance * amount) / lpSupply
               const underlyingInfo = tokens.get(tokenData.mint)
 
               staked.push(
@@ -542,7 +554,12 @@ export const stabbleIntegration: SolanaIntegration = {
 
         if (staked.length === 0) {
           staked = [
-            buildPositionValue(pool.mint, amount, tokenDecimals, tokenInfo?.priceUsd),
+            buildPositionValue(
+              pool.mint,
+              amount,
+              tokenDecimals,
+              tokenInfo?.priceUsd,
+            ),
           ]
         }
 
@@ -553,7 +570,8 @@ export const stabbleIntegration: SolanaIntegration = {
         const minersForPool = minersByPool.get(poolAddress) ?? []
         const claimableRewardRaw = minersForPool.reduce((sum, miner) => {
           const accrued =
-            (miner.amount * pool.rewardsPerAmount) / REWARDS_PER_AMOUNT_PRECISION
+            (miner.amount * pool.rewardsPerAmount) /
+            REWARDS_PER_AMOUNT_PRECISION
           const pending = accrued - miner.rewardsDebt + miner.rewardsCredit
           return pending > 0n ? sum + pending : sum
         }, 0n)

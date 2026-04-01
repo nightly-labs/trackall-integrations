@@ -27,7 +27,10 @@ const MINT_ACCOUNT_MINT_AUTHORITY_OFFSET = 4
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
-export const PROGRAM_IDS = [DIVERSIFI_BASKET_PROGRAM_ID, TOKEN_PROGRAM_ID] as const
+export const PROGRAM_IDS = [
+  DIVERSIFI_BASKET_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
+] as const
 
 function readPubkey(data: Uint8Array, offset: number): string | null {
   if (data.length < offset + 32) return null
@@ -39,19 +42,26 @@ function readU64(data: Uint8Array, offset: number): bigint | null {
   return Buffer.from(data).readBigUInt64LE(offset)
 }
 
-function readMintDecimals(account: MaybeSolanaAccount | undefined): number | null {
+function readMintDecimals(
+  account: MaybeSolanaAccount | undefined,
+): number | null {
   if (!account?.exists) return null
   if (account.programAddress !== TOKEN_PROGRAM_ID) return null
   if (account.data.length <= MINT_ACCOUNT_DECIMALS_OFFSET) return null
   return account.data[MINT_ACCOUNT_DECIMALS_OFFSET] ?? null
 }
 
-function readMintAuthority(account: MaybeSolanaAccount | undefined): string | null {
+function readMintAuthority(
+  account: MaybeSolanaAccount | undefined,
+): string | null {
   if (!account?.exists) return null
   if (account.programAddress !== TOKEN_PROGRAM_ID) return null
 
   if (account.data.length < MINT_ACCOUNT_MINT_AUTHORITY_OFFSET + 32) return null
-  const option = readU64(account.data, MINT_ACCOUNT_MINT_AUTHORITY_OPTION_OFFSET)
+  const option = readU64(
+    account.data,
+    MINT_ACCOUNT_MINT_AUTHORITY_OPTION_OFFSET,
+  )
   if (option === null || option === 0n) return null
 
   return readPubkey(account.data, MINT_ACCOUNT_MINT_AUTHORITY_OFFSET)
@@ -65,7 +75,10 @@ function toUiAmountString(amountRaw: bigint, decimals: number): string {
   const fraction = amountRaw % scale
   if (fraction === 0n) return whole.toString()
 
-  const fractionString = fraction.toString().padStart(decimals, '0').replace(/0+$/, '')
+  const fractionString = fraction
+    .toString()
+    .padStart(decimals, '0')
+    .replace(/0+$/, '')
   return `${whole.toString()}.${fractionString}`
 }
 
@@ -142,7 +155,10 @@ export const diversifiIntegration: SolanaIntegration = {
         account.programAddress === DIVERSIFI_BASKET_PROGRAM_ID &&
         account.data.length === DIVERSIFI_BASKET_ACCOUNT_SIZE
       ) {
-        const mint = readPubkey(account.data, DIVERSIFI_BASKET_INDEX_MINT_OFFSET)
+        const mint = readPubkey(
+          account.data,
+          DIVERSIFI_BASKET_INDEX_MINT_OFFSET,
+        )
         if (mint) {
           basketByMint.set(mint, account.address)
         }

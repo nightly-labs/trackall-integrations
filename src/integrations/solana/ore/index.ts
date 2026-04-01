@@ -7,7 +7,9 @@ import type {
   UserPositionsPlan,
 } from '../../../types/index'
 
-const ORE_PROGRAM_ID = new PublicKey('oreV3EG1i9BEgiAJ8b177Z2S2rMarzak4NMv1kULvWv')
+const ORE_PROGRAM_ID = new PublicKey(
+  'oreV3EG1i9BEgiAJ8b177Z2S2rMarzak4NMv1kULvWv',
+)
 const ORE_MINT = 'oreoU2P8bN6jkk3jbaiVxYnG1dCXcYxwhwyK9jSybcp'
 const ORE_DECIMALS = 11
 const SOL_MINT = 'So11111111111111111111111111111111111111112'
@@ -37,9 +39,7 @@ const I80F48_FRACTION_BITS = 48n
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
-export const PROGRAM_IDS = [
-  ORE_PROGRAM_ID.toBase58(),
-] as const
+export const PROGRAM_IDS = [ORE_PROGRAM_ID.toBase58()] as const
 
 function readU64(data: Uint8Array, offset: number): bigint {
   return Buffer.from(data).readBigUInt64LE(offset)
@@ -108,11 +108,7 @@ export const oreIntegration: SolanaIntegration = {
     const treasuryKey = treasuryPda.toBase58()
 
     // Round 0: fetch user + global treasury PDAs in one batch
-    const accountsMap = yield [
-      minerKey,
-      stakeKey,
-      treasuryKey,
-    ]
+    const accountsMap = yield [minerKey, stakeKey, treasuryKey]
     const treasuryAcc = accountsMap[treasuryKey]
 
     const treasuryMinerRewardsFactor =
@@ -206,7 +202,9 @@ export const oreIntegration: SolanaIntegration = {
                     ...(oreToken?.priceUsd !== undefined && {
                       priceUsd: oreToken.priceUsd.toString(),
                     }),
-                    ...(refinedOreUsd !== undefined && { usdValue: refinedOreUsd }),
+                    ...(refinedOreUsd !== undefined && {
+                      usdValue: refinedOreUsd,
+                    }),
                   },
                 ]
               : []),
@@ -238,7 +236,9 @@ export const oreIntegration: SolanaIntegration = {
                     ...(solToken?.priceUsd !== undefined && {
                       priceUsd: solToken.priceUsd.toString(),
                     }),
-                    ...(solRewardsUsd !== undefined && { usdValue: solRewardsUsd }),
+                    ...(solRewardsUsd !== undefined && {
+                      usdValue: solRewardsUsd,
+                    }),
                   },
                 ]
               : []),

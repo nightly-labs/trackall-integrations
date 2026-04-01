@@ -7,7 +7,7 @@ function testDbPath(name: string): string {
   return join(
     process.cwd(),
     '.cache',
-    `${name}-${Date.now()}-${Math.random().toString(16).slice(2)}.sqlite`
+    `${name}-${Date.now()}-${Math.random().toString(16).slice(2)}.sqlite`,
   )
 }
 
@@ -20,10 +20,14 @@ function createTokensTable(db: Database): void {
   `)
 }
 
-function queryRows(dbPath: string): Array<{ token_address: string; token_data: string }> {
+function queryRows(
+  dbPath: string,
+): Array<{ token_address: string; token_data: string }> {
   const db = new Database(dbPath, { strict: true })
   try {
-    return db.query('SELECT token_address, token_data FROM tokens').all() as Array<{
+    return db
+      .query('SELECT token_address, token_data FROM tokens')
+      .all() as Array<{
       token_address: string
       token_data: string
     }>
@@ -49,15 +53,15 @@ describe('TokenPlugin', () => {
         mintAddress: 'TokenA',
         decimals: 9,
         priceUsd: 1,
-        pctPriceChange24h: 5
+        pctPriceChange24h: 5,
       }
       plugin.set(token.mintAddress, token)
 
       const updated = plugin.updatePrices(
         new Map([
           ['TokenA', { priceUsd: 2.5 }],
-          ['TokenB', { priceUsd: 3.5, pctPriceChange24h: 1.2 }]
-        ])
+          ['TokenB', { priceUsd: 3.5, pctPriceChange24h: 1.2 }],
+        ]),
       )
 
       expect(updated).toEqual(['TokenA'])
@@ -78,15 +82,16 @@ describe('TokenPlugin', () => {
         mintAddress: 'So11111111111111111111111111111111111111112',
         decimals: 9,
         name: 'Wrapped SOL',
-        symbol: 'SOL'
+        symbol: 'SOL',
       }
 
-      const validInsert = db.prepare('INSERT INTO tokens (token_address, token_data) VALUES (?, ?)')
-      validInsert.run(validToken.mintAddress, JSON.stringify(validToken))
-      db.prepare('INSERT INTO tokens (token_address, token_data) VALUES (?, ?)').run(
-        'BadAddress',
-        '{ this is: not json }'
+      const validInsert = db.prepare(
+        'INSERT INTO tokens (token_address, token_data) VALUES (?, ?)',
       )
+      validInsert.run(validToken.mintAddress, JSON.stringify(validToken))
+      db.prepare(
+        'INSERT INTO tokens (token_address, token_data) VALUES (?, ?)',
+      ).run('BadAddress', '{ this is: not json }')
       db.close()
 
       const plugin = new TokenPlugin(dbPath)
@@ -107,12 +112,11 @@ describe('TokenPlugin', () => {
         mintAddress: 'TokenB',
         decimals: 6,
         name: 'Old Token B',
-        symbol: 'BTOK'
+        symbol: 'BTOK',
       }
-      db.prepare('INSERT INTO tokens (token_address, token_data) VALUES (?, ?)').run(
-        initialToken.mintAddress,
-        JSON.stringify(initialToken)
-      )
+      db.prepare(
+        'INSERT INTO tokens (token_address, token_data) VALUES (?, ?)',
+      ).run(initialToken.mintAddress, JSON.stringify(initialToken))
       db.close()
 
       const plugin = new TokenPlugin(dbPath)
@@ -123,13 +127,13 @@ describe('TokenPlugin', () => {
         mintAddress: 'TokenA',
         decimals: 4,
         name: 'New Token A',
-        symbol: 'ATOK'
+        symbol: 'ATOK',
       }
       const updatedTokenB: TokenData = {
         mintAddress: 'TokenB',
         decimals: 8,
         name: 'Should Not Persist',
-        symbol: 'BUPD'
+        symbol: 'BUPD',
       }
 
       pluginAny.map.set(tokenA.mintAddress, tokenA)
@@ -139,8 +143,10 @@ describe('TokenPlugin', () => {
       const rows = queryRows(dbPath)
       expect(rows).toHaveLength(2)
 
-      const tokenARow = rows.find(r => r.token_address === tokenA.mintAddress)
-      const tokenBRow = rows.find(r => r.token_address === initialToken.mintAddress)
+      const tokenARow = rows.find((r) => r.token_address === tokenA.mintAddress)
+      const tokenBRow = rows.find(
+        (r) => r.token_address === initialToken.mintAddress,
+      )
 
       expect(tokenARow).toBeDefined()
       expect(tokenBRow).toBeDefined()
@@ -164,7 +170,7 @@ describe('TokenPlugin', () => {
         mintAddress: 'TokenC',
         decimals: 3,
         name: 'Full Save Token',
-        symbol: 'C'
+        symbol: 'C',
       }
       pluginAny.map.set(token.mintAddress, token)
 

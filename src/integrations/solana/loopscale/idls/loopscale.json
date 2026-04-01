@@ -9,21 +9,8 @@
   "instructions": [
     {
       "name": "borrow_principal",
-      "docs": [
-        "principal instructions",
-        "6.",
-        "6.1. borrow principal"
-      ],
-      "discriminator": [
-        106,
-        10,
-        38,
-        204,
-        139,
-        188,
-        124,
-        50
-      ],
+      "docs": ["principal instructions", "6.", "6.1. borrow principal"],
+      "discriminator": [106, 10, 38, 204, 139, 188, 124, 50],
       "accounts": [
         {
           "name": "bs_auth",
@@ -90,19 +77,8 @@
     },
     {
       "name": "cancel_timelock",
-      "docs": [
-        "9.2.3 timelock cancel"
-      ],
-      "discriminator": [
-        158,
-        180,
-        47,
-        81,
-        133,
-        231,
-        168,
-        238
-      ],
+      "docs": ["9.2.3 timelock cancel"],
+      "discriminator": [158, 180, 47, 81, 133, 231, 168, 238],
       "accounts": [
         {
           "name": "bs_auth",
@@ -139,19 +115,8 @@
     },
     {
       "name": "claim_vault_fee",
-      "docs": [
-        "9.1.2 vault manager actions"
-      ],
-      "discriminator": [
-        38,
-        40,
-        51,
-        195,
-        130,
-        248,
-        134,
-        247
-      ],
+      "docs": ["9.1.2 vault manager actions"],
+      "discriminator": [38, 40, 51, 195, 130, 248, 134, 247],
       "accounts": [
         {
           "name": "bs_auth",
@@ -217,19 +182,8 @@
     },
     {
       "name": "claim_vault_rewards",
-      "docs": [
-        "9.1.1.5 vault user claim rewards"
-      ],
-      "discriminator": [
-        0,
-        152,
-        75,
-        29,
-        195,
-        223,
-        12,
-        101
-      ],
+      "docs": ["9.1.1.5 vault user claim rewards"],
+      "discriminator": [0, 152, 75, 29, 195, 223, 12, 101],
       "accounts": [
         {
           "name": "bs_auth",
@@ -282,19 +236,8 @@
     },
     {
       "name": "close_loan",
-      "docs": [
-        "1.4 close loan"
-      ],
-      "discriminator": [
-        96,
-        114,
-        111,
-        204,
-        149,
-        228,
-        235,
-        124
-      ],
+      "docs": ["1.4 close loan"],
+      "discriminator": [96, 114, 111, 204, 149, 228, 235, 124],
       "accounts": [
         {
           "name": "bs_auth",
@@ -327,19 +270,8 @@
     },
     {
       "name": "close_strategy",
-      "docs": [
-        "8.5 close strategy"
-      ],
-      "discriminator": [
-        56,
-        247,
-        170,
-        246,
-        89,
-        221,
-        134,
-        200
-      ],
+      "docs": ["8.5 close strategy"],
+      "discriminator": [56, 247, 170, 246, 89, 221, 134, 200],
       "accounts": [
         {
           "name": "bs_auth",
@@ -387,16 +319,7 @@
         "1. loan instructions",
         "1.1 create loan"
       ],
-      "discriminator": [
-        166,
-        131,
-        118,
-        219,
-        138,
-        218,
-        206,
-        140
-      ],
+      "discriminator": [166, 131, 118, 219, 138, 218, 206, 140],
       "accounts": [
         {
           "name": "bs_auth",
@@ -442,16 +365,7 @@
         "7. oracle instructions",
         "7.1 create market information account"
       ],
-      "discriminator": [
-        246,
-        45,
-        227,
-        173,
-        15,
-        51,
-        85,
-        1
-      ],
+      "discriminator": [246, 45, 227, 173, 15, 51, 85, 1],
       "accounts": [
         {
           "name": "bs_auth",
@@ -485,16 +399,7 @@
         "9.5 reward management instructions",
         "9.5.1 create rewards schedule"
       ],
-      "discriminator": [
-        201,
-        90,
-        205,
-        53,
-        85,
-        60,
-        229,
-        176
-      ],
+      "discriminator": [201, 90, 205, 53, 85, 60, 229, 176],
       "accounts": [
         {
           "name": "bs_auth",
@@ -565,20 +470,8 @@
     },
     {
       "name": "create_strategy",
-      "docs": [
-        "8. strategy instructions",
-        "8.1 create strategy"
-      ],
-      "discriminator": [
-        152,
-        160,
-        107,
-        148,
-        245,
-        190,
-        127,
-        224
-      ],
+      "docs": ["8. strategy instructions", "8.1 create strategy"],
+      "discriminator": [152, 160, 107, 148, 245, 190, 127, 224],
       "accounts": [
         {
           "name": "bs_auth",
@@ -626,20 +519,8 @@
     },
     {
       "name": "create_timelock",
-      "docs": [
-        "9.2 timelock instructions",
-        "9.2.1 timelock create"
-      ],
-      "discriminator": [
-        243,
-        10,
-        110,
-        170,
-        71,
-        251,
-        210,
-        87
-      ],
+      "docs": ["9.2 timelock instructions", "9.2.1 timelock create"],
+      "discriminator": [243, 10, 110, 170, 71, 251, 210, 87],
       "accounts": [
         {
           "name": "bs_auth",
@@ -693,19 +574,8 @@
     },
     {
       "name": "create_vault",
-      "docs": [
-        "9.3 create vault"
-      ],
-      "discriminator": [
-        29,
-        237,
-        247,
-        208,
-        193,
-        82,
-        54,
-        135
-      ],
+      "docs": ["9.3 create vault"],
+      "discriminator": [29, 237, 247, 208, 193, 82, 54, 135],
       "accounts": [
         {
           "name": "bs_auth",
@@ -766,21 +636,8 @@
     },
     {
       "name": "deposit_collateral",
-      "docs": [
-        "collateral instructions",
-        "5.",
-        "5.1. deposit collateral"
-      ],
-      "discriminator": [
-        156,
-        131,
-        142,
-        116,
-        146,
-        247,
-        162,
-        120
-      ],
+      "docs": ["collateral instructions", "5.", "5.1. deposit collateral"],
+      "discriminator": [156, 131, 142, 116, 146, 247, 162, 120],
       "accounts": [
         {
           "name": "bs_auth",
@@ -813,9 +670,7 @@
         },
         {
           "name": "asset_identifier",
-          "docs": [
-            "CHECKs: checks in constraint"
-          ]
+          "docs": ["CHECKs: checks in constraint"]
         },
         {
           "name": "system_program"
@@ -846,19 +701,8 @@
     },
     {
       "name": "deposit_strategy",
-      "docs": [
-        "8.2 deposit strategy"
-      ],
-      "discriminator": [
-        246,
-        82,
-        57,
-        226,
-        131,
-        222,
-        253,
-        249
-      ],
+      "docs": ["8.2 deposit strategy"],
+      "discriminator": [246, 82, 57, 226, 131, 222, 253, 249],
       "accounts": [
         {
           "name": "bs_auth",
@@ -923,16 +767,7 @@
         "9.1.1 vault user actions",
         "9.1.1.1 vault user deposit"
       ],
-      "discriminator": [
-        204,
-        190,
-        182,
-        224,
-        15,
-        219,
-        247,
-        121
-      ],
+      "discriminator": [204, 190, 182, 224, 15, 219, 247, 121],
       "accounts": [
         {
           "name": "bs_auth",
@@ -1010,19 +845,8 @@
     },
     {
       "name": "execute_timelock",
-      "docs": [
-        "9.2.2 timelock execute"
-      ],
-      "discriminator": [
-        160,
-        194,
-        240,
-        8,
-        212,
-        93,
-        157,
-        221
-      ],
+      "docs": ["9.2.2 timelock execute"],
+      "discriminator": [160, 194, 240, 8, 212, 93, 157, 221],
       "accounts": [
         {
           "name": "bs_auth",
@@ -1076,19 +900,8 @@
     },
     {
       "name": "liquidate_ledger",
-      "docs": [
-        "2. liquidate ledger"
-      ],
-      "discriminator": [
-        5,
-        124,
-        101,
-        85,
-        254,
-        175,
-        184,
-        249
-      ],
+      "docs": ["2. liquidate ledger"],
+      "discriminator": [5, 124, 101, 85, 254, 175, 184, 249],
       "accounts": [
         {
           "name": "payer",
@@ -1159,19 +972,8 @@
     },
     {
       "name": "lock_loan",
-      "docs": [
-        "1.2 lock loan"
-      ],
-      "discriminator": [
-        28,
-        101,
-        52,
-        240,
-        146,
-        230,
-        95,
-        22
-      ],
+      "docs": ["1.2 lock loan"],
+      "discriminator": [28, 101, 52, 240, 146, 230, 95, 22],
       "accounts": [
         {
           "name": "bs_auth",
@@ -1216,16 +1018,7 @@
         "5.3",
         "5.3.1 orca claim fee"
       ],
-      "discriminator": [
-        242,
-        48,
-        127,
-        91,
-        24,
-        187,
-        211,
-        234
-      ],
+      "discriminator": [242, 48, 127, 91, 24, 187, 211, 234],
       "accounts": [
         {
           "name": "bs_auth",
@@ -1327,19 +1120,8 @@
     },
     {
       "name": "manage_collateral_decrease_raydium_liquidity",
-      "docs": [
-        "5.3.5 raydium decrease liquidity"
-      ],
-      "discriminator": [
-        203,
-        192,
-        202,
-        215,
-        108,
-        54,
-        90,
-        202
-      ],
+      "docs": ["5.3.5 raydium decrease liquidity"],
+      "discriminator": [203, 192, 202, 215, 108, 54, 90, 202],
       "accounts": [
         {
           "name": "bs_auth",
@@ -1448,19 +1230,8 @@
     },
     {
       "name": "manage_collateral_increase_orca_liquidity",
-      "docs": [
-        "5.3.2 orca increase liquidity"
-      ],
-      "discriminator": [
-        173,
-        62,
-        204,
-        113,
-        206,
-        27,
-        147,
-        128
-      ],
+      "docs": ["5.3.2 orca increase liquidity"],
+      "discriminator": [173, 62, 204, 113, 206, 27, 147, 128],
       "accounts": [
         {
           "name": "bs_auth",
@@ -1565,19 +1336,8 @@
     },
     {
       "name": "manage_collateral_increase_raydium_liquidity",
-      "docs": [
-        "5.3.6 raydium increase liquidity"
-      ],
-      "discriminator": [
-        54,
-        205,
-        137,
-        146,
-        40,
-        175,
-        141,
-        20
-      ],
+      "docs": ["5.3.6 raydium increase liquidity"],
+      "discriminator": [54, 205, 137, 146, 40, 175, 141, 20],
       "accounts": [
         {
           "name": "bs_auth",
@@ -1686,19 +1446,8 @@
     },
     {
       "name": "manage_collateral_transfer_orca_position",
-      "docs": [
-        "5.3.4 orca transfer position"
-      ],
-      "discriminator": [
-        85,
-        151,
-        110,
-        243,
-        164,
-        41,
-        62,
-        238
-      ],
+      "docs": ["5.3.4 orca transfer position"],
+      "discriminator": [85, 151, 110, 243, 164, 41, 62, 238],
       "accounts": [
         {
           "name": "bs_auth",
@@ -1833,19 +1582,8 @@
     },
     {
       "name": "manage_collateral_transfer_raydium_position",
-      "docs": [
-        "5.3.7 raydium transfer position"
-      ],
-      "discriminator": [
-        183,
-        215,
-        111,
-        172,
-        104,
-        250,
-        55,
-        219
-      ],
+      "docs": ["5.3.7 raydium transfer position"],
+      "discriminator": [183, 215, 111, 172, 104, 250, 55, 219],
       "accounts": [
         {
           "name": "bs_auth",
@@ -1982,19 +1720,8 @@
     },
     {
       "name": "manage_collateral_withdraw_orca_liquidity",
-      "docs": [
-        "5.3.3 orca withdraw liquidity"
-      ],
-      "discriminator": [
-        219,
-        89,
-        35,
-        158,
-        224,
-        12,
-        200,
-        90
-      ],
+      "docs": ["5.3.3 orca withdraw liquidity"],
+      "discriminator": [219, 89, 35, 158, 224, 12, 200, 90],
       "accounts": [
         {
           "name": "bs_auth",
@@ -2099,16 +1826,7 @@
     },
     {
       "name": "migrate_market_info_allocation",
-      "discriminator": [
-        112,
-        172,
-        64,
-        213,
-        227,
-        1,
-        86,
-        2
-      ],
+      "discriminator": [112, 172, 64, 213, 227, 1, 86, 2],
       "accounts": [
         {
           "name": "bs_auth",
@@ -2141,19 +1859,8 @@
     },
     {
       "name": "refinance_ledger",
-      "docs": [
-        "3. refinance ledger"
-      ],
-      "discriminator": [
-        103,
-        41,
-        134,
-        43,
-        140,
-        152,
-        253,
-        74
-      ],
+      "docs": ["3. refinance ledger"],
+      "discriminator": [103, 41, 134, 43, 140, 152, 253, 74],
       "accounts": [
         {
           "name": "bs_auth",
@@ -2224,19 +1931,8 @@
     },
     {
       "name": "repay_principal",
-      "docs": [
-        "6.2. repay principal"
-      ],
-      "discriminator": [
-        229,
-        67,
-        83,
-        65,
-        77,
-        84,
-        80,
-        141
-      ],
+      "docs": ["6.2. repay principal"],
+      "discriminator": [229, 67, 83, 65, 77, 84, 80, 141],
       "accounts": [
         {
           "name": "bs_auth",
@@ -2303,19 +1999,8 @@
     },
     {
       "name": "sell_ledger",
-      "docs": [
-        "4. sell ledger"
-      ],
-      "discriminator": [
-        55,
-        17,
-        153,
-        148,
-        120,
-        242,
-        80,
-        5
-      ],
+      "docs": ["4. sell ledger"],
+      "discriminator": [55, 17, 153, 148, 120, 242, 80, 5],
       "accounts": [
         {
           "name": "bs_auth",
@@ -2400,19 +2085,8 @@
     },
     {
       "name": "stake_user_vault_lp",
-      "docs": [
-        "9.1.1.3 vault user stake"
-      ],
-      "discriminator": [
-        114,
-        132,
-        194,
-        209,
-        208,
-        149,
-        43,
-        136
-      ],
+      "docs": ["9.1.1.3 vault user stake"],
+      "discriminator": [114, 132, 194, 209, 208, 149, 43, 136],
       "accounts": [
         {
           "name": "bs_auth",
@@ -2487,19 +2161,8 @@
     },
     {
       "name": "unlock_loan",
-      "docs": [
-        "1.3 unlock loan"
-      ],
-      "discriminator": [
-        121,
-        226,
-        178,
-        98,
-        215,
-        209,
-        240,
-        38
-      ],
+      "docs": ["1.3 unlock loan"],
+      "discriminator": [121, 226, 178, 98, 215, 209, 240, 38],
       "accounts": [
         {
           "name": "borrower",
@@ -2535,19 +2198,8 @@
     },
     {
       "name": "unstake_user_vault_lp",
-      "docs": [
-        "9.1.1.4 vault user unstake"
-      ],
-      "discriminator": [
-        83,
-        78,
-        230,
-        123,
-        226,
-        40,
-        158,
-        97
-      ],
+      "docs": ["9.1.1.4 vault user unstake"],
+      "discriminator": [83, 78, 230, 123, 226, 40, 158, 97],
       "accounts": [
         {
           "name": "bs_auth",
@@ -2619,19 +2271,8 @@
     },
     {
       "name": "update_market_information",
-      "docs": [
-        "7.2 update market information account"
-      ],
-      "discriminator": [
-        186,
-        195,
-        82,
-        187,
-        196,
-        199,
-        135,
-        158
-      ],
+      "docs": ["7.2 update market information account"],
+      "discriminator": [186, 195, 82, 187, 196, 199, 135, 158],
       "accounts": [
         {
           "name": "authority",
@@ -2669,16 +2310,7 @@
     },
     {
       "name": "update_rewards_schedule",
-      "discriminator": [
-        226,
-        238,
-        15,
-        86,
-        66,
-        219,
-        13,
-        232
-      ],
+      "discriminator": [226, 238, 15, 86, 66, 219, 13, 232],
       "accounts": [
         {
           "name": "bs_auth",
@@ -2745,19 +2377,8 @@
     },
     {
       "name": "update_strategy",
-      "docs": [
-        "8.3 update strategy"
-      ],
-      "discriminator": [
-        16,
-        76,
-        138,
-        179,
-        171,
-        112,
-        196,
-        21
-      ],
+      "docs": ["8.3 update strategy"],
+      "discriminator": [16, 76, 138, 179, 171, 112, 196, 21],
       "accounts": [
         {
           "name": "bs_auth",
@@ -2824,19 +2445,8 @@
     },
     {
       "name": "update_vault",
-      "docs": [
-        "9.4 toggle vault deposits"
-      ],
-      "discriminator": [
-        67,
-        229,
-        185,
-        188,
-        226,
-        11,
-        210,
-        60
-      ],
+      "docs": ["9.4 toggle vault deposits"],
+      "discriminator": [67, 229, 185, 188, 226, 11, 210, 60],
       "accounts": [
         {
           "name": "bs_auth",
@@ -2879,19 +2489,8 @@
     },
     {
       "name": "update_weight_matrix",
-      "docs": [
-        "10. update weight matrix"
-      ],
-      "discriminator": [
-        252,
-        166,
-        37,
-        207,
-        154,
-        83,
-        187,
-        128
-      ],
+      "docs": ["10. update weight matrix"],
+      "discriminator": [252, 166, 37, 207, 154, 83, 187, 128],
       "accounts": [
         {
           "name": "bs_auth",
@@ -2919,19 +2518,8 @@
     },
     {
       "name": "withdraw_collateral",
-      "docs": [
-        "5.2. withdraw collateral"
-      ],
-      "discriminator": [
-        115,
-        135,
-        168,
-        106,
-        139,
-        214,
-        138,
-        150
-      ],
+      "docs": ["5.2. withdraw collateral"],
+      "discriminator": [115, 135, 168, 106, 139, 214, 138, 150],
       "accounts": [
         {
           "name": "bs_auth",
@@ -2990,19 +2578,8 @@
     },
     {
       "name": "withdraw_strategy",
-      "docs": [
-        "8.4 withdraw strategy"
-      ],
-      "discriminator": [
-        31,
-        45,
-        162,
-        5,
-        193,
-        217,
-        134,
-        188
-      ],
+      "docs": ["8.4 withdraw strategy"],
+      "discriminator": [31, 45, 162, 5, 193, 217, 134, 188],
       "accounts": [
         {
           "name": "bs_auth",
@@ -3065,19 +2642,8 @@
     },
     {
       "name": "withdraw_user_vault",
-      "docs": [
-        "9.1.1.2 vault user withdraw"
-      ],
-      "discriminator": [
-        9,
-        80,
-        134,
-        138,
-        212,
-        20,
-        61,
-        42
-      ],
+      "docs": ["9.1.1.2 vault user withdraw"],
+      "discriminator": [9, 80, 134, 138, 212, 20, 61, 42],
       "accounts": [
         {
           "name": "bs_auth",
@@ -3157,252 +2723,81 @@
   "accounts": [
     {
       "name": "Loan",
-      "discriminator": [
-        20,
-        195,
-        70,
-        117,
-        165,
-        227,
-        182,
-        1
-      ]
+      "discriminator": [20, 195, 70, 117, 165, 227, 182, 1]
     },
     {
       "name": "MarketInformation",
-      "discriminator": [
-        194,
-        154,
-        190,
-        99,
-        64,
-        111,
-        37,
-        205
-      ]
+      "discriminator": [194, 154, 190, 99, 64, 111, 37, 205]
     },
     {
       "name": "PersonalPositionState",
-      "discriminator": [
-        70,
-        111,
-        150,
-        126,
-        230,
-        15,
-        25,
-        117
-      ]
+      "discriminator": [70, 111, 150, 126, 230, 15, 25, 117]
     },
     {
       "name": "PoolState",
-      "discriminator": [
-        247,
-        237,
-        227,
-        245,
-        215,
-        195,
-        222,
-        70
-      ]
+      "discriminator": [247, 237, 227, 245, 215, 195, 222, 70]
     },
     {
       "name": "Position",
-      "discriminator": [
-        170,
-        188,
-        143,
-        228,
-        122,
-        64,
-        247,
-        208
-      ]
+      "discriminator": [170, 188, 143, 228, 122, 64, 247, 208]
     },
     {
       "name": "ProtocolPositionState",
-      "discriminator": [
-        100,
-        226,
-        145,
-        99,
-        146,
-        218,
-        160,
-        106
-      ]
+      "discriminator": [100, 226, 145, 99, 146, 218, 160, 106]
     },
     {
       "name": "Strategy",
-      "discriminator": [
-        174,
-        110,
-        39,
-        119,
-        82,
-        106,
-        169,
-        102
-      ]
+      "discriminator": [174, 110, 39, 119, 82, 106, 169, 102]
     },
     {
       "name": "Timelock",
-      "discriminator": [
-        189,
-        33,
-        78,
-        75,
-        205,
-        31,
-        4,
-        177
-      ]
+      "discriminator": [189, 33, 78, 75, 205, 31, 4, 177]
     },
     {
       "name": "UserRewardsInfo",
-      "discriminator": [
-        242,
-        27,
-        82,
-        180,
-        183,
-        119,
-        156,
-        237
-      ]
+      "discriminator": [242, 27, 82, 180, 183, 119, 156, 237]
     },
     {
       "name": "Vault",
-      "discriminator": [
-        211,
-        8,
-        232,
-        43,
-        2,
-        152,
-        117,
-        119
-      ]
+      "discriminator": [211, 8, 232, 43, 2, 152, 117, 119]
     },
     {
       "name": "VaultRewardsInfo",
-      "discriminator": [
-        4,
-        142,
-        66,
-        219,
-        168,
-        11,
-        4,
-        14
-      ]
+      "discriminator": [4, 142, 66, 219, 168, 11, 4, 14]
     },
     {
       "name": "VaultStake",
-      "discriminator": [
-        225,
-        34,
-        128,
-        53,
-        167,
-        239,
-        182,
-        107
-      ]
+      "discriminator": [225, 34, 128, 53, 167, 239, 182, 107]
     },
     {
       "name": "Whirlpool",
-      "discriminator": [
-        63,
-        149,
-        209,
-        12,
-        225,
-        128,
-        99,
-        9
-      ]
+      "discriminator": [63, 149, 209, 12, 225, 128, 99, 9]
     }
   ],
   "events": [
     {
       "name": "RewardsClaimedEvent",
-      "discriminator": [
-        22,
-        1,
-        42,
-        183,
-        250,
-        8,
-        157,
-        146
-      ]
+      "discriminator": [22, 1, 42, 183, 250, 8, 157, 146]
     },
     {
       "name": "StakeEvent",
-      "discriminator": [
-        226,
-        134,
-        188,
-        173,
-        19,
-        33,
-        75,
-        175
-      ]
+      "discriminator": [226, 134, 188, 173, 19, 33, 75, 175]
     },
     {
       "name": "TimelockCanceledEvent",
-      "discriminator": [
-        67,
-        213,
-        255,
-        46,
-        1,
-        27,
-        230,
-        3
-      ]
+      "discriminator": [67, 213, 255, 46, 1, 27, 230, 3]
     },
     {
       "name": "TimelockCreatedEvent",
-      "discriminator": [
-        152,
-        153,
-        7,
-        180,
-        31,
-        147,
-        228,
-        201
-      ]
+      "discriminator": [152, 153, 7, 180, 31, 147, 228, 201]
     },
     {
       "name": "TimelockExecutedEvent",
-      "discriminator": [
-        163,
-        211,
-        23,
-        234,
-        156,
-        203,
-        136,
-        240
-      ]
+      "discriminator": [163, 211, 23, 234, 156, 203, 136, 240]
     },
     {
       "name": "UserRewardsInfoClosed",
-      "discriminator": [
-        58,
-        168,
-        111,
-        2,
-        82,
-        232,
-        119,
-        37
-      ]
+      "discriminator": [58, 168, 111, 2, 82, 232, 119, 37]
     }
   ],
   "errors": [
@@ -4439,10 +3834,7 @@
           {
             "name": "terms",
             "type": {
-              "array": [
-                "u64",
-                5
-              ]
+              "array": ["u64", 5]
             }
           }
         ]
@@ -4711,10 +4103,7 @@
           {
             "name": "expected_lqt",
             "type": {
-              "array": [
-                "u32",
-                5
-              ]
+              "array": ["u32", 5]
             }
           }
         ]
@@ -5233,49 +4622,34 @@
         "fields": [
           {
             "name": "bump",
-            "docs": [
-              "Bump to identify PDA"
-            ],
+            "docs": ["Bump to identify PDA"],
             "type": {
-              "array": [
-                "u8",
-                1
-              ]
+              "array": ["u8", 1]
             }
           },
           {
             "name": "nft_mint",
-            "docs": [
-              "Mint address of the tokenized position"
-            ],
+            "docs": ["Mint address of the tokenized position"],
             "type": "pubkey"
           },
           {
             "name": "pool_id",
-            "docs": [
-              "The ID of the pool with which this token is connected"
-            ],
+            "docs": ["The ID of the pool with which this token is connected"],
             "type": "pubkey"
           },
           {
             "name": "tick_lower_index",
-            "docs": [
-              "The lower bound tick of the position"
-            ],
+            "docs": ["The lower bound tick of the position"],
             "type": "i32"
           },
           {
             "name": "tick_upper_index",
-            "docs": [
-              "The upper bound tick of the position"
-            ],
+            "docs": ["The upper bound tick of the position"],
             "type": "i32"
           },
           {
             "name": "liquidity",
-            "docs": [
-              "The amount of liquidity owned by this position"
-            ],
+            "docs": ["The amount of liquidity owned by this position"],
             "type": "u128"
           },
           {
@@ -5326,10 +4700,7 @@
           {
             "name": "padding",
             "type": {
-              "array": [
-                "u64",
-                7
-              ]
+              "array": ["u64", 7]
             }
           }
         ]
@@ -5337,17 +4708,13 @@
     },
     {
       "name": "PodBool",
-      "docs": [
-        "Represents a bool stored as a byte"
-      ],
+      "docs": ["Represents a bool stored as a byte"],
       "repr": {
         "kind": "transparent"
       },
       "type": {
         "kind": "struct",
-        "fields": [
-          "u8"
-        ]
+        "fields": ["u8"]
       }
     },
     {
@@ -5362,10 +4729,7 @@
         "kind": "struct",
         "fields": [
           {
-            "array": [
-              "u8",
-              24
-            ]
+            "array": ["u8", 24]
           }
         ]
       }
@@ -5382,10 +4746,7 @@
         "kind": "struct",
         "fields": [
           {
-            "array": [
-              "u8",
-              16
-            ]
+            "array": ["u8", 16]
           }
         ]
       }
@@ -5402,10 +4763,7 @@
         "kind": "struct",
         "fields": [
           {
-            "array": [
-              "u8",
-              2
-            ]
+            "array": ["u8", 2]
           }
         ]
       }
@@ -5422,19 +4780,14 @@
         "kind": "struct",
         "fields": [
           {
-            "array": [
-              "u8",
-              4
-            ]
+            "array": ["u8", 4]
           }
         ]
       }
     },
     {
       "name": "PodU32CBPS",
-      "docs": [
-        "helper type to store u32 cbps values"
-      ],
+      "docs": ["helper type to store u32 cbps values"],
       "repr": {
         "kind": "c"
       },
@@ -5442,10 +4795,7 @@
         "kind": "struct",
         "fields": [
           {
-            "array": [
-              "u8",
-              4
-            ]
+            "array": ["u8", 4]
           }
         ]
       }
@@ -5462,19 +4812,14 @@
         "kind": "struct",
         "fields": [
           {
-            "array": [
-              "u8",
-              8
-            ]
+            "array": ["u8", 8]
           }
         ]
       }
     },
     {
       "name": "PodU64CBPS",
-      "docs": [
-        "helper type to store u64 cbps values"
-      ],
+      "docs": ["helper type to store u64 cbps values"],
       "repr": {
         "kind": "c"
       },
@@ -5482,10 +4827,7 @@
         "kind": "struct",
         "fields": [
           {
-            "array": [
-              "u8",
-              8
-            ]
+            "array": ["u8", 8]
           }
         ]
       }
@@ -5508,14 +4850,9 @@
         "fields": [
           {
             "name": "bump",
-            "docs": [
-              "Bump to identify PDA"
-            ],
+            "docs": ["Bump to identify PDA"],
             "type": {
-              "array": [
-                "u8",
-                1
-              ]
+              "array": ["u8", 1]
             }
           },
           {
@@ -5539,9 +4876,7 @@
           },
           {
             "name": "token_vault_0",
-            "docs": [
-              "Token pair vault"
-            ],
+            "docs": ["Token pair vault"],
             "type": "pubkey"
           },
           {
@@ -5550,16 +4885,12 @@
           },
           {
             "name": "observation_key",
-            "docs": [
-              "observation account key"
-            ],
+            "docs": ["observation account key"],
             "type": "pubkey"
           },
           {
             "name": "mint_decimals_0",
-            "docs": [
-              "mint0 and mint1 decimals"
-            ],
+            "docs": ["mint0 and mint1 decimals"],
             "type": "u8"
           },
           {
@@ -5568,16 +4899,12 @@
           },
           {
             "name": "tick_spacing",
-            "docs": [
-              "The minimum number of ticks between initialized ticks"
-            ],
+            "docs": ["The minimum number of ticks between initialized ticks"],
             "type": "u16"
           },
           {
             "name": "liquidity",
-            "docs": [
-              "The currently in range liquidity available to the pool."
-            ],
+            "docs": ["The currently in range liquidity available to the pool."],
             "type": "u128"
           },
           {
@@ -5627,9 +4954,7 @@
           },
           {
             "name": "swap_in_amount_token_0",
-            "docs": [
-              "The amounts in and out of swap token_0 and token_1"
-            ],
+            "docs": ["The amounts in and out of swap token_0 and token_1"],
             "type": "u128"
           },
           {
@@ -5658,14 +4983,9 @@
           },
           {
             "name": "padding",
-            "docs": [
-              "Leave blank for future use"
-            ],
+            "docs": ["Leave blank for future use"],
             "type": {
-              "array": [
-                "u8",
-                7
-              ]
+              "array": ["u8", 7]
             }
           },
           {
@@ -5683,28 +5003,19 @@
           },
           {
             "name": "tick_array_bitmap",
-            "docs": [
-              "Packed initialized tick array state"
-            ],
+            "docs": ["Packed initialized tick array state"],
             "type": {
-              "array": [
-                "u64",
-                16
-              ]
+              "array": ["u64", 16]
             }
           },
           {
             "name": "total_fees_token_0",
-            "docs": [
-              "except protocol_fee and fund_fee"
-            ],
+            "docs": ["except protocol_fee and fund_fee"],
             "type": "u64"
           },
           {
             "name": "total_fees_claimed_token_0",
-            "docs": [
-              "except protocol_fee and fund_fee"
-            ],
+            "docs": ["except protocol_fee and fund_fee"],
             "type": "u64"
           },
           {
@@ -5734,19 +5045,13 @@
           {
             "name": "padding1",
             "type": {
-              "array": [
-                "u64",
-                24
-              ]
+              "array": ["u64", 24]
             }
           },
           {
             "name": "padding2",
             "type": {
-              "array": [
-                "u64",
-                32
-              ]
+              "array": ["u64", 32]
             }
           }
         ]
@@ -5851,45 +5156,33 @@
     },
     {
       "name": "ProtocolPositionState",
-      "docs": [
-        "Info stored for each user's position"
-      ],
+      "docs": ["Info stored for each user's position"],
       "type": {
         "kind": "struct",
         "fields": [
           {
             "name": "bump",
-            "docs": [
-              "Bump to identify PDA"
-            ],
+            "docs": ["Bump to identify PDA"],
             "type": "u8"
           },
           {
             "name": "pool_id",
-            "docs": [
-              "The ID of the pool with which this token is connected"
-            ],
+            "docs": ["The ID of the pool with which this token is connected"],
             "type": "pubkey"
           },
           {
             "name": "tick_lower_index",
-            "docs": [
-              "The lower bound tick of the position"
-            ],
+            "docs": ["The lower bound tick of the position"],
             "type": "i32"
           },
           {
             "name": "tick_upper_index",
-            "docs": [
-              "The upper bound tick of the position"
-            ],
+            "docs": ["The upper bound tick of the position"],
             "type": "i32"
           },
           {
             "name": "liquidity",
-            "docs": [
-              "The amount of liquidity owned by this position"
-            ],
+            "docs": ["The amount of liquidity owned by this position"],
             "type": "u128"
           },
           {
@@ -5908,16 +5201,12 @@
           },
           {
             "name": "token_fees_owed_0",
-            "docs": [
-              "The fees owed to the position owner in token_0"
-            ],
+            "docs": ["The fees owed to the position owner in token_0"],
             "type": "u64"
           },
           {
             "name": "token_fees_owed_1",
-            "docs": [
-              "The fees owed to the position owner in token_1"
-            ],
+            "docs": ["The fees owed to the position owner in token_1"],
             "type": "u64"
           },
           {
@@ -5926,10 +5215,7 @@
               "The reward growth per unit of liquidity as of the last update to liquidity"
             ],
             "type": {
-              "array": [
-                "u128",
-                3
-              ]
+              "array": ["u128", 3]
             }
           },
           {
@@ -5939,10 +5225,7 @@
           {
             "name": "padding",
             "type": {
-              "array": [
-                "u64",
-                7
-              ]
+              "array": ["u64", 7]
             }
           }
         ]
@@ -6003,30 +5286,22 @@
         "fields": [
           {
             "name": "reward_state",
-            "docs": [
-              "Reward state"
-            ],
+            "docs": ["Reward state"],
             "type": "u8"
           },
           {
             "name": "open_time",
-            "docs": [
-              "Reward open time"
-            ],
+            "docs": ["Reward open time"],
             "type": "u64"
           },
           {
             "name": "end_time",
-            "docs": [
-              "Reward end time"
-            ],
+            "docs": ["Reward end time"],
             "type": "u64"
           },
           {
             "name": "last_update_time",
-            "docs": [
-              "Reward last update time"
-            ],
+            "docs": ["Reward last update time"],
             "type": "u64"
           },
           {
@@ -6038,37 +5313,27 @@
           },
           {
             "name": "reward_total_emissioned",
-            "docs": [
-              "The total amount of reward emissioned"
-            ],
+            "docs": ["The total amount of reward emissioned"],
             "type": "u64"
           },
           {
             "name": "reward_claimed",
-            "docs": [
-              "The total amount of claimed reward"
-            ],
+            "docs": ["The total amount of claimed reward"],
             "type": "u64"
           },
           {
             "name": "token_mint",
-            "docs": [
-              "Reward token mint."
-            ],
+            "docs": ["Reward token mint."],
             "type": "pubkey"
           },
           {
             "name": "token_vault",
-            "docs": [
-              "Reward vault token account."
-            ],
+            "docs": ["Reward vault token account."],
             "type": "pubkey"
           },
           {
             "name": "authority",
-            "docs": [
-              "The owner that has permission to set reward param"
-            ],
+            "docs": ["The owner that has permission to set reward param"],
             "type": "pubkey"
           },
           {
@@ -6136,9 +5401,7 @@
     },
     {
       "name": "StakeEvent",
-      "docs": [
-        "metadata for vault actions"
-      ],
+      "docs": ["metadata for vault actions"],
       "type": {
         "kind": "struct",
         "fields": [
@@ -6251,9 +5514,7 @@
           },
           {
             "name": "token_balance",
-            "docs": [
-              "amount of principal in the strategy"
-            ],
+            "docs": ["amount of principal in the strategy"],
             "type": {
               "defined": {
                 "name": "PodU64"
@@ -6284,9 +5545,7 @@
           },
           {
             "name": "origination_fee",
-            "docs": [
-              "fee charged on origination of new loans"
-            ],
+            "docs": ["fee charged on origination of new loans"],
             "type": {
               "defined": {
                 "name": "PodU64CBPS"
@@ -6295,9 +5554,7 @@
           },
           {
             "name": "origination_cap",
-            "docs": [
-              "the maximum size of a loan that can be originated"
-            ],
+            "docs": ["the maximum size of a loan that can be originated"],
             "type": {
               "defined": {
                 "name": "PodU64"
@@ -6339,9 +5596,7 @@
           },
           {
             "name": "fee_claimable",
-            "docs": [
-              "this is the amount that has accrued to the manager"
-            ],
+            "docs": ["this is the amount that has accrued to the manager"],
             "type": {
               "defined": {
                 "name": "PodU64"
@@ -6578,9 +5833,7 @@
           },
           {
             "name": "UpdateVault",
-            "fields": [
-              "u64"
-            ]
+            "fields": ["u64"]
           },
           {
             "name": "UpdateCaps",
@@ -6899,10 +6152,7 @@
           {
             "name": "weight_matrix",
             "type": {
-              "array": [
-                "u32",
-                5
-              ]
+              "array": ["u32", 5]
             }
           },
           {
@@ -7360,10 +6610,7 @@
           {
             "name": "whirlpool_bump",
             "type": {
-              "array": [
-                "u8",
-                1
-              ]
+              "array": ["u8", 1]
             }
           },
           {
@@ -7373,10 +6620,7 @@
           {
             "name": "fee_tier_index_seed",
             "type": {
-              "array": [
-                "u8",
-                2
-              ]
+              "array": ["u8", 2]
             }
           },
           {
@@ -7464,16 +6708,12 @@
         "fields": [
           {
             "name": "mint",
-            "docs": [
-              "Reward token mint."
-            ],
+            "docs": ["Reward token mint."],
             "type": "pubkey"
           },
           {
             "name": "vault",
-            "docs": [
-              "Reward vault token account."
-            ],
+            "docs": ["Reward vault token account."],
             "type": "pubkey"
           },
           {

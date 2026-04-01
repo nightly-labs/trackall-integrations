@@ -57,7 +57,6 @@ const MIN_TOKEN_OWNER_RECORD_LENGTH = TOR_GOVERNANCE_DELEGATE_OFFSET + 1
 const REALM_COMMUNITY_MINT_OFFSET = 1
 const REALM_CONFIG_OFFSET = REALM_COMMUNITY_MINT_OFFSET + 32
 const REALM_COUNCIL_MINT_OPTION_OFFSET = REALM_CONFIG_OFFSET + 25
-const GOVERNANCE_CACHE_TTL_MS = 5 * 60 * 1000
 const GOVERNANCE_PROGRAMS_PER_BATCH = 3
 
 const textDecoder = new TextDecoder()
@@ -257,7 +256,6 @@ function buildTokenOwnerRecordRequest(
   return {
     kind: 'getProgramAccounts',
     programId,
-    cacheTtlMs: GOVERNANCE_CACHE_TTL_MS,
     filters: [
       {
         memcmp: {
@@ -344,7 +342,9 @@ export const realmsIntegration: SolanaIntegration = {
       )
     }
 
-    tokenOwnerRecords.sort((left, right) => left.realm.localeCompare(right.realm))
+    tokenOwnerRecords.sort((left, right) =>
+      left.realm.localeCompare(right.realm),
+    )
 
     if (tokenOwnerRecords.length === 0) return []
 
@@ -352,9 +352,7 @@ export const realmsIntegration: SolanaIntegration = {
       ...new Set(tokenOwnerRecords.map((record) => record.realm)),
     ]
     const mintAddresses = [
-      ...new Set(
-        tokenOwnerRecords.map((record) => record.governingTokenMint),
-      ),
+      ...new Set(tokenOwnerRecords.map((record) => record.governingTokenMint)),
     ]
     const metadataMap = yield [...realmAddresses, ...mintAddresses]
 

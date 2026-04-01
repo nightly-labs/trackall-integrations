@@ -77,7 +77,13 @@ function parsePool(account: MaybeSolanaAccount): SaberPool | null {
   const poolMint = readPubkey(data, SWAP_POOL_MINT_OFFSET)
   const tokenAMint = readPubkey(data, SWAP_TOKEN_A_MINT_OFFSET)
   const tokenBMint = readPubkey(data, SWAP_TOKEN_B_MINT_OFFSET)
-  if (!tokenAReserve || !tokenBReserve || !poolMint || !tokenAMint || !tokenBMint)
+  if (
+    !tokenAReserve ||
+    !tokenBReserve ||
+    !poolMint ||
+    !tokenAMint ||
+    !tokenBMint
+  )
     return null
 
   return {
@@ -263,8 +269,8 @@ export const saberIntegration: SolanaIntegration = {
     }
 
     positions.sort((a, b) => {
-      const aPool = a.positionKind === 'liquidity' ? a.poolAddress ?? '' : ''
-      const bPool = b.positionKind === 'liquidity' ? b.poolAddress ?? '' : ''
+      const aPool = a.positionKind === 'liquidity' ? (a.poolAddress ?? '') : ''
+      const bPool = b.positionKind === 'liquidity' ? (b.poolAddress ?? '') : ''
       return aPool.localeCompare(bPool)
     })
 

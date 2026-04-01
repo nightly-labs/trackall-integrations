@@ -12,8 +12,8 @@ const pancakeswapPlatform = {
     website: 'https://pancakeswap.finance/swap?chain=sol',
     documentation:
       'https://docs.pancakeswap.finance/welcome-to-pancakeswap/how-to-guides/get-started-sol/solana-faq',
-    github: 'https://github.com/pancakeswap/pancake-frontend'
-  }
+    github: 'https://github.com/pancakeswap/pancake-frontend',
+  },
 } satisfies Platform
 
 export default pancakeswapPlatform

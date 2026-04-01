@@ -13,16 +13,7 @@
       "docs": [
         "Accept authority if you are the pending_authority; finalizes the handover."
       ],
-      "discriminator": [
-        107,
-        86,
-        198,
-        91,
-        33,
-        12,
-        107,
-        160
-      ],
+      "discriminator": [107, 86, 198, 91, 33, 12, 107, 160],
       "accounts": [
         {
           "name": "global_state",
@@ -35,18 +26,7 @@
               {
                 "kind": "const",
                 "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  97,
-                  108,
-                  95,
-                  115,
-                  116,
-                  97,
-                  116,
-                  101
+                  103, 108, 111, 98, 97, 108, 95, 115, 116, 97, 116, 101
                 ]
               }
             ]
@@ -58,9 +38,7 @@
             "Pending authority accepting control (must match `global_state.pending_authority`)"
           ],
           "signer": true,
-          "relations": [
-            "global_state"
-          ]
+          "relations": ["global_state"]
         }
       ],
       "args": []
@@ -70,89 +48,46 @@
       "docs": [
         "Calculate GT rewards for LP based on stored Position data (no mint)"
       ],
-      "discriminator": [
-        118,
-        226,
-        87,
-        38,
-        17,
-        161,
-        244,
-        218
-      ],
+      "discriminator": [118, 226, 87, 38, 17, 161, 244, 218],
       "accounts": [
         {
           "name": "global_state",
-          "docs": [
-            "Global config (PDA)"
-          ],
+          "docs": ["Global config (PDA)"],
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  97,
-                  108,
-                  95,
-                  115,
-                  116,
-                  97,
-                  116,
-                  101
+                  103, 108, 111, 98, 97, 108, 95, 115, 116, 97, 116, 101
                 ]
               }
             ]
           },
-          "relations": [
-            "controller"
-          ]
+          "relations": ["controller"]
         },
         {
           "name": "controller",
-          "docs": [
-            "LP token controller for this position's mint"
-          ],
-          "relations": [
-            "position"
-          ]
+          "docs": ["LP token controller for this position's mint"],
+          "relations": ["position"]
         },
         {
           "name": "gt_store",
-          "docs": [
-            "The GT Store account (loaded & mutated by CPI)"
-          ],
+          "docs": ["The GT Store account (loaded & mutated by CPI)"],
           "writable": true
         },
         {
           "name": "gt_program",
-          "docs": [
-            "The GT program"
-          ],
+          "docs": ["The GT program"],
           "address": "Gmso1uvJnLbawvw7yezdfCDcPydwW2s2iqG3w6MDucLo"
         },
         {
           "name": "position",
-          "docs": [
-            "Position tied to (controller, owner, position_id)"
-          ],
+          "docs": ["Position tied to (controller, owner, position_id)"],
           "pda": {
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  115,
-                  105,
-                  116,
-                  105,
-                  111,
-                  110
-                ]
+                "value": [112, 111, 115, 105, 116, 105, 111, 110]
               },
               {
                 "kind": "account",
@@ -174,9 +109,7 @@
           "docs": [
             "Owner of the position (not required to sign for read-only calc)"
           ],
-          "relations": [
-            "position"
-          ]
+          "relations": ["position"]
         }
       ],
       "args": []
@@ -186,93 +119,48 @@
       "docs": [
         "Claim GT rewards for a position, minting tokens and updating snapshot"
       ],
-      "discriminator": [
-        13,
-        225,
-        198,
-        47,
-        68,
-        147,
-        199,
-        163
-      ],
+      "discriminator": [13, 225, 198, 47, 68, 147, 199, 163],
       "accounts": [
         {
           "name": "global_state",
-          "docs": [
-            "Global config (PDA)"
-          ],
+          "docs": ["Global config (PDA)"],
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  97,
-                  108,
-                  95,
-                  115,
-                  116,
-                  97,
-                  116,
-                  101
+                  103, 108, 111, 98, 97, 108, 95, 115, 116, 97, 116, 101
                 ]
               }
             ]
           },
-          "relations": [
-            "controller"
-          ]
+          "relations": ["controller"]
         },
         {
           "name": "controller",
-          "docs": [
-            "LP token controller for this position's mint"
-          ],
-          "relations": [
-            "position"
-          ]
+          "docs": ["LP token controller for this position's mint"],
+          "relations": ["position"]
         },
         {
           "name": "store",
-          "docs": [
-            "The GT Store account (mutated by CPI)"
-          ],
+          "docs": ["The GT Store account (mutated by CPI)"],
           "writable": true,
-          "relations": [
-            "gt_user"
-          ]
+          "relations": ["gt_user"]
         },
         {
           "name": "gt_program",
-          "docs": [
-            "The GT program"
-          ],
+          "docs": ["The GT program"],
           "address": "Gmso1uvJnLbawvw7yezdfCDcPydwW2s2iqG3w6MDucLo"
         },
         {
           "name": "position",
-          "docs": [
-            "Position tied to (controller, owner, position_id)"
-          ],
+          "docs": ["Position tied to (controller, owner, position_id)"],
           "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  115,
-                  105,
-                  116,
-                  105,
-                  111,
-                  110
-                ]
+                "value": [112, 111, 115, 105, 116, 105, 111, 110]
               },
               {
                 "kind": "account",
@@ -291,14 +179,9 @@
         },
         {
           "name": "owner",
-          "docs": [
-            "Owner of the position"
-          ],
+          "docs": ["Owner of the position"],
           "signer": true,
-          "relations": [
-            "position",
-            "gt_user"
-          ]
+          "relations": ["position", "gt_user"]
         },
         {
           "name": "gt_user",
@@ -320,19 +203,8 @@
     },
     {
       "name": "create_lp_token_controller",
-      "docs": [
-        "Create a new LP token controller for a specific token mint"
-      ],
-      "discriminator": [
-        192,
-        171,
-        199,
-        177,
-        191,
-        214,
-        186,
-        8
-      ],
+      "docs": ["Create a new LP token controller for a specific token mint"],
+      "discriminator": [192, 171, 199, 177, 191, 214, 186, 8],
       "accounts": [
         {
           "name": "global_state",
@@ -344,18 +216,7 @@
               {
                 "kind": "const",
                 "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  97,
-                  108,
-                  95,
-                  115,
-                  116,
-                  97,
-                  116,
-                  101
+                  103, 108, 111, 98, 97, 108, 95, 115, 116, 97, 116, 101
                 ]
               }
             ]
@@ -363,34 +224,15 @@
         },
         {
           "name": "controller",
-          "docs": [
-            "LP token controller to initialize"
-          ],
+          "docs": ["LP token controller to initialize"],
           "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  108,
-                  112,
-                  95,
-                  116,
-                  111,
-                  107,
-                  101,
-                  110,
-                  95,
-                  99,
-                  111,
-                  110,
-                  116,
-                  114,
-                  111,
-                  108,
-                  108,
-                  101,
-                  114
+                  108, 112, 95, 116, 111, 107, 101, 110, 95, 99, 111, 110, 116,
+                  114, 111, 108, 108, 101, 114
                 ]
               },
               {
@@ -410,14 +252,10 @@
         },
         {
           "name": "authority",
-          "docs": [
-            "Current authority"
-          ],
+          "docs": ["Current authority"],
           "writable": true,
           "signer": true,
-          "relations": [
-            "global_state"
-          ]
+          "relations": ["global_state"]
         },
         {
           "name": "system_program",
@@ -437,19 +275,8 @@
     },
     {
       "name": "disable_lp_token_controller",
-      "docs": [
-        "Disable LP token controller (irreversible)"
-      ],
-      "discriminator": [
-        234,
-        244,
-        255,
-        11,
-        164,
-        136,
-        159,
-        144
-      ],
+      "docs": ["Disable LP token controller (irreversible)"],
+      "discriminator": [234, 244, 255, 11, 164, 136, 159, 144],
       "accounts": [
         {
           "name": "global_state",
@@ -461,75 +288,41 @@
               {
                 "kind": "const",
                 "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  97,
-                  108,
-                  95,
-                  115,
-                  116,
-                  97,
-                  116,
-                  101
+                  103, 108, 111, 98, 97, 108, 95, 115, 116, 97, 116, 101
                 ]
               }
             ]
           },
-          "relations": [
-            "controller"
-          ]
+          "relations": ["controller"]
         },
         {
           "name": "controller",
-          "docs": [
-            "LP token controller to disable"
-          ],
+          "docs": ["LP token controller to disable"],
           "writable": true
         },
         {
           "name": "gt_store",
-          "docs": [
-            "The GT Store account (mutated by CPI)"
-          ],
+          "docs": ["The GT Store account (mutated by CPI)"],
           "writable": true
         },
         {
           "name": "gt_program",
-          "docs": [
-            "GT program"
-          ],
+          "docs": ["GT program"],
           "address": "Gmso1uvJnLbawvw7yezdfCDcPydwW2s2iqG3w6MDucLo"
         },
         {
           "name": "authority",
-          "docs": [
-            "Current authority"
-          ],
+          "docs": ["Current authority"],
           "signer": true,
-          "relations": [
-            "global_state"
-          ]
+          "relations": ["global_state"]
         }
       ],
       "args": []
     },
     {
       "name": "initialize",
-      "docs": [
-        "Initialize LP staking program"
-      ],
-      "discriminator": [
-        175,
-        175,
-        109,
-        31,
-        13,
-        152,
-        155,
-        237
-      ],
+      "docs": ["Initialize LP staking program"],
+      "discriminator": [175, 175, 109, 31, 13, 152, 155, 237],
       "accounts": [
         {
           "name": "global_state",
@@ -539,18 +332,7 @@
               {
                 "kind": "const",
                 "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  97,
-                  108,
-                  95,
-                  115,
-                  116,
-                  97,
-                  116,
-                  101
+                  103, 108, 111, 98, 97, 108, 95, 115, 116, 97, 116, 101
                 ]
               }
             ]
@@ -579,19 +361,8 @@
     },
     {
       "name": "set_claim_enabled",
-      "docs": [
-        "Toggle whether LPs can claim GT without unstaking."
-      ],
-      "discriminator": [
-        251,
-        228,
-        158,
-        120,
-        230,
-        38,
-        185,
-        27
-      ],
+      "docs": ["Toggle whether LPs can claim GT without unstaking."],
+      "discriminator": [251, 228, 158, 120, 230, 38, 185, 27],
       "accounts": [
         {
           "name": "global_state",
@@ -604,18 +375,7 @@
               {
                 "kind": "const",
                 "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  97,
-                  108,
-                  95,
-                  115,
-                  116,
-                  97,
-                  116,
-                  101
+                  103, 108, 111, 98, 97, 108, 95, 115, 116, 97, 116, 101
                 ]
               }
             ]
@@ -623,13 +383,9 @@
         },
         {
           "name": "authority",
-          "docs": [
-            "Current authority"
-          ],
+          "docs": ["Current authority"],
           "signer": true,
-          "relations": [
-            "global_state"
-          ]
+          "relations": ["global_state"]
         }
       ],
       "args": [
@@ -641,19 +397,8 @@
     },
     {
       "name": "set_pricing_staleness",
-      "docs": [
-        "Set pricing staleness configuration"
-      ],
-      "discriminator": [
-        161,
-        221,
-        21,
-        196,
-        66,
-        110,
-        222,
-        97
-      ],
+      "docs": ["Set pricing staleness configuration"],
+      "discriminator": [161, 221, 21, 196, 66, 110, 222, 97],
       "accounts": [
         {
           "name": "global_state",
@@ -666,18 +411,7 @@
               {
                 "kind": "const",
                 "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  97,
-                  108,
-                  95,
-                  115,
-                  116,
-                  97,
-                  116,
-                  101
+                  103, 108, 111, 98, 97, 108, 95, 115, 116, 97, 116, 101
                 ]
               }
             ]
@@ -685,13 +419,9 @@
         },
         {
           "name": "authority",
-          "docs": [
-            "Current authority"
-          ],
+          "docs": ["Current authority"],
           "signer": true,
-          "relations": [
-            "global_state"
-          ]
+          "relations": ["global_state"]
         }
       ],
       "args": [
@@ -703,83 +433,42 @@
     },
     {
       "name": "stake_glv",
-      "docs": [
-        "Stake GLV tokens with automatic pricing via CPI"
-      ],
-      "discriminator": [
-        156,
-        92,
-        208,
-        171,
-        0,
-        173,
-        219,
-        232
-      ],
+      "docs": ["Stake GLV tokens with automatic pricing via CPI"],
+      "discriminator": [156, 92, 208, 171, 0, 173, 219, 232],
       "accounts": [
         {
           "name": "global_state",
-          "docs": [
-            "Global config (PDA)"
-          ],
+          "docs": ["Global config (PDA)"],
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  97,
-                  108,
-                  95,
-                  115,
-                  116,
-                  97,
-                  116,
-                  101
+                  103, 108, 111, 98, 97, 108, 95, 115, 116, 97, 116, 101
                 ]
               }
             ]
           },
-          "relations": [
-            "controller"
-          ]
+          "relations": ["controller"]
         },
         {
           "name": "controller",
-          "docs": [
-            "LP token controller for this mint"
-          ],
+          "docs": ["LP token controller for this mint"],
           "writable": true
         },
         {
           "name": "lp_mint",
-          "docs": [
-            "GLV token mint to be staked"
-          ]
+          "docs": ["GLV token mint to be staked"]
         },
         {
           "name": "position",
-          "docs": [
-            "Position PDA to initialize"
-          ],
+          "docs": ["Position PDA to initialize"],
           "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  115,
-                  105,
-                  116,
-                  105,
-                  111,
-                  110
-                ]
+                "value": [112, 111, 115, 105, 116, 105, 111, 110]
               },
               {
                 "kind": "account",
@@ -798,21 +487,13 @@
         },
         {
           "name": "position_vault",
-          "docs": [
-            "Vault token account (PDA) to hold staked GLV tokens"
-          ],
+          "docs": ["Vault token account (PDA) to hold staked GLV tokens"],
           "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
+                "value": [118, 97, 117, 108, 116]
               },
               {
                 "kind": "account",
@@ -823,31 +504,23 @@
         },
         {
           "name": "gt_store",
-          "docs": [
-            "The GT Store account (mutated by CPI)"
-          ],
+          "docs": ["The GT Store account (mutated by CPI)"],
           "writable": true
         },
         {
           "name": "gt_program",
-          "docs": [
-            "GT program"
-          ],
+          "docs": ["GT program"],
           "address": "Gmso1uvJnLbawvw7yezdfCDcPydwW2s2iqG3w6MDucLo"
         },
         {
           "name": "owner",
-          "docs": [
-            "Owner paying rent and recorded as position owner"
-          ],
+          "docs": ["Owner paying rent and recorded as position owner"],
           "writable": true,
           "signer": true
         },
         {
           "name": "user_lp_token",
-          "docs": [
-            "User's GLV token account"
-          ],
+          "docs": ["User's GLV token account"],
           "writable": true
         },
         {
@@ -884,83 +557,42 @@
     },
     {
       "name": "stake_gm",
-      "docs": [
-        "Stake GM tokens with automatic pricing via CPI"
-      ],
-      "discriminator": [
-        42,
-        189,
-        6,
-        136,
-        24,
-        96,
-        191,
-        130
-      ],
+      "docs": ["Stake GM tokens with automatic pricing via CPI"],
+      "discriminator": [42, 189, 6, 136, 24, 96, 191, 130],
       "accounts": [
         {
           "name": "global_state",
-          "docs": [
-            "Global config (PDA)"
-          ],
+          "docs": ["Global config (PDA)"],
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  97,
-                  108,
-                  95,
-                  115,
-                  116,
-                  97,
-                  116,
-                  101
+                  103, 108, 111, 98, 97, 108, 95, 115, 116, 97, 116, 101
                 ]
               }
             ]
           },
-          "relations": [
-            "controller"
-          ]
+          "relations": ["controller"]
         },
         {
           "name": "controller",
-          "docs": [
-            "LP token controller for this mint"
-          ],
+          "docs": ["LP token controller for this mint"],
           "writable": true
         },
         {
           "name": "lp_mint",
-          "docs": [
-            "GM token mint to be staked (market token)"
-          ]
+          "docs": ["GM token mint to be staked (market token)"]
         },
         {
           "name": "position",
-          "docs": [
-            "Position PDA to initialize"
-          ],
+          "docs": ["Position PDA to initialize"],
           "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  115,
-                  105,
-                  116,
-                  105,
-                  111,
-                  110
-                ]
+                "value": [112, 111, 115, 105, 116, 105, 111, 110]
               },
               {
                 "kind": "account",
@@ -979,21 +611,13 @@
         },
         {
           "name": "position_vault",
-          "docs": [
-            "Vault token account (PDA) to hold staked GM tokens"
-          ],
+          "docs": ["Vault token account (PDA) to hold staked GM tokens"],
           "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
+                "value": [118, 97, 117, 108, 116]
               },
               {
                 "kind": "account",
@@ -1004,31 +628,23 @@
         },
         {
           "name": "gt_store",
-          "docs": [
-            "The GT Store account (mutated by CPI)"
-          ],
+          "docs": ["The GT Store account (mutated by CPI)"],
           "writable": true
         },
         {
           "name": "gt_program",
-          "docs": [
-            "GT program"
-          ],
+          "docs": ["GT program"],
           "address": "Gmso1uvJnLbawvw7yezdfCDcPydwW2s2iqG3w6MDucLo"
         },
         {
           "name": "owner",
-          "docs": [
-            "Owner paying rent and recorded as position owner"
-          ],
+          "docs": ["Owner paying rent and recorded as position owner"],
           "writable": true,
           "signer": true
         },
         {
           "name": "user_lp_token",
-          "docs": [
-            "User's GM token account"
-          ],
+          "docs": ["User's GM token account"],
           "writable": true
         },
         {
@@ -1068,16 +684,7 @@
       "docs": [
         "Propose transferring program authority to `new_authority` (two-step handover)."
       ],
-      "discriminator": [
-        48,
-        169,
-        76,
-        72,
-        229,
-        180,
-        55,
-        161
-      ],
+      "discriminator": [48, 169, 76, 72, 229, 180, 55, 161],
       "accounts": [
         {
           "name": "global_state",
@@ -1090,18 +697,7 @@
               {
                 "kind": "const",
                 "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  97,
-                  108,
-                  95,
-                  115,
-                  116,
-                  97,
-                  116,
-                  101
+                  103, 108, 111, 98, 97, 108, 95, 115, 116, 97, 116, 101
                 ]
               }
             ]
@@ -1109,13 +705,9 @@
         },
         {
           "name": "authority",
-          "docs": [
-            "Current authority proposing a transfer"
-          ],
+          "docs": ["Current authority proposing a transfer"],
           "signer": true,
-          "relations": [
-            "global_state"
-          ]
+          "relations": ["global_state"]
         }
       ],
       "args": [
@@ -1130,56 +722,28 @@
       "docs": [
         "Unstake LP: first claim rewards, then either close the position (full) or update proportionally (partial)"
       ],
-      "discriminator": [
-        114,
-        4,
-        7,
-        206,
-        251,
-        176,
-        233,
-        119
-      ],
+      "discriminator": [114, 4, 7, 206, 251, 176, 233, 119],
       "accounts": [
         {
           "name": "global_state",
-          "docs": [
-            "Global config (PDA)"
-          ],
+          "docs": ["Global config (PDA)"],
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  97,
-                  108,
-                  95,
-                  115,
-                  116,
-                  97,
-                  116,
-                  101
+                  103, 108, 111, 98, 97, 108, 95, 115, 116, 97, 116, 101
                 ]
               }
             ]
           },
-          "relations": [
-            "controller"
-          ]
+          "relations": ["controller"]
         },
         {
           "name": "controller",
-          "docs": [
-            "LP token controller for this position's mint"
-          ],
+          "docs": ["LP token controller for this position's mint"],
           "writable": true,
-          "relations": [
-            "position"
-          ]
+          "relations": ["position"]
         },
         {
           "name": "lp_mint",
@@ -1189,41 +753,24 @@
         },
         {
           "name": "store",
-          "docs": [
-            "The GT Store account (mutated by CPI)"
-          ],
+          "docs": ["The GT Store account (mutated by CPI)"],
           "writable": true,
-          "relations": [
-            "gt_user"
-          ]
+          "relations": ["gt_user"]
         },
         {
           "name": "gt_program",
-          "docs": [
-            "The GT program"
-          ],
+          "docs": ["The GT program"],
           "address": "Gmso1uvJnLbawvw7yezdfCDcPydwW2s2iqG3w6MDucLo"
         },
         {
           "name": "position",
-          "docs": [
-            "Position tied to (controller, owner, position_id)"
-          ],
+          "docs": ["Position tied to (controller, owner, position_id)"],
           "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  112,
-                  111,
-                  115,
-                  105,
-                  116,
-                  105,
-                  111,
-                  110
-                ]
+                "value": [112, 111, 115, 105, 116, 105, 111, 110]
               },
               {
                 "kind": "account",
@@ -1242,21 +789,13 @@
         },
         {
           "name": "position_vault",
-          "docs": [
-            "Vault holding staked LP tokens (PDA)"
-          ],
+          "docs": ["Vault holding staked LP tokens (PDA)"],
           "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
+                "value": [118, 97, 117, 108, 116]
               },
               {
                 "kind": "account",
@@ -1267,14 +806,9 @@
         },
         {
           "name": "owner",
-          "docs": [
-            "Owner of the position"
-          ],
+          "docs": ["Owner of the position"],
           "signer": true,
-          "relations": [
-            "position",
-            "gt_user"
-          ]
+          "relations": ["position", "gt_user"]
         },
         {
           "name": "gt_user",
@@ -1285,9 +819,7 @@
         },
         {
           "name": "user_lp_token",
-          "docs": [
-            "Destination LP token account to receive unstaked tokens"
-          ],
+          "docs": ["Destination LP token account to receive unstaked tokens"],
           "writable": true
         },
         {
@@ -1316,16 +848,7 @@
         "Note: APY changes are applied retroactively and affect all existing positions.",
         "Rewards are calculated using current APY gradients at claim/unstake time."
       ],
-      "discriminator": [
-        11,
-        49,
-        254,
-        237,
-        67,
-        100,
-        145,
-        61
-      ],
+      "discriminator": [11, 49, 254, 237, 67, 100, 145, 61],
       "accounts": [
         {
           "name": "global_state",
@@ -1338,18 +861,7 @@
               {
                 "kind": "const",
                 "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  97,
-                  108,
-                  95,
-                  115,
-                  116,
-                  97,
-                  116,
-                  101
+                  103, 108, 111, 98, 97, 108, 95, 115, 116, 97, 116, 101
                 ]
               }
             ]
@@ -1357,13 +869,9 @@
         },
         {
           "name": "authority",
-          "docs": [
-            "Current authority"
-          ],
+          "docs": ["Current authority"],
           "signer": true,
-          "relations": [
-            "global_state"
-          ]
+          "relations": ["global_state"]
         }
       ],
       "args": [
@@ -1391,16 +899,7 @@
         "Note: APY changes are applied retroactively and affect all existing positions.",
         "Rewards are calculated using current APY gradients at claim/unstake time."
       ],
-      "discriminator": [
-        130,
-        192,
-        17,
-        128,
-        242,
-        224,
-        186,
-        254
-      ],
+      "discriminator": [130, 192, 17, 128, 242, 224, 186, 254],
       "accounts": [
         {
           "name": "global_state",
@@ -1413,18 +912,7 @@
               {
                 "kind": "const",
                 "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  97,
-                  108,
-                  95,
-                  115,
-                  116,
-                  97,
-                  116,
-                  101
+                  103, 108, 111, 98, 97, 108, 95, 115, 116, 97, 116, 101
                 ]
               }
             ]
@@ -1432,13 +920,9 @@
         },
         {
           "name": "authority",
-          "docs": [
-            "Current authority"
-          ],
+          "docs": ["Current authority"],
           "signer": true,
-          "relations": [
-            "global_state"
-          ]
+          "relations": ["global_state"]
         }
       ],
       "args": [
@@ -1456,19 +940,8 @@
     },
     {
       "name": "update_min_stake_value",
-      "docs": [
-        "Update the minimum stake value (1e20 scaled)"
-      ],
-      "discriminator": [
-        226,
-        7,
-        46,
-        39,
-        38,
-        22,
-        164,
-        122
-      ],
+      "docs": ["Update the minimum stake value (1e20 scaled)"],
+      "discriminator": [226, 7, 46, 39, 38, 22, 164, 122],
       "accounts": [
         {
           "name": "global_state",
@@ -1481,18 +954,7 @@
               {
                 "kind": "const",
                 "value": [
-                  103,
-                  108,
-                  111,
-                  98,
-                  97,
-                  108,
-                  95,
-                  115,
-                  116,
-                  97,
-                  116,
-                  101
+                  103, 108, 111, 98, 97, 108, 95, 115, 116, 97, 116, 101
                 ]
               }
             ]
@@ -1500,13 +962,9 @@
         },
         {
           "name": "authority",
-          "docs": [
-            "Current authority"
-          ],
+          "docs": ["Current authority"],
           "signer": true,
-          "relations": [
-            "global_state"
-          ]
+          "relations": ["global_state"]
         }
       ],
       "args": [
@@ -1520,120 +978,39 @@
   "accounts": [
     {
       "name": "GlobalState",
-      "discriminator": [
-        163,
-        46,
-        74,
-        168,
-        216,
-        123,
-        133,
-        98
-      ]
+      "discriminator": [163, 46, 74, 168, 216, 123, 133, 98]
     },
     {
       "name": "Glv",
-      "discriminator": [
-        136,
-        174,
-        157,
-        179,
-        203,
-        155,
-        156,
-        243
-      ]
+      "discriminator": [136, 174, 157, 179, 203, 155, 156, 243]
     },
     {
       "name": "LpTokenController",
-      "discriminator": [
-        210,
-        163,
-        6,
-        69,
-        215,
-        217,
-        239,
-        57
-      ]
+      "discriminator": [210, 163, 6, 69, 215, 217, 239, 57]
     },
     {
       "name": "Market",
-      "discriminator": [
-        219,
-        190,
-        213,
-        55,
-        0,
-        227,
-        198,
-        154
-      ]
+      "discriminator": [219, 190, 213, 55, 0, 227, 198, 154]
     },
     {
       "name": "Oracle",
-      "discriminator": [
-        139,
-        194,
-        131,
-        179,
-        140,
-        179,
-        229,
-        244
-      ]
+      "discriminator": [139, 194, 131, 179, 140, 179, 229, 244]
     },
     {
       "name": "Position",
-      "discriminator": [
-        170,
-        188,
-        143,
-        228,
-        122,
-        64,
-        247,
-        208
-      ]
+      "discriminator": [170, 188, 143, 228, 122, 64, 247, 208]
     },
     {
       "name": "Store",
-      "discriminator": [
-        130,
-        48,
-        247,
-        244,
-        182,
-        191,
-        30,
-        26
-      ]
+      "discriminator": [130, 48, 247, 244, 182, 191, 30, 26]
     },
     {
       "name": "TokenMapHeader",
-      "discriminator": [
-        107,
-        43,
-        27,
-        24,
-        245,
-        62,
-        145,
-        126
-      ]
+      "discriminator": [107, 43, 27, 24, 245, 62, 145, 126]
     },
     {
       "name": "UserHeader",
-      "discriminator": [
-        12,
-        78,
-        211,
-        244,
-        225,
-        77,
-        209,
-        249
-      ]
+      "discriminator": [12, 78, 211, 244, 225, 77, 209, 249]
     }
   ],
   "errors": [
@@ -1681,9 +1058,7 @@
   "types": [
     {
       "name": "Addresses",
-      "docs": [
-        "Addresses."
-      ],
+      "docs": ["Addresses."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -1698,10 +1073,7 @@
           {
             "name": "reserved",
             "type": {
-              "array": [
-                "pubkey",
-                30
-              ]
+              "array": ["pubkey", 30]
             }
           }
         ]
@@ -1709,9 +1081,7 @@
     },
     {
       "name": "Amounts",
-      "docs": [
-        "Amounts."
-      ],
+      "docs": ["Amounts."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -1758,10 +1128,7 @@
           {
             "name": "reserved",
             "type": {
-              "array": [
-                "u64",
-                124
-              ]
+              "array": ["u64", 124]
             }
           }
         ]
@@ -1769,9 +1136,7 @@
     },
     {
       "name": "Clocks",
-      "docs": [
-        "Market clocks."
-      ],
+      "docs": ["Market clocks."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -1782,10 +1147,7 @@
           {
             "name": "padding",
             "type": {
-              "array": [
-                "u8",
-                8
-              ]
+              "array": ["u8", 8]
             }
           },
           {
@@ -1815,10 +1177,7 @@
           {
             "name": "reserved",
             "type": {
-              "array": [
-                "i64",
-                3
-              ]
+              "array": ["i64", 3]
             }
           }
         ]
@@ -1826,9 +1185,7 @@
     },
     {
       "name": "DisabledFeatures",
-      "docs": [
-        "Disabled Features State."
-      ],
+      "docs": ["Disabled Features State."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -1849,9 +1206,7 @@
     },
     {
       "name": "DisabledMap",
-      "docs": [
-        "Fixed size map generated by the macro."
-      ],
+      "docs": ["Fixed size map generated by the macro."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -1875,10 +1230,7 @@
           {
             "name": "padding",
             "type": {
-              "array": [
-                "u8",
-                0
-              ]
+              "array": ["u8", 0]
             }
           },
           {
@@ -1890,9 +1242,7 @@
     },
     {
       "name": "DisabledMapEntry",
-      "docs": [
-        "Entry."
-      ],
+      "docs": ["Entry."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -1903,10 +1253,7 @@
           {
             "name": "key",
             "type": {
-              "array": [
-                "u8",
-                2
-              ]
+              "array": ["u8", 2]
             }
           },
           {
@@ -1918,9 +1265,7 @@
     },
     {
       "name": "Factors",
-      "docs": [
-        "Factors."
-      ],
+      "docs": ["Factors."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -1939,10 +1284,7 @@
           {
             "name": "reserved",
             "type": {
-              "array": [
-                "u128",
-                64
-              ]
+              "array": ["u128", 64]
             }
           }
         ]
@@ -1955,9 +1297,7 @@
         "fields": [
           {
             "name": "authority",
-            "docs": [
-              "Program administrator with governance privileges"
-            ],
+            "docs": ["Program administrator with governance privileges"],
             "type": "pubkey"
           },
           {
@@ -1973,17 +1313,12 @@
               "APY gradient buckets (APY_BUCKETS), each is 1e20-scaled APR for week buckets [0-1), [1-2), ..., [APY_BUCKETS, +inf)"
             ],
             "type": {
-              "array": [
-                "u128",
-                53
-              ]
+              "array": ["u128", 53]
             }
           },
           {
             "name": "min_stake_value",
-            "docs": [
-              "Minimum stake value in USD scaled by 1e20"
-            ],
+            "docs": ["Minimum stake value in USD scaled by 1e20"],
             "type": "u128"
           },
           {
@@ -2002,9 +1337,7 @@
           },
           {
             "name": "pricing_staleness_seconds",
-            "docs": [
-              "Price staleness configuration in seconds"
-            ],
+            "docs": ["Price staleness configuration in seconds"],
             "type": "u32"
           },
           {
@@ -2016,9 +1349,7 @@
     },
     {
       "name": "Glv",
-      "docs": [
-        "Glv."
-      ],
+      "docs": ["Glv."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -2037,19 +1368,13 @@
           {
             "name": "bump_bytes",
             "type": {
-              "array": [
-                "u8",
-                1
-              ]
+              "array": ["u8", 1]
             }
           },
           {
             "name": "padding_0",
             "type": {
-              "array": [
-                "u8",
-                3
-              ]
+              "array": ["u8", 3]
             }
           },
           {
@@ -2087,10 +1412,7 @@
           {
             "name": "padding_1",
             "type": {
-              "array": [
-                "u8",
-                4
-              ]
+              "array": ["u8", 4]
             }
           },
           {
@@ -2104,10 +1426,7 @@
           {
             "name": "reserved",
             "type": {
-              "array": [
-                "u8",
-                256
-              ]
+              "array": ["u8", 256]
             }
           },
           {
@@ -2123,9 +1442,7 @@
     },
     {
       "name": "GlvMarketConfig",
-      "docs": [
-        "Market Config for GLV."
-      ],
+      "docs": ["Market Config for GLV."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -2148,10 +1465,7 @@
           {
             "name": "padding_0",
             "type": {
-              "array": [
-                "u8",
-                7
-              ]
+              "array": ["u8", 7]
             }
           },
           {
@@ -2165,10 +1479,7 @@
           {
             "name": "padding_1",
             "type": {
-              "array": [
-                "u8",
-                8
-              ]
+              "array": ["u8", 8]
             }
           }
         ]
@@ -2176,9 +1487,7 @@
     },
     {
       "name": "GlvMarketFlagContainer",
-      "docs": [
-        "Flags container generated by the macro."
-      ],
+      "docs": ["Flags container generated by the macro."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -2195,9 +1504,7 @@
     },
     {
       "name": "GlvMarkets",
-      "docs": [
-        "Fixed size map generated by the macro."
-      ],
+      "docs": ["Fixed size map generated by the macro."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -2221,10 +1528,7 @@
           {
             "name": "padding",
             "type": {
-              "array": [
-                "u8",
-                12
-              ]
+              "array": ["u8", 12]
             }
           },
           {
@@ -2236,9 +1540,7 @@
     },
     {
       "name": "GlvMarketsEntry",
-      "docs": [
-        "Entry."
-      ],
+      "docs": ["Entry."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -2249,10 +1551,7 @@
           {
             "name": "key",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
@@ -2282,10 +1581,7 @@
           {
             "name": "padding_0",
             "type": {
-              "array": [
-                "u8",
-                7
-              ]
+              "array": ["u8", 7]
             }
           },
           {
@@ -2331,10 +1627,7 @@
           {
             "name": "padding_3",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
@@ -2344,10 +1637,7 @@
           {
             "name": "padding_4",
             "type": {
-              "array": [
-                "u8",
-                12
-              ]
+              "array": ["u8", 12]
             }
           },
           {
@@ -2357,46 +1647,31 @@
           {
             "name": "ranks",
             "type": {
-              "array": [
-                "u64",
-                15
-              ]
+              "array": ["u64", 15]
             }
           },
           {
             "name": "order_fee_discount_factors",
             "type": {
-              "array": [
-                "u128",
-                16
-              ]
+              "array": ["u128", 16]
             }
           },
           {
             "name": "referral_reward_factors",
             "type": {
-              "array": [
-                "u128",
-                16
-              ]
+              "array": ["u128", 16]
             }
           },
           {
             "name": "padding_5",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
             "name": "reserved",
             "type": {
-              "array": [
-                "u8",
-                256
-              ]
+              "array": ["u8", 256]
             }
           }
         ]
@@ -2404,9 +1679,7 @@
     },
     {
       "name": "Indexer",
-      "docs": [
-        "Market indexer."
-      ],
+      "docs": ["Market indexer."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -2445,19 +1718,13 @@
           {
             "name": "padding_0",
             "type": {
-              "array": [
-                "u8",
-                8
-              ]
+              "array": ["u8", 8]
             }
           },
           {
             "name": "reserved",
             "type": {
-              "array": [
-                "u8",
-                128
-              ]
+              "array": ["u8", 128]
             }
           }
         ]
@@ -2465,24 +1732,18 @@
     },
     {
       "name": "LpTokenController",
-      "docs": [
-        "LP Token Controller for managing specific LP token staking"
-      ],
+      "docs": ["LP Token Controller for managing specific LP token staking"],
       "type": {
         "kind": "struct",
         "fields": [
           {
             "name": "global_state",
-            "docs": [
-              "Associated global_state"
-            ],
+            "docs": ["Associated global_state"],
             "type": "pubkey"
           },
           {
             "name": "lp_token_mint",
-            "docs": [
-              "Corresponding LP token mint"
-            ],
+            "docs": ["Corresponding LP token mint"],
             "type": "pubkey"
           },
           {
@@ -2494,9 +1755,7 @@
           },
           {
             "name": "total_positions",
-            "docs": [
-              "Current number of active positions"
-            ],
+            "docs": ["Current number of active positions"],
             "type": "u64"
           },
           {
@@ -2522,9 +1781,7 @@
           },
           {
             "name": "bump",
-            "docs": [
-              "PDA bump"
-            ],
+            "docs": ["PDA bump"],
             "type": "u8"
           },
           {
@@ -2536,9 +1793,7 @@
     },
     {
       "name": "Market",
-      "docs": [
-        "Market."
-      ],
+      "docs": ["Market."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -2565,10 +1820,7 @@
           {
             "name": "padding",
             "type": {
-              "array": [
-                "u8",
-                5
-              ]
+              "array": ["u8", 5]
             }
           },
           {
@@ -2578,10 +1830,7 @@
           {
             "name": "name",
             "type": {
-              "array": [
-                "u8",
-                64
-              ]
+              "array": ["u8", 64]
             }
           },
           {
@@ -2639,10 +1888,7 @@
           {
             "name": "reserved",
             "type": {
-              "array": [
-                "u8",
-                192
-              ]
+              "array": ["u8", 192]
             }
           }
         ]
@@ -2650,9 +1896,7 @@
     },
     {
       "name": "MarketConfig",
-      "docs": [
-        "Market Config."
-      ],
+      "docs": ["Market Config."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -2935,10 +2179,7 @@
           {
             "name": "reserved",
             "type": {
-              "array": [
-                "u128",
-                28
-              ]
+              "array": ["u128", 28]
             }
           }
         ]
@@ -2946,9 +2187,7 @@
     },
     {
       "name": "MarketConfigFactorContainer",
-      "docs": [
-        "Flags container generated by the macro."
-      ],
+      "docs": ["Flags container generated by the macro."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -2965,9 +2204,7 @@
     },
     {
       "name": "MarketConfigFlagContainer",
-      "docs": [
-        "Flags container generated by the macro."
-      ],
+      "docs": ["Flags container generated by the macro."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -2984,9 +2221,7 @@
     },
     {
       "name": "MarketConfigPermissions",
-      "docs": [
-        "Permission store related to market config."
-      ],
+      "docs": ["Permission store related to market config."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3015,9 +2250,7 @@
     },
     {
       "name": "MarketFlagContainer",
-      "docs": [
-        "Flags container generated by the macro."
-      ],
+      "docs": ["Flags container generated by the macro."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3034,9 +2267,7 @@
     },
     {
       "name": "MarketMeta",
-      "docs": [
-        "Market Metadata."
-      ],
+      "docs": ["Market Metadata."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3065,9 +2296,7 @@
     },
     {
       "name": "Members",
-      "docs": [
-        "Fixed size map generated by the macro."
-      ],
+      "docs": ["Fixed size map generated by the macro."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3091,10 +2320,7 @@
           {
             "name": "padding",
             "type": {
-              "array": [
-                "u8",
-                0
-              ]
+              "array": ["u8", 0]
             }
           },
           {
@@ -3106,9 +2332,7 @@
     },
     {
       "name": "MembersEntry",
-      "docs": [
-        "Entry."
-      ],
+      "docs": ["Entry."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3119,10 +2343,7 @@
           {
             "name": "key",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
@@ -3134,9 +2355,7 @@
     },
     {
       "name": "Oracle",
-      "docs": [
-        "Oracle Account."
-      ],
+      "docs": ["Oracle Account."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3151,10 +2370,7 @@
           {
             "name": "padding_0",
             "type": {
-              "array": [
-                "u8",
-                7
-              ]
+              "array": ["u8", 7]
             }
           },
           {
@@ -3196,19 +2412,13 @@
           {
             "name": "padding_1",
             "type": {
-              "array": [
-                "u8",
-                3
-              ]
+              "array": ["u8", 3]
             }
           },
           {
             "name": "reserved",
             "type": {
-              "array": [
-                "u8",
-                256
-              ]
+              "array": ["u8", 256]
             }
           }
         ]
@@ -3216,9 +2426,7 @@
     },
     {
       "name": "OracleFlagContainer",
-      "docs": [
-        "Flags container generated by the macro."
-      ],
+      "docs": ["Flags container generated by the macro."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3235,9 +2443,7 @@
     },
     {
       "name": "OraclePriceFlagContainer",
-      "docs": [
-        "Flags container generated by the macro."
-      ],
+      "docs": ["Flags container generated by the macro."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3254,9 +2460,7 @@
     },
     {
       "name": "OtherState",
-      "docs": [
-        "Market State."
-      ],
+      "docs": ["Market State."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3267,10 +2471,7 @@
           {
             "name": "padding",
             "type": {
-              "array": [
-                "u8",
-                16
-              ]
+              "array": ["u8", 16]
             }
           },
           {
@@ -3296,10 +2497,7 @@
           {
             "name": "reserved",
             "type": {
-              "array": [
-                "u8",
-                256
-              ]
+              "array": ["u8", 256]
             }
           }
         ]
@@ -3307,9 +2505,7 @@
     },
     {
       "name": "Pool",
-      "docs": [
-        "A pool for market."
-      ],
+      "docs": ["A pool for market."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3324,10 +2520,7 @@
           {
             "name": "padding",
             "type": {
-              "array": [
-                "u8",
-                15
-              ]
+              "array": ["u8", 15]
             }
           },
           {
@@ -3343,9 +2536,7 @@
     },
     {
       "name": "PoolStorage",
-      "docs": [
-        "A pool storage for market."
-      ],
+      "docs": ["A pool storage for market."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3360,10 +2551,7 @@
           {
             "name": "padding",
             "type": {
-              "array": [
-                "u8",
-                8
-              ]
+              "array": ["u8", 8]
             }
           },
           {
@@ -3379,9 +2567,7 @@
     },
     {
       "name": "Pools",
-      "docs": [
-        "Market Pools."
-      ],
+      "docs": ["Market Pools."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3543,37 +2729,27 @@
         "fields": [
           {
             "name": "owner",
-            "docs": [
-              "Owner of this LP position"
-            ],
+            "docs": ["Owner of this LP position"],
             "type": "pubkey"
           },
           {
             "name": "controller",
-            "docs": [
-              "LP token controller that manages this position"
-            ],
+            "docs": ["LP token controller that manages this position"],
             "type": "pubkey"
           },
           {
             "name": "lp_mint",
-            "docs": [
-              "LP token mint for this position"
-            ],
+            "docs": ["LP token mint for this position"],
             "type": "pubkey"
           },
           {
             "name": "vault",
-            "docs": [
-              "PDA token account that escrows staked LP tokens"
-            ],
+            "docs": ["PDA token account that escrows staked LP tokens"],
             "type": "pubkey"
           },
           {
             "name": "position_id",
-            "docs": [
-              "Position id to allow multiple positions per owner"
-            ],
+            "docs": ["Position id to allow multiple positions per owner"],
             "type": "u64"
           },
           {
@@ -3592,9 +2768,7 @@
           },
           {
             "name": "stake_start_time",
-            "docs": [
-              "Stake start unix timestamp (seconds)"
-            ],
+            "docs": ["Stake start unix timestamp (seconds)"],
             "type": "i64"
           },
           {
@@ -3606,9 +2780,7 @@
           },
           {
             "name": "bump",
-            "docs": [
-              "PDA bump"
-            ],
+            "docs": ["PDA bump"],
             "type": "u8"
           },
           {
@@ -3620,9 +2792,7 @@
     },
     {
       "name": "PriceMap",
-      "docs": [
-        "Fixed size map generated by the macro."
-      ],
+      "docs": ["Fixed size map generated by the macro."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3646,10 +2816,7 @@
           {
             "name": "padding",
             "type": {
-              "array": [
-                "u8",
-                0
-              ]
+              "array": ["u8", 0]
             }
           },
           {
@@ -3661,9 +2828,7 @@
     },
     {
       "name": "PriceMapEntry",
-      "docs": [
-        "Entry."
-      ],
+      "docs": ["Entry."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3674,10 +2839,7 @@
           {
             "name": "key",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
@@ -3693,9 +2855,7 @@
     },
     {
       "name": "Referral",
-      "docs": [
-        "Referral."
-      ],
+      "docs": ["Referral."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3718,10 +2878,7 @@
           {
             "name": "reserved",
             "type": {
-              "array": [
-                "u8",
-                64
-              ]
+              "array": ["u8", 64]
             }
           }
         ]
@@ -3743,10 +2900,7 @@
           {
             "name": "padding",
             "type": {
-              "array": [
-                "u8",
-                8
-              ]
+              "array": ["u8", 8]
             }
           },
           {
@@ -3762,9 +2916,7 @@
     },
     {
       "name": "RoleMap",
-      "docs": [
-        "Fixed size map generated by the macro."
-      ],
+      "docs": ["Fixed size map generated by the macro."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3788,10 +2940,7 @@
           {
             "name": "padding",
             "type": {
-              "array": [
-                "u8",
-                0
-              ]
+              "array": ["u8", 0]
             }
           },
           {
@@ -3803,9 +2952,7 @@
     },
     {
       "name": "RoleMapEntry",
-      "docs": [
-        "Entry."
-      ],
+      "docs": ["Entry."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3816,10 +2963,7 @@
           {
             "name": "key",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
@@ -3835,9 +2979,7 @@
     },
     {
       "name": "RoleMetadata",
-      "docs": [
-        "Role Metadata."
-      ],
+      "docs": ["Role Metadata."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3848,10 +2990,7 @@
           {
             "name": "name",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
@@ -3867,9 +3006,7 @@
     },
     {
       "name": "RoleStore",
-      "docs": [
-        "Roles Store."
-      ],
+      "docs": ["Roles Store."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3898,9 +3035,7 @@
     },
     {
       "name": "SmallPrices",
-      "docs": [
-        "Zero-copy price structure for storing min max prices."
-      ],
+      "docs": ["Zero-copy price structure for storing min max prices."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -3923,10 +3058,7 @@
           {
             "name": "padding_0",
             "type": {
-              "array": [
-                "u8",
-                2
-              ]
+              "array": ["u8", 2]
             }
           },
           {
@@ -3976,10 +3108,7 @@
           {
             "name": "reserved",
             "type": {
-              "array": [
-                "u8",
-                1024
-              ]
+              "array": ["u8", 1024]
             }
           }
         ]
@@ -3987,9 +3116,7 @@
     },
     {
       "name": "Store",
-      "docs": [
-        "Data Store."
-      ],
+      "docs": ["Data Store."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -4004,37 +3131,25 @@
           {
             "name": "bump",
             "type": {
-              "array": [
-                "u8",
-                1
-              ]
+              "array": ["u8", 1]
             }
           },
           {
             "name": "key_seed",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
             "name": "key",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
             "name": "padding_0",
             "type": {
-              "array": [
-                "u8",
-                6
-              ]
+              "array": ["u8", 6]
             }
           },
           {
@@ -4068,10 +3183,7 @@
           {
             "name": "padding_1",
             "type": {
-              "array": [
-                "u8",
-                4
-              ]
+              "array": ["u8", 4]
             }
           },
           {
@@ -4097,10 +3209,7 @@
           {
             "name": "padding_2",
             "type": {
-              "array": [
-                "u8",
-                8
-              ]
+              "array": ["u8", 8]
             }
           },
           {
@@ -4138,10 +3247,7 @@
           {
             "name": "reserved",
             "type": {
-              "array": [
-                "u8",
-                992
-              ]
+              "array": ["u8", 992]
             }
           }
         ]
@@ -4149,9 +3255,7 @@
     },
     {
       "name": "TokenMapHeader",
-      "docs": [
-        "Header of `TokenMap`."
-      ],
+      "docs": ["Header of `TokenMap`."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -4166,10 +3270,7 @@
           {
             "name": "padding_0",
             "type": {
-              "array": [
-                "u8",
-                7
-              ]
+              "array": ["u8", 7]
             }
           },
           {
@@ -4187,10 +3288,7 @@
           {
             "name": "reserved",
             "type": {
-              "array": [
-                "u8",
-                64
-              ]
+              "array": ["u8", 64]
             }
           }
         ]
@@ -4198,9 +3296,7 @@
     },
     {
       "name": "Tokens",
-      "docs": [
-        "Fixed size map generated by the macro."
-      ],
+      "docs": ["Fixed size map generated by the macro."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -4224,10 +3320,7 @@
           {
             "name": "padding",
             "type": {
-              "array": [
-                "u8",
-                0
-              ]
+              "array": ["u8", 0]
             }
           },
           {
@@ -4239,9 +3332,7 @@
     },
     {
       "name": "TokensEntry",
-      "docs": [
-        "Entry."
-      ],
+      "docs": ["Entry."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -4252,10 +3343,7 @@
           {
             "name": "key",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
@@ -4267,9 +3355,7 @@
     },
     {
       "name": "Treasury",
-      "docs": [
-        "Treasury."
-      ],
+      "docs": ["Treasury."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -4288,10 +3374,7 @@
           {
             "name": "reserved",
             "type": {
-              "array": [
-                "u8",
-                128
-              ]
+              "array": ["u8", 128]
             }
           }
         ]
@@ -4299,9 +3382,7 @@
     },
     {
       "name": "UserFlagContainer",
-      "docs": [
-        "Flags container generated by the macro."
-      ],
+      "docs": ["Flags container generated by the macro."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -4318,9 +3399,7 @@
     },
     {
       "name": "UserGtState",
-      "docs": [
-        "GT State."
-      ],
+      "docs": ["GT State."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -4335,10 +3414,7 @@
           {
             "name": "padding_0",
             "type": {
-              "array": [
-                "u8",
-                7
-              ]
+              "array": ["u8", 7]
             }
           },
           {
@@ -4356,10 +3432,7 @@
           {
             "name": "padding_1",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
@@ -4373,10 +3446,7 @@
           {
             "name": "reserved",
             "type": {
-              "array": [
-                "u8",
-                64
-              ]
+              "array": ["u8", 64]
             }
           }
         ]
@@ -4384,9 +3454,7 @@
     },
     {
       "name": "UserHeader",
-      "docs": [
-        "Header of `User` Account."
-      ],
+      "docs": ["Header of `User` Account."],
       "serialization": "bytemuck",
       "repr": {
         "kind": "c"
@@ -4413,10 +3481,7 @@
           {
             "name": "padding_0",
             "type": {
-              "array": [
-                "u8",
-                13
-              ]
+              "array": ["u8", 13]
             }
           },
           {
@@ -4446,10 +3511,7 @@
           {
             "name": "reserved",
             "type": {
-              "array": [
-                "u8",
-                128
-              ]
+              "array": ["u8", 128]
             }
           }
         ]

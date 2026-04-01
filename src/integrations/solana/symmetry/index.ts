@@ -45,7 +45,8 @@ const LEGACY_FUND_TOKEN_IDS_OFFSET = 176
 const LEGACY_FUND_TOKEN_ID_STRIDE = 8
 const LEGACY_FUND_MAX_TOKENS = 20
 const LEGACY_FUND_AMOUNTS_OFFSET =
-  LEGACY_FUND_TOKEN_IDS_OFFSET + LEGACY_FUND_MAX_TOKENS * LEGACY_FUND_TOKEN_ID_STRIDE
+  LEGACY_FUND_TOKEN_IDS_OFFSET +
+  LEGACY_FUND_MAX_TOKENS * LEGACY_FUND_TOKEN_ID_STRIDE
 
 const LEGACY_FUNDS = [
   {
@@ -116,7 +117,9 @@ function readU64(data: Uint8Array, offset: number): bigint | null {
   return Buffer.from(data).readBigUInt64LE(offset)
 }
 
-function readMintDecimals(account: MaybeSolanaAccount | undefined): number | null {
+function readMintDecimals(
+  account: MaybeSolanaAccount | undefined,
+): number | null {
   if (!account?.exists) return null
   if (
     account.programAddress !== TOKEN_PROGRAM_ID.toBase58() &&
@@ -235,7 +238,8 @@ function selectBestLegacyFundDecoded(
 
     const isBetter =
       coverage > bestCoverage ||
-      (coverage === bestCoverage && requiredAmountSum > bestRequiredAmountSum) ||
+      (coverage === bestCoverage &&
+        requiredAmountSum > bestRequiredAmountSum) ||
       (coverage === bestCoverage &&
         requiredAmountSum === bestRequiredAmountSum &&
         candidate.supplyRaw > bestSupply) ||
@@ -264,7 +268,10 @@ function toUiAmountString(amountRaw: bigint, decimals: number): string {
   const fraction = amountRaw % scale
   if (fraction === 0n) return whole.toString()
 
-  const fractionString = fraction.toString().padStart(decimals, '0').replace(/0+$/, '')
+  const fractionString = fraction
+    .toString()
+    .padStart(decimals, '0')
+    .replace(/0+$/, '')
   return `${whole.toString()}.${fractionString}`
 }
 
@@ -314,7 +321,12 @@ function buildLegacyFundPoolTokens(
   if (!Number.isFinite(fundUiAmount) || fundUiAmount <= 0) {
     return {
       poolTokens: [
-        buildPositionValue(fundDefinition.mint, fundAmountRaw, fundDecimals, fundPriceUsd),
+        buildPositionValue(
+          fundDefinition.mint,
+          fundAmountRaw,
+          fundDecimals,
+          fundPriceUsd,
+        ),
       ],
       partialComposition: false,
     }
@@ -370,7 +382,8 @@ function buildLegacyFundPoolTokens(
     pricedComponents++
 
     const componentDecimals = componentToken?.decimals ?? component.decimals
-    const componentUsdValue = (fundUsdValue * component.weightBps) / HUNDRED_PERCENT_BPS
+    const componentUsdValue =
+      (fundUsdValue * component.weightBps) / HUNDRED_PERCENT_BPS
     const componentUiAmount = componentUsdValue / componentPriceUsd
     const componentRawAmount = BigInt(
       Math.floor(componentUiAmount * 10 ** componentDecimals),
@@ -388,7 +401,10 @@ function buildLegacyFundPoolTokens(
     )
   }
 
-  return { poolTokens: result, partialComposition: pricedComponents < fundDefinition.composition.length }
+  return {
+    poolTokens: result,
+    partialComposition: pricedComponents < fundDefinition.composition.length,
+  }
 }
 
 function estimateLegacyFundPriceUsdFromComponents(
@@ -474,13 +490,14 @@ export const symmetryIntegration: SolanaIntegration = {
     for (const [mint, vaultAddress] of derivedVaultByMint.entries()) {
       const vaultAccount = phase1Map[vaultAddress]
       if (!vaultAccount?.exists) continue
-      if (vaultAccount.programAddress !== SYMMETRY_VAULTS_V3_PROGRAM_ID) continue
+      if (vaultAccount.programAddress !== SYMMETRY_VAULTS_V3_PROGRAM_ID)
+        continue
       matchedVaultByMint.set(mint, vaultAddress)
     }
 
-    const legacyMints = LEGACY_FUNDS
-      .map((fund) => fund.mint)
-      .filter((mint) => (userVaultBalancesByMint.get(mint) ?? 0n) > 0n)
+    const legacyMints = LEGACY_FUNDS.map((fund) => fund.mint).filter(
+      (mint) => (userVaultBalancesByMint.get(mint) ?? 0n) > 0n,
+    )
 
     const legacyFundLookupMaps =
       legacyMints.length > 0
@@ -507,7 +524,8 @@ export const symmetryIntegration: SolanaIntegration = {
       const candidates: DecodedLegacyFund[] = []
       for (const account of Object.values(legacyFundLookupMaps)) {
         if (!account.exists) continue
-        if (account.programAddress !== SYMMETRY_LEGACY_FUNDS_PROGRAM_ID) continue
+        if (account.programAddress !== SYMMETRY_LEGACY_FUNDS_PROGRAM_ID)
+          continue
         if (readPubkey(account.data, LEGACY_FUND_MINT_OFFSET) !== mint) continue
         const decoded = decodeLegacyFund(account.data)
         if (decoded) candidates.push(decoded)
@@ -532,7 +550,8 @@ export const symmetryIntegration: SolanaIntegration = {
     for (const [mint, vaultAddress] of matchedVaultByMint.entries()) {
       const vaultAccount = phase1Map[vaultAddress]
       if (!vaultAccount?.exists) continue
-      if (vaultAccount.programAddress !== SYMMETRY_VAULTS_V3_PROGRAM_ID) continue
+      if (vaultAccount.programAddress !== SYMMETRY_VAULTS_V3_PROGRAM_ID)
+        continue
 
       const decodedVault = decodeVault(vaultAccount.data)
       if (!decodedVault) continue
@@ -563,7 +582,10 @@ export const symmetryIntegration: SolanaIntegration = {
     }
     for (const legacyFund of LEGACY_FUNDS) {
       const fundAmountRaw = userVaultBalancesByMint.get(legacyFund.mint) ?? 0n
-      if (fundAmountRaw > 0n && tokens.get(legacyFund.mint)?.decimals === undefined) {
+      if (
+        fundAmountRaw > 0n &&
+        tokens.get(legacyFund.mint)?.decimals === undefined
+      ) {
         mintsMissingDecimals.add(legacyFund.mint)
       }
     }
@@ -599,7 +621,12 @@ export const symmetryIntegration: SolanaIntegration = {
         const tokenInfo = tokens.get(asset.mint)
 
         poolTokens.push(
-          buildPositionValue(asset.mint, userAmountRaw, decimals, tokenInfo?.priceUsd),
+          buildPositionValue(
+            asset.mint,
+            userAmountRaw,
+            decimals,
+            tokenInfo?.priceUsd,
+          ),
         )
       }
 

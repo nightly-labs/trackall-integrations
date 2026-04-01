@@ -98,7 +98,7 @@ export const platforms = [
   zelofiPlatform,
   zeusPlatform,
   canopyPlatform,
-  echelonPlatform
+  echelonPlatform,
 ] as const satisfies readonly Platform[]
 
 export type PlatformId = (typeof platforms)[number]['id']

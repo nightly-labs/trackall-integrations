@@ -20,7 +20,13 @@ export interface PositionValue {
 
 export type PositionMetadata = Record<string, Record<string, unknown>>
 
-export type PositionKind = 'lending' | 'staking' | 'liquidity' | 'trading' | 'vesting' | 'reward'
+export type PositionKind =
+  | 'lending'
+  | 'staking'
+  | 'liquidity'
+  | 'trading'
+  | 'vesting'
+  | 'reward'
 
 export interface BaseDefiPosition {
   /** Shared platform identifier from Platform.id. */

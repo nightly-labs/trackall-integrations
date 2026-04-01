@@ -147,7 +147,9 @@ function parseSlot(
   } else if (targetTag === 1) {
     if (accountData.length < cursor + 32) return null
     try {
-      publisher = new PublicKey(accountData.slice(cursor, cursor + 32)).toBase58()
+      publisher = new PublicKey(
+        accountData.slice(cursor, cursor + 32),
+      ).toBase58()
     } catch {
       return null
     }
@@ -249,7 +251,6 @@ export const pythStakingIntegration: SolanaIntegration = {
           },
         },
       ],
-      cacheTtlMs: 60_000,
     }
 
     const configAddress = configPda.toBase58()
@@ -276,7 +277,8 @@ export const pythStakingIntegration: SolanaIntegration = {
 
       aggregate.stakeAccounts += 1
       const positionCapacity = Math.floor(
-        (account.data.length - POSITION_DATA_HEADER_SIZE) / POSITION_BUFFER_SIZE,
+        (account.data.length - POSITION_DATA_HEADER_SIZE) /
+          POSITION_BUFFER_SIZE,
       )
 
       for (let i = 0; i < positionCapacity; i++) {
@@ -336,7 +338,11 @@ export const pythStakingIntegration: SolanaIntegration = {
           ]
         : undefined
 
-    const unbondingUsdValue = toUsdValue(aggregate.unbonding, decimals, priceUsd)
+    const unbondingUsdValue = toUsdValue(
+      aggregate.unbonding,
+      decimals,
+      priceUsd,
+    )
     const unbondingEntries =
       aggregate.unbonding > 0n
         ? [
@@ -389,7 +395,9 @@ export const pythStakingIntegration: SolanaIntegration = {
     ].filter((value): value is string => value !== undefined)
 
     if (usdParts.length > 0) {
-      result.usdValue = usdParts.reduce((sum, value) => sum + Number(value), 0).toString()
+      result.usdValue = usdParts
+        .reduce((sum, value) => sum + Number(value), 0)
+        .toString()
     }
 
     return [result]

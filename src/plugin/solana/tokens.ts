@@ -43,14 +43,29 @@ export class TokenPlugin {
 
     this.db = new Database(cachePath)
 
-    const tableInfo = this.db.query('PRAGMA table_info(tokens)').all() as Array<{ name: string }>
-    const hasTokenAddress = tableInfo.some(column => column.name === 'token_address')
-    const hasTokenData = tableInfo.some(column => column.name === 'token_data')
-    const hasLegacyMintAddress = tableInfo.some(column => column.name === 'mint_address')
-    const hasLegacyData = tableInfo.some(column => column.name === 'data')
+    const tableInfo = this.db
+      .query('PRAGMA table_info(tokens)')
+      .all() as Array<{ name: string }>
+    const hasTokenAddress = tableInfo.some(
+      (column) => column.name === 'token_address',
+    )
+    const hasTokenData = tableInfo.some(
+      (column) => column.name === 'token_data',
+    )
+    const hasLegacyMintAddress = tableInfo.some(
+      (column) => column.name === 'mint_address',
+    )
+    const hasLegacyData = tableInfo.some((column) => column.name === 'data')
 
-    if (!hasTokenAddress && !hasTokenData && hasLegacyMintAddress && hasLegacyData) {
-      this.db.run('ALTER TABLE tokens RENAME COLUMN mint_address TO token_address')
+    if (
+      !hasTokenAddress &&
+      !hasTokenData &&
+      hasLegacyMintAddress &&
+      hasLegacyData
+    ) {
+      this.db.run(
+        'ALTER TABLE tokens RENAME COLUMN mint_address TO token_address',
+      )
       this.db.run('ALTER TABLE tokens RENAME COLUMN data TO token_data')
     }
 
@@ -62,7 +77,7 @@ export class TokenPlugin {
     `)
 
     this.upsertTokenStmt = this.db.prepare(
-      'INSERT INTO tokens (token_address, token_data) VALUES (?, ?) ON CONFLICT(token_address) DO UPDATE SET token_data = excluded.token_data'
+      'INSERT INTO tokens (token_address, token_data) VALUES (?, ?) ON CONFLICT(token_address) DO UPDATE SET token_data = excluded.token_data',
     )
   }
 
@@ -72,20 +87,24 @@ export class TokenPlugin {
 
     let rows: Array<{ token_address: string; token_data: string }> = []
     try {
-      rows = this.db.query('SELECT token_address, token_data FROM tokens').all() as Array<{
+      rows = this.db
+        .query('SELECT token_address, token_data FROM tokens')
+        .all() as Array<{
         token_address: string
         token_data: string
       }>
     } catch {
       // Backward compatibility for older schema name if present
       try {
-        const legacyRows = this.db.query('SELECT mint_address, data FROM tokens').all() as Array<{
+        const legacyRows = this.db
+          .query('SELECT mint_address, data FROM tokens')
+          .all() as Array<{
           mint_address: string
           data: string
         }>
-        rows = legacyRows.map(row => ({
+        rows = legacyRows.map((row) => ({
           token_address: row.mint_address,
-          token_data: row.data
+          token_data: row.data,
         }))
       } catch {
         // Table missing or unreadable — start with empty cache
@@ -111,7 +130,7 @@ export class TokenPlugin {
       | Array<[SolanaAddress, TokenData]> =
       tokenAddresses == null
         ? this.map.entries()
-        : tokenAddresses.flatMap(mint => {
+        : tokenAddresses.flatMap((mint) => {
             const tokenData = this.map.get(mint)
             return tokenData === undefined ? [] : [[mint, tokenData]]
           })
@@ -156,7 +175,10 @@ export class TokenPlugin {
         } else {
           token.priceUsd = marketDataOrPrice.priceUsd
           const pctPriceChange24h = marketDataOrPrice.pctPriceChange24h
-          if (pctPriceChange24h === undefined || !Number.isFinite(pctPriceChange24h)) {
+          if (
+            pctPriceChange24h === undefined ||
+            !Number.isFinite(pctPriceChange24h)
+          ) {
             delete token.pctPriceChange24h
           } else {
             token.pctPriceChange24h = pctPriceChange24h

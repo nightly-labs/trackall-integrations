@@ -5,7 +5,8 @@ const iloopPlatform = {
   networks: ['solana'],
   name: 'iLoop',
   image: 'https://app.iloop.finance/logo.svg',
-  description: 'iLoop is a Solana lending and borrowing protocol for LST assets.',
+  description:
+    'iLoop is a Solana lending and borrowing protocol for LST assets.',
   tags: ['lending'],
   links: {
     website: 'https://app.iloop.finance',

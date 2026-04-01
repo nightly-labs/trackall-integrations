@@ -177,7 +177,9 @@ async function fetchAsrRewards(
 ): Promise<RewardDefiPosition[]> {
   const campaignsRes = await fetch(JUPITER_ASR_CAMPAIGNS_URL)
   if (!campaignsRes.ok) {
-    throw new Error(`Failed to fetch Jupiter ASR campaigns: ${campaignsRes.status}`)
+    throw new Error(
+      `Failed to fetch Jupiter ASR campaigns: ${campaignsRes.status}`,
+    )
   }
 
   const { campaigns = [] } =
@@ -234,7 +236,9 @@ async function fetchAsrRewards(
           ],
         }),
         sourceId: campaign.slug,
-        ...(campaign.claimStartsAt && { claimableFrom: campaign.claimStartsAt }),
+        ...(campaign.claimStartsAt && {
+          claimableFrom: campaign.claimStartsAt,
+        }),
         ...(campaign.claimEndsAt && { expiresAt: campaign.claimEndsAt }),
         meta: {
           campaign: {
@@ -298,25 +302,27 @@ export const jupiterDaoIntegration: SolanaIntegration = {
       .map((account) => decodeEscrow(account.address, account.data))
       .filter((escrow): escrow is JupiterEscrow => escrow !== null)
 
-    const partialUnstakingRequests: ProgramRequest[] = escrows.map((escrow) => ({
-      kind: 'getProgramAccounts',
-      programId: LOCKED_VOTER_PROGRAM_ID.toBase58(),
-      filters: [
-        {
-          memcmp: {
-            offset: 0,
-            bytes: PARTIAL_UNSTAKING_DISCRIMINATOR_B64,
-            encoding: 'base64',
+    const partialUnstakingRequests: ProgramRequest[] = escrows.map(
+      (escrow) => ({
+        kind: 'getProgramAccounts',
+        programId: LOCKED_VOTER_PROGRAM_ID.toBase58(),
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: PARTIAL_UNSTAKING_DISCRIMINATOR_B64,
+              encoding: 'base64',
+            },
           },
-        },
-        {
-          memcmp: {
-            offset: PARTIAL_UNSTAKING_ESCROW_OFFSET,
-            bytes: escrow.address,
+          {
+            memcmp: {
+              offset: PARTIAL_UNSTAKING_ESCROW_OFFSET,
+              bytes: escrow.address,
+            },
           },
-        },
-      ],
-    }))
+        ],
+      }),
+    )
 
     const partialUnstakingAccounts =
       partialUnstakingRequests.length > 0 ? yield partialUnstakingRequests : {}
@@ -361,7 +367,12 @@ export const jupiterDaoIntegration: SolanaIntegration = {
         positionKind: 'staking',
         ...(stakedAmount > 0n && {
           staked: [
-            buildPositionValue(JUP_MINT, stakedAmount, jupDecimals, jupPriceUsd),
+            buildPositionValue(
+              JUP_MINT,
+              stakedAmount,
+              jupDecimals,
+              jupPriceUsd,
+            ),
           ],
         }),
         ...(unbondingAmount > 0n && {

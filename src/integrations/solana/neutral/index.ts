@@ -19,7 +19,6 @@ const DRIFT_VAULT_PROGRAM_ID_DEFAULT =
 
 const BUNDLE_SEED_USER = Buffer.from('USER_BUNDLE')
 const DRIFT_DEPOSITOR_AUTHORITY_OFFSET = 8 + 32 + 32
-const RPC_CACHE_TTL_MS = 5 * 60 * 1000
 
 const TOKEN_BY_SYMBOL: Record<string, { token: string; decimals: number }> = {
   USDC: { token: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', decimals: 6 },
@@ -45,7 +44,8 @@ const SUPPORTED_VAULTS = (neutralVaults as NeutralVault[]).filter(
 )
 
 const BUNDLE_VAULTS = SUPPORTED_VAULTS.filter(
-  (vault): vault is NeutralVault & { type: 'Bundle' } => vault.type === 'Bundle',
+  (vault): vault is NeutralVault & { type: 'Bundle' } =>
+    vault.type === 'Bundle',
 )
 const DRIFT_VAULTS = SUPPORTED_VAULTS.filter(
   (vault): vault is NeutralVault & { type: 'Drift' } => vault.type === 'Drift',
@@ -251,7 +251,6 @@ export const neutralIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: BUNDLE_PROGRAM_ID_V1,
-        cacheTtlMs: RPC_CACHE_TTL_MS,
         filters: [
           {
             memcmp: {
@@ -271,7 +270,6 @@ export const neutralIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: BUNDLE_PROGRAM_ID_V2,
-        cacheTtlMs: RPC_CACHE_TTL_MS,
         filters: [
           {
             memcmp: {
@@ -292,7 +290,6 @@ export const neutralIntegration: SolanaIntegration = {
         {
           kind: 'getProgramAccounts' as const,
           programId,
-          cacheTtlMs: RPC_CACHE_TTL_MS,
           filters: [
             {
               memcmp: {
@@ -312,7 +309,6 @@ export const neutralIntegration: SolanaIntegration = {
         {
           kind: 'getProgramAccounts' as const,
           programId,
-          cacheTtlMs: RPC_CACHE_TTL_MS,
           filters: [
             {
               memcmp: {
@@ -332,7 +328,10 @@ export const neutralIntegration: SolanaIntegration = {
     const bundleUserDataByAddress = new Map<string, Uint8Array>()
 
     const driftDepositorAccountsByProgram = new Map<string, Uint8Array[]>()
-    const driftVaultAccountsByProgram = new Map<string, Map<string, Uint8Array>>()
+    const driftVaultAccountsByProgram = new Map<
+      string,
+      Map<string, Uint8Array>
+    >()
 
     for (const account of Object.values(accountsMap)) {
       if (!account.exists || account.data.length < 8) continue
@@ -340,10 +339,14 @@ export const neutralIntegration: SolanaIntegration = {
       const programId = account.programAddress
       const data = account.data
 
-      if (programId === BUNDLE_PROGRAM_ID_V1 || programId === BUNDLE_PROGRAM_ID_V2) {
+      if (
+        programId === BUNDLE_PROGRAM_ID_V1 ||
+        programId === BUNDLE_PROGRAM_ID_V2
+      ) {
         if (!hasDiscriminator(data, BUNDLE_DISC_USER_B64)) continue
 
-        const addresses = bundleUserAccountsByProgram.get(programId) ?? new Set()
+        const addresses =
+          bundleUserAccountsByProgram.get(programId) ?? new Set()
         addresses.add(account.address)
         bundleUserAccountsByProgram.set(programId, addresses)
         bundleUserDataByAddress.set(account.address, data)
@@ -352,14 +355,16 @@ export const neutralIntegration: SolanaIntegration = {
 
       if (DRIFT_PROGRAM_IDS.includes(programId)) {
         if (hasDiscriminator(data, DRIFT_DISC_VAULT_DEPOSITOR_B64)) {
-          const depositors = driftDepositorAccountsByProgram.get(programId) ?? []
+          const depositors =
+            driftDepositorAccountsByProgram.get(programId) ?? []
           depositors.push(data)
           driftDepositorAccountsByProgram.set(programId, depositors)
           continue
         }
 
         if (hasDiscriminator(data, DRIFT_DISC_VAULT_B64)) {
-          const vaultMap = driftVaultAccountsByProgram.get(programId) ?? new Map()
+          const vaultMap =
+            driftVaultAccountsByProgram.get(programId) ?? new Map()
           const parsed = parseDriftVaultAccount(data)
           if (parsed) vaultMap.set(parsed.vaultAddress, data)
           driftVaultAccountsByProgram.set(programId, vaultMap)
@@ -391,7 +396,8 @@ export const neutralIntegration: SolanaIntegration = {
       if (!userData) continue
 
       const parsed = parseBundleUserAccount(userData)
-      const principalRaw = parsed.netDepositsRaw > 0n ? parsed.netDepositsRaw : 0n
+      const principalRaw =
+        parsed.netDepositsRaw > 0n ? parsed.netDepositsRaw : 0n
       const suppliedRaw = principalRaw + parsed.pendingDepositRaw
 
       if (suppliedRaw <= 0n && parsed.shares <= 0n) continue
@@ -425,10 +431,16 @@ export const neutralIntegration: SolanaIntegration = {
       )
     }
 
-    const driftVaultByAddress = new Map(DRIFT_VAULTS.map((vault) => [vault.vaultAddress, vault]))
+    const driftVaultByAddress = new Map(
+      DRIFT_VAULTS.map((vault) => [vault.vaultAddress, vault]),
+    )
 
-    for (const [programId, depositorAccounts] of driftDepositorAccountsByProgram) {
-      const vaultAccounts = driftVaultAccountsByProgram.get(programId) ?? new Map()
+    for (const [
+      programId,
+      depositorAccounts,
+    ] of driftDepositorAccountsByProgram) {
+      const vaultAccounts =
+        driftVaultAccountsByProgram.get(programId) ?? new Map()
 
       for (const depositorData of depositorAccounts) {
         const parsedDepositor = parseDriftDepositorAccount(depositorData)
@@ -444,7 +456,9 @@ export const neutralIntegration: SolanaIntegration = {
         if (!parsedVault) continue
 
         const principalRaw =
-          parsedDepositor.netDepositsRaw > 0n ? parsedDepositor.netDepositsRaw : 0n
+          parsedDepositor.netDepositsRaw > 0n
+            ? parsedDepositor.netDepositsRaw
+            : 0n
         const suppliedRaw =
           parsedDepositor.requestedWithdrawRaw > 0n
             ? parsedDepositor.requestedWithdrawRaw
@@ -473,7 +487,8 @@ export const neutralIntegration: SolanaIntegration = {
               valuationMode: 'accounting',
               accounting: {
                 netDepositsRaw: parsedDepositor.netDepositsRaw.toString(),
-                requestedWithdrawRaw: parsedDepositor.requestedWithdrawRaw.toString(),
+                requestedWithdrawRaw:
+                  parsedDepositor.requestedWithdrawRaw.toString(),
                 balanceSource:
                   parsedDepositor.requestedWithdrawRaw > 0n
                     ? 'requested-withdraw-value'

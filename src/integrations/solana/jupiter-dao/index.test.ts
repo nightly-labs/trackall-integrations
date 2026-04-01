@@ -14,7 +14,9 @@ import { jupiterDaoIntegration, testAddress } from './index'
 
 const solanaRpcUrl = process.env.SOLANA_RPC_URL
 if (!solanaRpcUrl) {
-  throw new Error('SOLANA_RPC_URL is required. Set it in your environment or .env.')
+  throw new Error(
+    'SOLANA_RPC_URL is required. Set it in your environment or .env.',
+  )
 }
 
 const wallets = [
@@ -69,9 +71,9 @@ describe('jupiter-dao integration', () => {
 
     expect(stakingPositions.length).toBeGreaterThan(0)
     expect(rewardPositions.length).toBeGreaterThan(0)
-    expect(rewardPositions.some((position) => position.sourceId === 'asr-q4')).toBe(
-      true,
-    )
+    expect(
+      rewardPositions.some((position) => position.sourceId === 'asr-q4'),
+    ).toBe(true)
   }, 60000)
 
   it('fetches positions for multiple wallets in batched RPC calls', async () => {
@@ -108,11 +110,16 @@ describe('jupiter-dao integration', () => {
       (req) => fetchProgramAccountsBatch(connection, req),
     )
 
-    const totalPositions = results.reduce((sum, positions) => sum + positions.length, 0)
+    const totalPositions = results.reduce(
+      (sum, positions) => sum + positions.length,
+      0,
+    )
     const saved = naiveTotal - totalAccounts
     const savedPct = naiveTotal > 0 ? Math.round((saved / naiveTotal) * 100) : 0
 
-    console.log(`\n${wallets.length} wallets → ${totalPositions} total positions`)
+    console.log(
+      `\n${wallets.length} wallets → ${totalPositions} total positions`,
+    )
     console.log(
       `RPC batches: ${totalBatches}, actual accounts fetched: ${totalAccounts}`,
     )
@@ -120,7 +127,9 @@ describe('jupiter-dao integration', () => {
       `Sequential would have fetched: ${naiveTotal} — saved ${saved} (${savedPct}%)`,
     )
     wallets.forEach((wallet, index) => {
-      console.log(`  ${wallet.slice(0, 8)}…  ${results[index]?.length ?? 0} positions`)
+      console.log(
+        `  ${wallet.slice(0, 8)}…  ${results[index]?.length ?? 0} positions`,
+      )
     })
 
     expect(results).toHaveLength(wallets.length)

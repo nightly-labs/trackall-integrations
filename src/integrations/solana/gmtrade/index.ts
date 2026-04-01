@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto'
 import { BorshAccountsCoder, type Idl } from '@coral-xyz/anchor'
-import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, unpackMint } from '@solana/spl-token'
+import {
+  TOKEN_2022_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
+  unpackMint,
+} from '@solana/spl-token'
 import type { AccountInfo } from '@solana/web3.js'
 import { PublicKey } from '@solana/web3.js'
 
@@ -129,7 +133,10 @@ type Bucket = {
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
-export const PROGRAM_IDS = [GMTRADE_STORE_PROGRAM_ID, GMTRADE_LP_PROGRAM_ID] as const
+export const PROGRAM_IDS = [
+  GMTRADE_STORE_PROGRAM_ID,
+  GMTRADE_LP_PROGRAM_ID,
+] as const
 
 const storeCoder = new BorshAccountsCoder(gmsolStoreIdl as unknown as Idl)
 const lpCoder = new BorshAccountsCoder(
@@ -275,7 +282,11 @@ function tokenPriceUsd(mint: string, tokens: SolanaPlugins['tokens']) {
   return tokens.get(mint)?.priceUsd
 }
 
-function mulDivFloor(value: bigint, multiplier: bigint, divisor: bigint): bigint {
+function mulDivFloor(
+  value: bigint,
+  multiplier: bigint,
+  divisor: bigint,
+): bigint {
   if (value <= 0n || multiplier <= 0n || divisor <= 0n) return 0n
   return (value * multiplier) / divisor
 }
@@ -360,7 +371,6 @@ export const gmtradeIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: GMTRADE_STORE_PROGRAM_ID,
-        cacheTtlMs: 5 * 60 * 1000,
         filters: [
           {
             memcmp: {
@@ -383,9 +393,12 @@ export const gmtradeIntegration: SolanaIntegration = {
       },
     ]
 
-    const decodedPositions: Array<{ address: string; data: DecodedPosition }> = []
-    const decodedLpPositions: Array<{ address: string; data: DecodedLpPosition }> =
+    const decodedPositions: Array<{ address: string; data: DecodedPosition }> =
       []
+    const decodedLpPositions: Array<{
+      address: string
+      data: DecodedLpPosition
+    }> = []
     const decodedOrders: Array<{ address: string; data: DecodedOrder }> = []
     const decodedMarkets: MarketInfo[] = []
     const walletMarketTokenBalances = new Map<string, bigint>()
@@ -431,13 +444,21 @@ export const gmtradeIntegration: SolanaIntegration = {
         continue
       }
 
-      const order = decodeAccount<DecodedOrder>(storeCoder, 'Order', account.data)
+      const order = decodeAccount<DecodedOrder>(
+        storeCoder,
+        'Order',
+        account.data,
+      )
       if (order) {
         decodedOrders.push({ address: accountAddress, data: order })
         continue
       }
 
-      const market = decodeAccount<DecodedMarket>(storeCoder, 'Market', account.data)
+      const market = decodeAccount<DecodedMarket>(
+        storeCoder,
+        'Market',
+        account.data,
+      )
       if (market) {
         const primaryPoolLongAmountRaw = toBigInt(
           market.state?.pools?.primary?.pool?.long_token_amount ?? 0,
@@ -524,7 +545,10 @@ export const gmtradeIntegration: SolanaIntegration = {
 
     const buckets = new Map<string, Bucket>()
 
-    for (const { address: positionAddress, data: position } of decodedPositions) {
+    for (const {
+      address: positionAddress,
+      data: position,
+    } of decodedPositions) {
       const sizeInUsdRaw = toBigInt(position.state.size_in_usd)
       const sizeInTokensRaw = toBigInt(position.state.size_in_tokens)
       const collateralAmountRaw = toBigInt(position.state.collateral_amount)
@@ -540,7 +564,11 @@ export const gmtradeIntegration: SolanaIntegration = {
       const store = position.store.toBase58()
       const marketToken = position.market_token.toBase58()
       const collateralToken = position.collateral_token.toBase58()
-      const collateralDecimals = tokenDecimals(collateralToken, tokens, mintDecimalsMap)
+      const collateralDecimals = tokenDecimals(
+        collateralToken,
+        tokens,
+        mintDecimalsMap,
+      )
       const collateralPrice = tokenPriceUsd(collateralToken, tokens)
 
       const bucket = getOrCreateBucket(buckets, store, marketToken)
@@ -586,7 +614,11 @@ export const gmtradeIntegration: SolanaIntegration = {
       const collateralAmountRaw = toBigInt(
         order.params.initial_collateral_delta_amount,
       )
-      const collateralDecimals = tokenDecimals(collateralToken, tokens, mintDecimalsMap)
+      const collateralDecimals = tokenDecimals(
+        collateralToken,
+        tokens,
+        mintDecimalsMap,
+      )
       const collateralPrice = tokenPriceUsd(collateralToken, tokens)
       const acceptablePriceRaw = toBigInt(order.params.acceptable_price)
 
@@ -623,7 +655,9 @@ export const gmtradeIntegration: SolanaIntegration = {
 
       const sizeDeltaUsd = toBigInt(order.params.size_delta_value)
       if (sizeDeltaUsd > 0n) {
-        const sizeDeltaUsdNumber = Number(toScaledDecimal(sizeDeltaUsd, PRICE_DECIMALS))
+        const sizeDeltaUsdNumber = Number(
+          toScaledDecimal(sizeDeltaUsd, PRICE_DECIMALS),
+        )
         if (Number.isFinite(sizeDeltaUsdNumber)) {
           bucket.usdValues.push(sizeDeltaUsdNumber)
         }
@@ -668,7 +702,10 @@ export const gmtradeIntegration: SolanaIntegration = {
       result.push(position)
     }
 
-    for (const { address: lpPositionAddress, data: lpPosition } of decodedLpPositions) {
+    for (const {
+      address: lpPositionAddress,
+      data: lpPosition,
+    } of decodedLpPositions) {
       const lpMint = lpPosition.lp_mint.toBase58()
       const stakedAmountRaw = toBigInt(lpPosition.staked_amount)
       if (stakedAmountRaw <= 0n) continue
@@ -730,13 +767,14 @@ export const gmtradeIntegration: SolanaIntegration = {
         perTokenAmount.set(market.shortTokenMint, existing + shortAmountRaw)
       }
 
-      const poolTokens = [...perTokenAmount.entries()].map(([mint, amountRaw]) =>
-        buildPositionValue(
-          mint,
-          amountRaw,
-          tokenDecimals(mint, tokens, mintDecimalsMap),
-          tokenPriceUsd(mint, tokens),
-        ),
+      const poolTokens = [...perTokenAmount.entries()].map(
+        ([mint, amountRaw]) =>
+          buildPositionValue(
+            mint,
+            amountRaw,
+            tokenDecimals(mint, tokens, mintDecimalsMap),
+            tokenPriceUsd(mint, tokens),
+          ),
       )
 
       const poolUsdValue = poolTokens

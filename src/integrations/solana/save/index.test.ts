@@ -84,7 +84,10 @@ describe('save integration', () => {
       (req) => fetchProgramAccountsBatch(connection, req),
     )
 
-    const totalPositions = results.reduce((sum, positions) => sum + positions.length, 0)
+    const totalPositions = results.reduce(
+      (sum, positions) => sum + positions.length,
+      0,
+    )
     const saved = naiveTotal - totalAccounts
     const savedPct = naiveTotal > 0 ? Math.round((saved / naiveTotal) * 100) : 0
     console.log(
