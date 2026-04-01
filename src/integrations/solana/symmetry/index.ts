@@ -48,16 +48,19 @@ const LEGACY_FUNDS = [
         mint: 'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
         weightBps: 4500,
         decimals: 9,
+        unitsPerFundToken: 1.6625541847282428,
       },
       {
         mint: 'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn',
         weightBps: 4500,
         decimals: 9,
+        unitsPerFundToken: 1.7889296432144048,
       },
       {
         mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
         weightBps: 1000,
         decimals: 6,
+        unitsPerFundToken: 0.30143381127042346,
       },
     ],
   },
@@ -243,6 +246,43 @@ async function buildLegacyFundPoolTokens(
         buildPositionValue(fundDefinition.mint, fundAmountRaw, fundDecimals, fundPriceUsd),
       ],
       partialComposition: false,
+    }
+  }
+
+  const hasDeterministicRatios = fundDefinition.composition.every(
+    (component) => component.unitsPerFundToken !== undefined,
+  )
+  if (hasDeterministicRatios) {
+    const ratioResult: PositionValue[] = []
+    let partialComposition = false
+
+    for (const component of fundDefinition.composition) {
+      const componentToken = tokens.get(component.mint)
+      const componentDecimals = componentToken?.decimals ?? component.decimals
+      const unitsPerFundToken = component.unitsPerFundToken ?? 0
+      const componentUiAmount = fundUiAmount * unitsPerFundToken
+      const componentRawAmount = BigInt(
+        Math.floor(componentUiAmount * 10 ** componentDecimals),
+      )
+      if (componentRawAmount <= 0n) {
+        partialComposition = true
+        continue
+      }
+
+      const componentPriceUsd = await resolveTokenPriceUsd(component.mint, tokens)
+      ratioResult.push(
+        buildPositionValue(
+          component.mint,
+          componentRawAmount,
+          componentDecimals,
+          componentPriceUsd,
+        ),
+      )
+    }
+
+    return {
+      poolTokens: ratioResult,
+      partialComposition,
     }
   }
 
