@@ -19,8 +19,6 @@ const TOKEN_ACCOUNT_MINT_OFFSET = 0
 const TOKEN_ACCOUNT_OWNER_OFFSET = 32
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
 
-const MINT_ACCOUNT_MINT_AUTHORITY_OPTION_OFFSET = 0
-const MINT_ACCOUNT_MINT_AUTHORITY_OFFSET = 4
 const MINT_ACCOUNT_DECIMALS_OFFSET = 44
 
 const VAULT_DISCRIMINATOR_BYTES = 8
@@ -113,11 +111,6 @@ function readU16(data: Uint8Array, offset: number): number | null {
   return Buffer.from(data).readUInt16LE(offset)
 }
 
-function readU32(data: Uint8Array, offset: number): number | null {
-  if (data.length < offset + 4) return null
-  return Buffer.from(data).readUInt32LE(offset)
-}
-
 function readU64(data: Uint8Array, offset: number): bigint | null {
   if (data.length < offset + 8) return null
   return Buffer.from(data).readBigUInt64LE(offset)
@@ -134,21 +127,6 @@ function readMintDecimals(account: MaybeSolanaAccount | undefined): number | nul
 
   if (account.data.length <= MINT_ACCOUNT_DECIMALS_OFFSET) return null
   return account.data[MINT_ACCOUNT_DECIMALS_OFFSET] ?? null
-}
-
-function readMintAuthority(account: MaybeSolanaAccount | undefined): string | null {
-  if (!account?.exists) return null
-  if (
-    account.programAddress !== TOKEN_PROGRAM_ID.toBase58() &&
-    account.programAddress !== TOKEN_2022_PROGRAM_ID.toBase58()
-  ) {
-    return null
-  }
-
-  const option = readU32(account.data, MINT_ACCOUNT_MINT_AUTHORITY_OPTION_OFFSET)
-  if (option === null || option === 0) return null
-
-  return readPubkey(account.data, MINT_ACCOUNT_MINT_AUTHORITY_OFFSET)
 }
 
 function decodeVault(accountData: Uint8Array): DecodedVault | null {
@@ -500,14 +478,6 @@ export const symmetryIntegration: SolanaIntegration = {
       matchedVaultByMint.set(mint, vaultAddress)
     }
 
-    const phase2Mints = new Set<string>(matchedVaultByMint.keys())
-    for (const legacyFund of LEGACY_FUNDS) {
-      const legacyBalance = userVaultBalancesByMint.get(legacyFund.mint) ?? 0n
-      if (legacyBalance > 0n) phase2Mints.add(legacyFund.mint)
-    }
-
-    const phase2Map = yield [...phase2Mints]
-
     const legacyMints = LEGACY_FUNDS
       .map((fund) => fund.mint)
       .filter((mint) => (userVaultBalancesByMint.get(mint) ?? 0n) > 0n)
@@ -559,14 +529,7 @@ export const symmetryIntegration: SolanaIntegration = {
       assets: DecodedVaultAsset[]
     }> = []
 
-    const underlyingMintSet = new Set<string>()
-
     for (const [mint, vaultAddress] of matchedVaultByMint.entries()) {
-      const mintAccount = phase2Map[mint]
-      const lpDecimals = readMintDecimals(mintAccount)
-      const mintAuthority = readMintAuthority(mintAccount)
-      if (lpDecimals === null || mintAuthority !== vaultAddress) continue
-
       const vaultAccount = phase1Map[vaultAddress]
       if (!vaultAccount?.exists) continue
       if (vaultAccount.programAddress !== SYMMETRY_VAULTS_V3_PROGRAM_ID) continue
@@ -576,31 +539,49 @@ export const symmetryIntegration: SolanaIntegration = {
       if (decodedVault.mint !== mint) continue
       if (decodedVault.supplyOutstandingRaw === 0n) continue
 
-      for (const asset of decodedVault.assets) {
-        underlyingMintSet.add(asset.mint)
-      }
-
       vaultSnapshots.push({
         vaultAddress,
         vaultMint: mint,
         vaultVersion: decodedVault.version,
-        lpDecimals,
+        lpDecimals: tokens.get(mint)?.decimals ?? 0,
         userLpAmountRaw: userVaultBalancesByMint.get(mint) ?? 0n,
         supplyOutstandingRaw: decodedVault.supplyOutstandingRaw,
         assets: decodedVault.assets,
       })
     }
 
-    const underlyingMints = [...underlyingMintSet]
-    const phase3Map =
-      underlyingMints.length > 0
-        ? yield underlyingMints
+    const mintsMissingDecimals = new Set<string>()
+    for (const snapshot of vaultSnapshots) {
+      if (tokens.get(snapshot.vaultMint)?.decimals === undefined) {
+        mintsMissingDecimals.add(snapshot.vaultMint)
+      }
+      for (const asset of snapshot.assets) {
+        if (tokens.get(asset.mint)?.decimals === undefined) {
+          mintsMissingDecimals.add(asset.mint)
+        }
+      }
+    }
+    for (const legacyFund of LEGACY_FUNDS) {
+      const fundAmountRaw = userVaultBalancesByMint.get(legacyFund.mint) ?? 0n
+      if (fundAmountRaw > 0n && tokens.get(legacyFund.mint)?.decimals === undefined) {
+        mintsMissingDecimals.add(legacyFund.mint)
+      }
+    }
+
+    const missingDecimalsMap =
+      mintsMissingDecimals.size > 0
+        ? yield [...mintsMissingDecimals]
         : ({} as Record<string, MaybeSolanaAccount>)
 
     const positions: ConstantProductLiquidityDefiPosition[] = []
 
     for (const snapshot of vaultSnapshots) {
       if (snapshot.userLpAmountRaw <= 0n) continue
+
+      const lpDecimals =
+        tokens.get(snapshot.vaultMint)?.decimals ??
+        readMintDecimals(missingDecimalsMap[snapshot.vaultMint]) ??
+        snapshot.lpDecimals
 
       const poolTokens: PositionValue[] = []
 
@@ -612,8 +593,8 @@ export const symmetryIntegration: SolanaIntegration = {
         if (userAmountRaw <= 0n) continue
 
         const decimals =
-          readMintDecimals(phase3Map[asset.mint]) ??
           tokens.get(asset.mint)?.decimals ??
+          readMintDecimals(missingDecimalsMap[asset.mint]) ??
           0
         const tokenInfo = tokens.get(asset.mint)
 
@@ -628,7 +609,7 @@ export const symmetryIntegration: SolanaIntegration = {
           buildPositionValue(
             snapshot.vaultMint,
             snapshot.userLpAmountRaw,
-            snapshot.lpDecimals,
+            lpDecimals,
             vaultTokenInfo?.priceUsd,
           ),
         )
@@ -641,7 +622,7 @@ export const symmetryIntegration: SolanaIntegration = {
         positionKind: 'liquidity',
         liquidityModel: 'constant-product',
         poolAddress: snapshot.vaultAddress,
-        lpTokenAmount: toUiAmountString(snapshot.userLpAmountRaw, snapshot.lpDecimals),
+        lpTokenAmount: toUiAmountString(snapshot.userLpAmountRaw, lpDecimals),
         poolTokens,
         ...(usdValue !== undefined && { usdValue }),
         meta: {
@@ -663,8 +644,8 @@ export const symmetryIntegration: SolanaIntegration = {
       if (fundAmountRaw <= 0n) continue
 
       const fundDecimals =
-        readMintDecimals(phase2Map[legacyFund.mint]) ??
         tokens.get(legacyFund.mint)?.decimals ??
+        readMintDecimals(missingDecimalsMap[legacyFund.mint]) ??
         0
       const directFundPriceUsd = tokens.get(legacyFund.mint)?.priceUsd
       const estimatedFundPriceUsd =
