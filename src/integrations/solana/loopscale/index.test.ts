@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { Connection } from '@solana/web3.js'
-import { runIntegrations, TokenPlugin } from '../../../types/index'
 import { testIntegration } from '../../../test/solana-integration'
+import { runIntegrations, TokenPlugin } from '../../../types/index'
 import {
   fetchAccountsBatch,
   fetchProgramAccountsBatch,

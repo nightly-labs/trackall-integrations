@@ -1,9 +1,9 @@
 import { CategoryOffer, NAME_OFFERS_ID, Offer, Tag } from '@bonfida/name-offers'
 import {
-  NAME_PROGRAM_ID,
-  ROOT_DOMAIN_ACCOUNT,
   deserializeReverse,
   getReverseKeyFromDomainKey,
+  NAME_PROGRAM_ID,
+  ROOT_DOMAIN_ACCOUNT,
 } from '@bonfida/spl-name-service'
 import { PublicKey } from '@solana/web3.js'
 import type {
@@ -199,11 +199,7 @@ export const snsIntegration: SolanaIntegration = {
       }
 
       const reverseLookupKeys = [
-        ...new Set(
-          [...reverseLookupKeysByNameAccount.values()].flatMap(
-            (value) => value,
-          ),
-        ),
+        ...new Set([...reverseLookupKeysByNameAccount.values()].flat()),
       ]
       const reverseAccounts = yield reverseLookupKeys
 

@@ -82,6 +82,7 @@ export type {
   AptosResource,
 } from './src/types/aptosIntegration'
 export type { Platform, PlatformLinks } from './src/types/platform'
+export type { PlatformTag } from './src/types/platformTag'
 export type {
   BaseDefiPosition,
   BaseLiquidityDefiPosition,
@@ -101,8 +102,8 @@ export type {
   TradingAccountMetrics,
   TradingDefiPosition,
   TradingExposureSide,
-  TradingMarketType,
   TradingMarketPosition,
+  TradingMarketType,
   TradingOrder,
   TradingPositionStatus,
   TradingSide,
@@ -125,7 +126,6 @@ export type {
   SolanaPlugins,
   UserPositionsPlan,
 } from './src/types/solanaIntegration'
-export type { PlatformTag } from './src/types/platformTag'
 export {
   createFetchAccounts,
   createFetchProgramAccounts,

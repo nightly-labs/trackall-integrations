@@ -102,10 +102,17 @@ describe('solana integrations getUserPositions macro', () => {
       let totalBatches = 0
       let totalAccounts = 0
 
+      if (
+        !integration.integration?.getUserPositions ||
+        !integration.testAddress
+      ) {
+        throw new Error(`[${integration.name}] Missing test integration config`)
+      }
+
       const [positions] = await runIntegrations(
         [
-          integration.integration!.getUserPositions!(
-            integration.testAddress!,
+          integration.integration.getUserPositions(
+            integration.testAddress,
             plugins,
           ),
         ],

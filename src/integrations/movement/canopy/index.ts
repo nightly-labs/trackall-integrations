@@ -479,13 +479,12 @@ async function buildTokenLookup(
   for (const token of globalTokens) {
     const address = normalizeAddress(token.address)
     if (!normalizedIds.includes(address)) continue
+    const fullName = token.fullName ?? token.displayName
 
     lookup.set(address, {
       tokenId: token.address,
       decimals: token.decimals ?? 8,
-      ...((token.fullName ?? token.displayName) && {
-        name: token.fullName ?? token.displayName!,
-      }),
+      ...(fullName && { name: fullName }),
       ...(token.symbol && { symbol: token.symbol }),
       ...(token.price !== undefined &&
         token.price !== null && {
@@ -722,19 +721,22 @@ async function getUserPositions(
   if (canopyShareBalances.length === 0) return []
 
   const tokenIds = [
-    ...vaultRegistry.flatMap((vault) => [
-      vault.asset_address,
-      vault.shares_address,
-      ...((metadataByVaultAddress.get(normalizeAddress(vault.vault_address))
-        ? getMetadataTokenIds(
-            metadataByVaultAddress.get(normalizeAddress(vault.vault_address))!,
-            mapAdditionalMetadata(
-              metadataByVaultAddress.get(normalizeAddress(vault.vault_address))!
-                ?.additionalMetadata,
-            ),
-          )
-        : []) as string[]),
-    ]),
+    ...vaultRegistry.flatMap((vault) => {
+      const metadata = metadataByVaultAddress.get(
+        normalizeAddress(vault.vault_address),
+      )
+
+      return [
+        vault.asset_address,
+        vault.shares_address,
+        ...((metadata
+          ? getMetadataTokenIds(
+              metadata,
+              mapAdditionalMetadata(metadata.additionalMetadata),
+            )
+          : []) as string[]),
+      ]
+    }),
     ...canopyShareBalances.flatMap((balance) =>
       balance.asset_type_v2 ? [balance.asset_type_v2] : [],
     ),

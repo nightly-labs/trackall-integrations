@@ -3,11 +3,11 @@ import type { WhirlpoolData } from '@orca-so/whirlpools-sdk'
 import { ParsableWhirlpool, PoolUtil, PriceMath } from '@orca-so/whirlpools-sdk'
 import { PublicKey } from '@solana/web3.js'
 import type {
-  MaybeSolanaAccount,
   AccountsMap,
   ConstantProductLiquidityDefiPosition,
   LendingDefiPosition,
   LendingSuppliedAsset,
+  MaybeSolanaAccount,
   PositionValue,
   SolanaIntegration,
   SolanaPlugins,

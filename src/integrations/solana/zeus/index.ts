@@ -1,15 +1,15 @@
 import {
+  createAssociatedTokenAccountInstruction,
+  getAssociatedTokenAddressSync,
+  TOKEN_PROGRAM_ID,
+} from '@solana/spl-token'
+import {
   Connection,
   PublicKey,
   TransactionInstruction,
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js'
-import {
-  createAssociatedTokenAccountInstruction,
-  getAssociatedTokenAddressSync,
-  TOKEN_PROGRAM_ID,
-} from '@solana/spl-token'
 import type {
   PositionValue,
   SolanaIntegration,

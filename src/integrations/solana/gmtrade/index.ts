@@ -7,10 +7,6 @@ import {
 } from '@solana/spl-token'
 import type { AccountInfo } from '@solana/web3.js'
 import { PublicKey } from '@solana/web3.js'
-
-import gmsolStoreIdl from './idls/gmsol_store.json'
-import gmsolLiquidityProviderIdl from './idls/gmsol_liquidity_provider.json'
-
 import type {
   AccountsMap,
   ConstantProductLiquidityDefiPosition,
@@ -24,6 +20,8 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import gmsolLiquidityProviderIdl from './idls/gmsol_liquidity_provider.json'
+import gmsolStoreIdl from './idls/gmsol_store.json'
 
 const GMTRADE_STORE_PROGRAM_ID = 'Gmso1uvJnLbawvw7yezdfCDcPydwW2s2iqG3w6MDucLo'
 const GMTRADE_LP_PROGRAM_ID = 'LPMWczEVgXyQ3979XaqqEttanCXmYGvtJqPVtw1PvC8'
@@ -499,12 +497,12 @@ export const gmtradeIntegration: SolanaIntegration = {
     }
 
     const mintSet = new Set<string>()
-    decodedPositions.forEach(({ data }) =>
-      mintSet.add(data.collateral_token.toBase58()),
-    )
-    decodedOrders.forEach(({ data }) =>
-      mintSet.add(data.params.collateral_token.toBase58()),
-    )
+    for (const { data } of decodedPositions) {
+      mintSet.add(data.collateral_token.toBase58())
+    }
+    for (const { data } of decodedOrders) {
+      mintSet.add(data.params.collateral_token.toBase58())
+    }
     decodedMarkets.forEach((market) => {
       mintSet.add(market.marketTokenMint)
       mintSet.add(market.indexTokenMint)
