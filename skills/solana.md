@@ -42,6 +42,7 @@ Rules:
 - `id` must be a unique string literal — it becomes the `PlatformId` union member
 - `networks` must include `'solana'`
 - `defiLlamaId` may be omitted if unknown
+- image is required and must never be omitted, empty, or undefined, image must be a direct, publicly reachable image URL, before writing the file, verify that the URL responds successfully and serves an actual image (Content-Type starts with image/), if no valid image URL can be confirmed, stop and ask the user for a different one instead of guessing
 
 ---
 
