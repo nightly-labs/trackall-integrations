@@ -2,8 +2,8 @@ import { PublicKey } from '@solana/web3.js'
 import type {
   ConstantProductLiquidityDefiPosition,
   GetProgramAccountsRequest,
-  ProgramRequest,
   PositionValue,
+  ProgramRequest,
   SolanaAccount,
   SolanaIntegration,
   SolanaPlugins,

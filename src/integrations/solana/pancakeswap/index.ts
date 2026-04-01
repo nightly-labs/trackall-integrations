@@ -394,9 +394,7 @@ export const pancakeswapIntegration: SolanaIntegration = {
           CLMM_PROGRAM,
         )
         clmmPdaEntries.push({ mint, pda: pda.toBase58() })
-      } catch {
-        continue
-      }
+      } catch {}
     }
 
     if (clmmPdaEntries.length === 0) return []
@@ -448,9 +446,7 @@ export const pancakeswapIntegration: SolanaIntegration = {
           tokenFeesOwed1: BigInt(decoded.token_fees_owed_1.toString()),
         })
         uniquePoolIds.add(poolId)
-      } catch {
-        continue
-      }
+      } catch {}
     }
 
     if (clmmPositions.length === 0) return []
@@ -543,9 +539,7 @@ export const pancakeswapIntegration: SolanaIntegration = {
           configAddress,
           lpFeeRate > 0n ? lpFeeRate : 0n,
         )
-      } catch {
-        continue
-      }
+      } catch {}
     }
 
     const positions: UserDefiPosition[] = []

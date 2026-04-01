@@ -4,10 +4,10 @@ import type {
   LendingBorrowedAsset,
   LendingDefiPosition,
   LendingSuppliedAsset,
-  StakedAsset,
-  StakingDefiPosition,
   SolanaIntegration,
   SolanaPlugins,
+  StakedAsset,
+  StakingDefiPosition,
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'

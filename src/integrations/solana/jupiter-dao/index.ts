@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
 import { PublicKey } from '@solana/web3.js'
 import type {
-  ProgramRequest,
   PositionValue,
+  ProgramRequest,
   RewardDefiPosition,
   SolanaIntegration,
   SolanaPlugins,

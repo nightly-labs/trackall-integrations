@@ -2,8 +2,8 @@ import { unpackMint } from '@solana/spl-token'
 import type { AccountInfo } from '@solana/web3.js'
 import { PublicKey } from '@solana/web3.js'
 import type {
-  MaybeSolanaAccount,
   GetProgramAccountsRequest,
+  MaybeSolanaAccount,
   SolanaIntegration,
   SolanaPlugins,
   StakingDefiPosition,

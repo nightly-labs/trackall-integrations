@@ -144,7 +144,7 @@ describe('jupiter-dao integration', () => {
     ).toBe(true)
 
     const cooldownWalletPositions =
-      results[wallets.findIndex((wallet) => wallet === cooldownWallet)] ?? []
+      results[wallets.indexOf(cooldownWallet)] ?? []
     const cooldownStakingPositions = cooldownWalletPositions.filter(
       (position): position is StakingDefiPosition =>
         position.positionKind === 'staking',

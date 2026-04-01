@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { testIntegration } from '../../../test/solana-integration'
-import { TokenPlugin, type ProgramRequest } from '../../../types/index'
+import { type ProgramRequest, TokenPlugin } from '../../../types/index'
 import { divvyIntegration, testAddress } from '.'
 
 function isProgramRequestArray(value: unknown): value is ProgramRequest[] {
@@ -21,9 +21,11 @@ describe('divvy integration internals', () => {
       tokens: new TokenPlugin(),
     })
 
-    expect(plan).toBeDefined()
+    if (!plan) {
+      throw new Error('divvyIntegration.getUserPositions is not defined')
+    }
 
-    const first = await plan!.next()
+    const first = await plan.next()
     expect(first.done).toBe(false)
     if (!isProgramRequestArray(first.value)) {
       throw new Error('Expected program requests, received address list')

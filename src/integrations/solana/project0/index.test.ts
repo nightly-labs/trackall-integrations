@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 import { Connection } from '@solana/web3.js'
 import {
+  type LendingDefiPosition,
   runIntegrations,
   TokenPlugin,
-  type LendingDefiPosition,
 } from '../../../types/index'
 import {
   fetchAccountsBatch,

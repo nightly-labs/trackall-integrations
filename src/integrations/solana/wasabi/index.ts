@@ -1,10 +1,10 @@
 import { BorshAccountsCoder } from '@coral-xyz/anchor'
 import { unpackMint } from '@solana/spl-token'
-import { PublicKey } from '@solana/web3.js'
 import type { AccountInfo } from '@solana/web3.js'
+import { PublicKey } from '@solana/web3.js'
 import type {
-  ProgramRequest,
   PositionValue,
+  ProgramRequest,
   SolanaAccount,
   SolanaIntegration,
   SolanaPlugins,
