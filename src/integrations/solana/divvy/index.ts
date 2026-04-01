@@ -1,5 +1,6 @@
 import { PublicKey } from '@solana/web3.js'
 import type {
+  GetProgramAccountsRequest,
   SolanaAccount,
   SolanaIntegration,
   SolanaPlugins,
@@ -13,6 +14,7 @@ const DIVVY_HOUSE_PROGRAM_ID = 'dvyFwAPniptQNb1ey4eM12L8iLHrzdiDsPPDndd6xAR'
 const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
 const TOKEN_2022_PROGRAM_ID = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'
 const HOUSE_DISCRIMINATOR_B58 = '4cEdzVs6LUe'
+const HOUSE_ACCOUNT_SIZES = [294, 312] as const
 
 const TOKEN_ACCOUNT_SIZE = 165
 const TOKEN_MINT_OFFSET = 0
@@ -119,7 +121,8 @@ export const divvyIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
-    const housesMap = yield {
+    const houseRequests: GetProgramAccountsRequest[] = HOUSE_ACCOUNT_SIZES.map(
+      (dataSize) => ({
       kind: 'getProgramAccounts' as const,
       programId: DIVVY_HOUSE_PROGRAM_ID,
       filters: [
@@ -130,9 +133,12 @@ export const divvyIntegration: SolanaIntegration = {
             encoding: 'base58',
           },
         },
+        { dataSize },
       ],
       cacheTtlMs: 60_000,
-    }
+      }),
+    )
+    const housesMap = yield houseRequests
 
     const houses = Object.values(housesMap)
       .filter((account): account is SolanaAccount => account.exists)
