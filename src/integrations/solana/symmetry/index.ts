@@ -12,6 +12,8 @@ import type {
 
 const SYMMETRY_VAULTS_V3_PROGRAM_ID =
   'BASKT7aKd8n7ibpUbwLP3Wiyxyi3yoiXsxBk4Hpumate'
+const SYMMETRY_LEGACY_FUNDS_PROGRAM_ID =
+  '2KehYt3KsEQR53jYcxjbQp2d2kCp4AkuQW68atufRwSr'
 
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
 const TOKEN_ACCOUNT_OWNER_OFFSET = 32
@@ -38,6 +40,14 @@ const ASSET_ACTIVE_OFFSET = 42
 const SYSTEM_PROGRAM_ADDRESS = '11111111111111111111111111111111'
 const VAULT_PDA_SEED = Buffer.from('basket')
 const HUNDRED_PERCENT_BPS = 10_000
+const LEGACY_FUND_MINT_OFFSET = 48
+const LEGACY_FUND_SUPPLY_RAW_OFFSET = 88
+const LEGACY_FUND_NUM_TOKENS_OFFSET = 168
+const LEGACY_FUND_TOKEN_IDS_OFFSET = 176
+const LEGACY_FUND_TOKEN_ID_STRIDE = 8
+const LEGACY_FUND_MAX_TOKENS = 20
+const LEGACY_FUND_AMOUNTS_OFFSET =
+  LEGACY_FUND_TOKEN_IDS_OFFSET + LEGACY_FUND_MAX_TOKENS * LEGACY_FUND_TOKEN_ID_STRIDE
 
 const LEGACY_FUNDS = [
   {
@@ -47,21 +57,21 @@ const LEGACY_FUNDS = [
     composition: [
       {
         mint: 'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
+        tokenId: 5,
         weightBps: 4500,
         decimals: 9,
-        unitsPerFundToken: 1.6625541847282428,
       },
       {
         mint: 'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn',
+        tokenId: 6,
         weightBps: 4500,
         decimals: 9,
-        unitsPerFundToken: 1.7889296432144048,
       },
       {
         mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        tokenId: 0,
         weightBps: 1000,
         decimals: 6,
-        unitsPerFundToken: 0.30143381127042346,
       },
     ],
   },
@@ -78,6 +88,11 @@ type DecodedVault = {
   mint: string
   supplyOutstandingRaw: bigint
   assets: DecodedVaultAsset[]
+}
+
+type DecodedLegacyFund = {
+  supplyRaw: bigint
+  amountByTokenId: Map<number, bigint>
 }
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
@@ -179,6 +194,90 @@ function decodeVault(accountData: Uint8Array): DecodedVault | null {
   }
 }
 
+function decodeLegacyFund(accountData: Uint8Array): DecodedLegacyFund | null {
+  if (accountData.length < LEGACY_FUND_AMOUNTS_OFFSET) return null
+
+  const fundMint = readPubkey(accountData, LEGACY_FUND_MINT_OFFSET)
+  if (!fundMint) return null
+
+  const supplyRaw = readU64(accountData, LEGACY_FUND_SUPPLY_RAW_OFFSET)
+  const numTokens = readU64(accountData, LEGACY_FUND_NUM_TOKENS_OFFSET)
+  if (supplyRaw === null || supplyRaw === 0n || numTokens === null) return null
+  if (numTokens > BigInt(LEGACY_FUND_MAX_TOKENS)) return null
+
+  const tokenCount = Number(numTokens)
+  const required =
+    LEGACY_FUND_AMOUNTS_OFFSET + tokenCount * LEGACY_FUND_TOKEN_ID_STRIDE
+  if (accountData.length < required) return null
+
+  const amountByTokenId = new Map<number, bigint>()
+  for (let i = 0; i < tokenCount; i++) {
+    const tokenIdRaw = readU64(
+      accountData,
+      LEGACY_FUND_TOKEN_IDS_OFFSET + i * LEGACY_FUND_TOKEN_ID_STRIDE,
+    )
+    const amountRaw = readU64(
+      accountData,
+      LEGACY_FUND_AMOUNTS_OFFSET + i * LEGACY_FUND_TOKEN_ID_STRIDE,
+    )
+    if (tokenIdRaw === null || amountRaw === null || amountRaw <= 0n) continue
+    if (tokenIdRaw > BigInt(Number.MAX_SAFE_INTEGER)) continue
+    amountByTokenId.set(Number(tokenIdRaw), amountRaw)
+  }
+
+  return { supplyRaw, amountByTokenId }
+}
+
+function selectBestLegacyFundDecoded(
+  fundDefinition: (typeof LEGACY_FUNDS)[number],
+  decodedCandidates: DecodedLegacyFund[],
+): DecodedLegacyFund | undefined {
+  let bestCandidate: DecodedLegacyFund | undefined
+  let bestCoverage = -1
+  let bestRequiredAmountSum = -1n
+  let bestSupply = -1n
+  let bestTotalAmountSum = -1n
+
+  for (const candidate of decodedCandidates) {
+    let coverage = 0
+    let requiredAmountSum = 0n
+    let totalAmountSum = 0n
+
+    for (const amount of candidate.amountByTokenId.values()) {
+      totalAmountSum += amount
+    }
+
+    for (const component of fundDefinition.composition) {
+      const amount = candidate.amountByTokenId.get(component.tokenId) ?? 0n
+      if (amount > 0n) {
+        coverage++
+        requiredAmountSum += amount
+      }
+    }
+
+    const isBetter =
+      coverage > bestCoverage ||
+      (coverage === bestCoverage && requiredAmountSum > bestRequiredAmountSum) ||
+      (coverage === bestCoverage &&
+        requiredAmountSum === bestRequiredAmountSum &&
+        candidate.supplyRaw > bestSupply) ||
+      (coverage === bestCoverage &&
+        requiredAmountSum === bestRequiredAmountSum &&
+        candidate.supplyRaw === bestSupply &&
+        totalAmountSum > bestTotalAmountSum)
+
+    if (isBetter) {
+      bestCandidate = candidate
+      bestCoverage = coverage
+      bestRequiredAmountSum = requiredAmountSum
+      bestSupply = candidate.supplyRaw
+      bestTotalAmountSum = totalAmountSum
+    }
+  }
+
+  return bestCandidate
+}
+
 function toUiAmountString(amountRaw: bigint, decimals: number): string {
   if (decimals <= 0) return amountRaw.toString()
 
@@ -230,6 +329,7 @@ function buildLegacyFundPoolTokens(
   fundAmountRaw: bigint,
   fundDecimals: number,
   tokens: SolanaPlugins['tokens'],
+  decodedLegacyFund?: DecodedLegacyFund,
   fundPriceUsd?: number,
 ): { poolTokens: PositionValue[]; partialComposition: boolean } {
   const fundUiAmount = Number(toUiAmountString(fundAmountRaw, fundDecimals))
@@ -242,28 +342,29 @@ function buildLegacyFundPoolTokens(
     }
   }
 
-  const hasDeterministicRatios = fundDefinition.composition.every(
-    (component) => component.unitsPerFundToken !== undefined,
-  )
-  if (hasDeterministicRatios) {
-    const ratioResult: PositionValue[] = []
+  if (decodedLegacyFund && decodedLegacyFund.supplyRaw > 0n) {
+    const onchainResult: PositionValue[] = []
     let partialComposition = false
 
     for (const component of fundDefinition.composition) {
+      const componentTotalRaw =
+        decodedLegacyFund.amountByTokenId.get(component.tokenId) ?? 0n
+      if (componentTotalRaw <= 0n) {
+        partialComposition = true
+        continue
+      }
+
       const componentToken = tokens.get(component.mint)
       const componentDecimals = componentToken?.decimals ?? component.decimals
-      const unitsPerFundToken = component.unitsPerFundToken ?? 0
-      const componentUiAmount = fundUiAmount * unitsPerFundToken
-      const componentRawAmount = BigInt(
-        Math.floor(componentUiAmount * 10 ** componentDecimals),
-      )
+      const componentRawAmount =
+        (componentTotalRaw * fundAmountRaw) / decodedLegacyFund.supplyRaw
       if (componentRawAmount <= 0n) {
         partialComposition = true
         continue
       }
 
       const componentPriceUsd = tokens.get(component.mint)?.priceUsd
-      ratioResult.push(
+      onchainResult.push(
         buildPositionValue(
           component.mint,
           componentRawAmount,
@@ -273,7 +374,7 @@ function buildLegacyFundPoolTokens(
       )
     }
 
-    return { poolTokens: ratioResult, partialComposition }
+    return { poolTokens: onchainResult, partialComposition }
   }
 
   if (fundPriceUsd === undefined) {
@@ -407,6 +508,47 @@ export const symmetryIntegration: SolanaIntegration = {
 
     const phase2Map = yield [...phase2Mints]
 
+    const legacyMints = LEGACY_FUNDS
+      .map((fund) => fund.mint)
+      .filter((mint) => (userVaultBalancesByMint.get(mint) ?? 0n) > 0n)
+
+    const legacyFundLookupMaps =
+      legacyMints.length > 0
+        ? yield legacyMints.map((mint) => ({
+            kind: 'getProgramAccounts' as const,
+            programId: SYMMETRY_LEGACY_FUNDS_PROGRAM_ID,
+            filters: [
+              {
+                memcmp: {
+                  offset: LEGACY_FUND_MINT_OFFSET,
+                  bytes: mint,
+                  encoding: 'base58' as const,
+                },
+              },
+            ],
+          }))
+        : ({} as Record<string, MaybeSolanaAccount>)
+
+    const decodedLegacyFundByMint = new Map<string, DecodedLegacyFund>()
+    for (const mint of legacyMints) {
+      const fundDefinition = LEGACY_FUNDS.find((fund) => fund.mint === mint)
+      if (!fundDefinition) continue
+
+      const candidates: DecodedLegacyFund[] = []
+      for (const account of Object.values(legacyFundLookupMaps)) {
+        if (!account.exists) continue
+        if (account.programAddress !== SYMMETRY_LEGACY_FUNDS_PROGRAM_ID) continue
+        if (readPubkey(account.data, LEGACY_FUND_MINT_OFFSET) !== mint) continue
+        const decoded = decodeLegacyFund(account.data)
+        if (decoded) candidates.push(decoded)
+      }
+
+      const selected = selectBestLegacyFundDecoded(fundDefinition, candidates)
+      if (selected) {
+        decodedLegacyFundByMint.set(mint, selected)
+      }
+    }
+
     const vaultSnapshots: Array<{
       vaultAddress: string
       vaultMint: string
@@ -535,6 +677,7 @@ export const symmetryIntegration: SolanaIntegration = {
         fundAmountRaw,
         fundDecimals,
         tokens,
+        decodedLegacyFundByMint.get(legacyFund.mint),
         fundPriceUsd,
       )
       let poolTokens: PositionValue[] = legacyBuild.poolTokens
