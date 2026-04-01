@@ -17,7 +17,6 @@ const HOUSE_DISCRIMINATOR_B58 = '4cEdzVs6LUe'
 const HOUSE_ACCOUNT_SIZES = [294, 312] as const
 
 const TOKEN_MINT_OFFSET = 0
-const TOKEN_OWNER_OFFSET = 32
 const TOKEN_AMOUNT_OFFSET = 64
 
 const HOUSE_MINT_OFFSET = 104
@@ -142,48 +141,18 @@ export const divvyIntegration: SolanaIntegration = {
 
     if (houses.length === 0) return []
 
-    const tokenRequests: GetProgramAccountsRequest[] = houses.flatMap(house => [
+    const tokenRequests = [
       {
-        kind: 'getProgramAccounts',
+        kind: 'getTokenAccountsByOwner' as const,
+        owner: address,
         programId: TOKEN_PROGRAM_ID,
-        filters: [
-          {
-            memcmp: {
-              offset: TOKEN_MINT_OFFSET,
-              bytes: house.houseMint,
-              encoding: 'base58'
-            }
-          },
-          {
-            memcmp: {
-              offset: TOKEN_OWNER_OFFSET,
-              bytes: address,
-              encoding: 'base58'
-            }
-          }
-        ]
       },
       {
-        kind: 'getProgramAccounts',
+        kind: 'getTokenAccountsByOwner' as const,
+        owner: address,
         programId: TOKEN_2022_PROGRAM_ID,
-        filters: [
-          {
-            memcmp: {
-              offset: TOKEN_MINT_OFFSET,
-              bytes: house.houseMint,
-              encoding: 'base58'
-            }
-          },
-          {
-            memcmp: {
-              offset: TOKEN_OWNER_OFFSET,
-              bytes: address,
-              encoding: 'base58'
-            }
-          }
-        ]
       }
-    ])
+    ]
 
     const tokenAccounts = yield tokenRequests
 
