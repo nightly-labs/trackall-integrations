@@ -21,9 +21,11 @@ describe('divvy integration internals', () => {
       tokens: new TokenPlugin(),
     })
 
-    expect(plan).toBeDefined()
+    if (!plan) {
+      throw new Error('divvyIntegration.getUserPositions is not defined')
+    }
 
-    const first = await plan?.next()
+    const first = await plan.next()
     expect(first.done).toBe(false)
     if (!isProgramRequestArray(first.value)) {
       throw new Error('Expected program requests, received address list')
