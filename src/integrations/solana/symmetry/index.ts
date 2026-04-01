@@ -36,6 +36,40 @@ const ASSET_ACTIVE_OFFSET = 42
 
 const SYSTEM_PROGRAM_ADDRESS = '11111111111111111111111111111111'
 const VAULT_PDA_SEED = Buffer.from('basket')
+const HUNDRED_PERCENT_BPS = 10_000
+
+const LEGACY_FUNDS = [
+  {
+    name: 'ySOL',
+    mint: '3htQDAvEx53jyMJ2FVHeztM5BRjfmNuBqceXu1fJRqWx',
+    // Legacy Symmetry LSD basket composition shown in app.
+    composition: [
+      {
+        mint: 'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
+        weightBps: 4500,
+        decimals: 9,
+      },
+      {
+        mint: 'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn',
+        weightBps: 4500,
+        decimals: 9,
+      },
+      {
+        mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        weightBps: 1000,
+        decimals: 6,
+      },
+    ],
+  },
+] as const
+
+const dexPriceCache = new Map<string, number | null>()
+const STABLE_MINTS = new Set([
+  'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+  'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT
+])
+const STABLE_MIN_PRICE_USD = 0.95
+const STABLE_MAX_PRICE_USD = 1.05
 
 type DecodedVaultAsset = {
   mint: string
@@ -195,6 +229,148 @@ function sumUsdValues(values: Array<string | undefined>): string | undefined {
   return present.reduce((sum, value) => sum + value, 0).toString()
 }
 
+async function buildLegacyFundPoolTokens(
+  fundDefinition: (typeof LEGACY_FUNDS)[number],
+  fundAmountRaw: bigint,
+  fundDecimals: number,
+  tokens: SolanaPlugins['tokens'],
+  fundPriceUsd: number,
+): Promise<{ poolTokens: PositionValue[]; partialComposition: boolean }> {
+  const fundUiAmount = Number(toUiAmountString(fundAmountRaw, fundDecimals))
+  if (!Number.isFinite(fundUiAmount) || fundUiAmount <= 0) {
+    return {
+      poolTokens: [
+        buildPositionValue(fundDefinition.mint, fundAmountRaw, fundDecimals, fundPriceUsd),
+      ],
+      partialComposition: false,
+    }
+  }
+
+  const fundUsdValue = fundUiAmount * fundPriceUsd
+
+  const result: PositionValue[] = []
+  let pricedComponents = 0
+  for (const component of fundDefinition.composition) {
+    const componentToken = tokens.get(component.mint)
+    const componentPriceUsd = await resolveTokenPriceUsd(component.mint, tokens)
+    if (!componentPriceUsd || componentPriceUsd <= 0) continue
+    pricedComponents++
+
+    const componentDecimals = componentToken?.decimals ?? component.decimals
+    const componentUsdValue = (fundUsdValue * component.weightBps) / HUNDRED_PERCENT_BPS
+    const componentUiAmount = componentUsdValue / componentPriceUsd
+    const componentRawAmount = BigInt(
+      Math.floor(componentUiAmount * 10 ** componentDecimals),
+    )
+
+    if (componentRawAmount <= 0n) continue
+
+    result.push(
+      buildPositionValue(
+        component.mint,
+        componentRawAmount,
+        componentDecimals,
+        componentPriceUsd,
+      ),
+    )
+  }
+
+  return {
+    poolTokens: result,
+    partialComposition: pricedComponents < fundDefinition.composition.length,
+  }
+}
+
+async function fetchDexPriceUsd(tokenMint: string): Promise<number | undefined> {
+  if (dexPriceCache.has(tokenMint)) {
+    const cached = dexPriceCache.get(tokenMint)
+    return cached === null ? undefined : cached
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.dexscreener.com/latest/dex/tokens/${tokenMint}`,
+    )
+    if (!response.ok) {
+      dexPriceCache.set(tokenMint, null)
+      return undefined
+    }
+
+    const payload = (await response.json()) as {
+      pairs?: Array<{
+        chainId?: string
+        priceUsd?: string
+        liquidity?: { usd?: number }
+      }>
+    }
+
+    const pairs = (Array.isArray(payload.pairs) ? payload.pairs : []).filter(
+      (pair) => pair?.chainId === 'solana' && pair.priceUsd !== undefined,
+    )
+    let best:
+      | {
+          priceUsd?: string
+          liquidity?: { usd?: number }
+        }
+      | undefined
+
+    for (const pair of pairs) {
+      if (!pair.priceUsd) continue
+      const pairPrice = Number(pair.priceUsd)
+      if (!Number.isFinite(pairPrice) || pairPrice <= 0) continue
+      if (STABLE_MINTS.has(tokenMint)) {
+        if (pairPrice < STABLE_MIN_PRICE_USD || pairPrice > STABLE_MAX_PRICE_USD) {
+          continue
+        }
+      }
+      if (!best) {
+        best = pair
+        continue
+      }
+      const bestLiq = best.liquidity?.usd ?? 0
+      const pairLiq = pair.liquidity?.usd ?? 0
+      if (pairLiq > bestLiq) best = pair
+    }
+
+    const parsedPrice = best?.priceUsd ? Number(best.priceUsd) : NaN
+    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+      dexPriceCache.set(tokenMint, null)
+      return undefined
+    }
+
+    dexPriceCache.set(tokenMint, parsedPrice)
+    return parsedPrice
+  } catch {
+    dexPriceCache.set(tokenMint, null)
+    return undefined
+  }
+}
+
+async function resolveTokenPriceUsd(
+  tokenMint: string,
+  tokens: SolanaPlugins['tokens'],
+): Promise<number | undefined> {
+  return tokens.get(tokenMint)?.priceUsd ?? (await fetchDexPriceUsd(tokenMint))
+}
+
+async function estimateLegacyFundPriceUsdFromComponents(
+  fundDefinition: (typeof LEGACY_FUNDS)[number],
+  tokens: SolanaPlugins['tokens'],
+): Promise<number | undefined> {
+  let weightedPriceSum = 0
+  let totalWeight = 0
+
+  for (const component of fundDefinition.composition) {
+    const componentPrice = await resolveTokenPriceUsd(component.mint, tokens)
+    if (!componentPrice || componentPrice <= 0) continue
+    weightedPriceSum += componentPrice * component.weightBps
+    totalWeight += component.weightBps
+  }
+
+  if (totalWeight === 0) return undefined
+  return weightedPriceSum / totalWeight
+}
+
 export const symmetryIntegration: SolanaIntegration = {
   platformId: 'symmetry',
 
@@ -260,9 +436,13 @@ export const symmetryIntegration: SolanaIntegration = {
       matchedVaultByMint.set(mint, vaultAddress)
     }
 
-    if (matchedVaultByMint.size === 0) return []
+    const phase2Mints = new Set<string>(matchedVaultByMint.keys())
+    for (const legacyFund of LEGACY_FUNDS) {
+      const legacyBalance = userVaultBalancesByMint.get(legacyFund.mint) ?? 0n
+      if (legacyBalance > 0n) phase2Mints.add(legacyFund.mint)
+    }
 
-    const phase2Map = yield [...matchedVaultByMint.keys()]
+    const phase2Map = yield [...phase2Mints]
 
     const vaultSnapshots: Array<{
       vaultAddress: string
@@ -305,8 +485,6 @@ export const symmetryIntegration: SolanaIntegration = {
         assets: decodedVault.assets,
       })
     }
-
-    if (vaultSnapshots.length === 0) return []
 
     const underlyingMints = [...underlyingMintSet]
     const phase3Map =
@@ -368,6 +546,78 @@ export const symmetryIntegration: SolanaIntegration = {
             vaultVersion: snapshot.vaultVersion,
             userVaultAmountRaw: snapshot.userLpAmountRaw.toString(),
             activeAssetCount: snapshot.assets.length,
+          },
+        },
+      } satisfies ConstantProductLiquidityDefiPosition)
+    }
+
+    for (const legacyFund of LEGACY_FUNDS) {
+      if (matchedVaultByMint.has(legacyFund.mint)) continue
+
+      const fundAmountRaw = userVaultBalancesByMint.get(legacyFund.mint) ?? 0n
+      if (fundAmountRaw <= 0n) continue
+
+      const fundDecimals =
+        readMintDecimals(phase2Map[legacyFund.mint]) ??
+        tokens.get(legacyFund.mint)?.decimals ??
+        0
+      const directFundPriceUsd = await resolveTokenPriceUsd(legacyFund.mint, tokens)
+      const estimatedFundPriceUsd =
+        directFundPriceUsd ??
+        (await estimateLegacyFundPriceUsdFromComponents(legacyFund, tokens))
+      const fundPriceUsd = directFundPriceUsd ?? estimatedFundPriceUsd
+
+      let partialComposition = false
+      let poolTokens: PositionValue[] = []
+      if (fundPriceUsd !== undefined) {
+        const legacyBuild = await buildLegacyFundPoolTokens(
+          legacyFund,
+          fundAmountRaw,
+          fundDecimals,
+          tokens,
+          fundPriceUsd,
+        )
+        poolTokens = legacyBuild.poolTokens
+        partialComposition = legacyBuild.partialComposition
+      }
+
+      if (poolTokens.length === 0) {
+        poolTokens = [
+          buildPositionValue(
+            legacyFund.mint,
+            fundAmountRaw,
+            fundDecimals,
+            directFundPriceUsd ?? estimatedFundPriceUsd,
+          ),
+        ]
+      }
+
+      if (poolTokens.length === 0) continue
+
+      const estimatedComposition = poolTokens.some(
+        (token) => token.amount.token !== legacyFund.mint,
+      )
+      const pricingFallbackUsed =
+        directFundPriceUsd === undefined && estimatedFundPriceUsd !== undefined
+
+      const usdValue = sumUsdValues(poolTokens.map((token) => token.usdValue))
+
+      positions.push({
+        platformId: 'symmetry',
+        positionKind: 'liquidity',
+        liquidityModel: 'constant-product',
+        poolAddress: legacyFund.mint,
+        lpTokenAmount: toUiAmountString(fundAmountRaw, fundDecimals),
+        poolTokens,
+        ...(usdValue !== undefined && { usdValue }),
+        meta: {
+          symmetry: {
+            legacyFund: legacyFund.name,
+            fundMint: legacyFund.mint,
+            fundAmountRaw: fundAmountRaw.toString(),
+            estimatedComposition,
+            partialComposition,
+            pricingFallbackUsed,
           },
         },
       } satisfies ConstantProductLiquidityDefiPosition)
