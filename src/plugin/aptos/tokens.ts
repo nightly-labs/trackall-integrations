@@ -14,9 +14,11 @@ export interface AptosTokenData {
   symbol?: string
   iconUri?: string
   priceUsd?: number
+  pctPriceChange24h?: number
 }
 
 export type AptosTokensMap = Map<AptosTokenIdentifier, AptosTokenData>
+type TokenMarketData = { priceUsd: number; pctPriceChange24h?: number }
 
 const MAX_TOKEN_FETCH_SIZE = 100
 
@@ -43,7 +45,7 @@ export class AptosTokenPlugin {
     `)
 
     this.upsertTokenStmt = this.db.prepare(
-      'INSERT INTO tokens (token_address, token_data) VALUES (?, ?) ON CONFLICT(token_address) DO UPDATE SET token_data = excluded.token_data',
+      'INSERT INTO tokens (token_address, token_data) VALUES (?, ?) ON CONFLICT(token_address) DO UPDATE SET token_data = excluded.token_data'
     )
   }
 
@@ -53,9 +55,7 @@ export class AptosTokenPlugin {
 
     let rows: Array<{ token_address: string; token_data: string }> = []
     try {
-      rows = this.db
-        .query('SELECT token_address, token_data FROM tokens')
-        .all() as Array<{
+      rows = this.db.query('SELECT token_address, token_data FROM tokens').all() as Array<{
         token_address: string
         token_data: string
       }>
@@ -82,7 +82,7 @@ export class AptosTokenPlugin {
       | Array<[AptosTokenIdentifier, AptosTokenData]> =
       tokenIds == null
         ? this.map.entries()
-        : tokenIds.flatMap((id) => {
+        : tokenIds.flatMap(id => {
             const tokenData = this.map.get(id)
             return tokenData === undefined ? [] : [[id, tokenData]]
           })
@@ -105,21 +105,17 @@ export class AptosTokenPlugin {
   }
 
   /** Fetch metadata for a token id, update in-memory and disk cache. Returns undefined if token does not exist. */
-  async fetch(
-    tokenId: AptosTokenIdentifier,
-  ): Promise<AptosTokenData | undefined> {
+  async fetch(tokenId: AptosTokenIdentifier): Promise<AptosTokenData | undefined> {
     const result = await this.fetchMany([tokenId])
     return result.get(tokenId)
   }
 
   async fetchMany(
-    tokenIds: readonly AptosTokenIdentifier[],
+    tokenIds: readonly AptosTokenIdentifier[]
   ): Promise<Map<AptosTokenIdentifier, AptosTokenData | undefined>> {
     const uniqueIds = [...new Set(tokenIds)]
     if (uniqueIds.length > MAX_TOKEN_FETCH_SIZE) {
-      throw new Error(
-        `fetchMany supports at most ${MAX_TOKEN_FETCH_SIZE} token ids per call`,
-      )
+      throw new Error(`fetchMany supports at most ${MAX_TOKEN_FETCH_SIZE} token ids per call`)
     }
 
     const result = new Map<AptosTokenIdentifier, AptosTokenData | undefined>()
@@ -136,9 +132,7 @@ export class AptosTokenPlugin {
 
     if (uncachedIds.length === 0) return result
 
-    const fetchResults = await Promise.allSettled(
-      uncachedIds.map((id) => this.fetchSingleToken(id)),
-    )
+    const fetchResults = await Promise.allSettled(uncachedIds.map(id => this.fetchSingleToken(id)))
 
     const newEntries: Array<[AptosTokenIdentifier, AptosTokenData]> = []
     fetchResults.forEach((settled, index) => {
@@ -163,13 +157,23 @@ export class AptosTokenPlugin {
     return result
   }
 
-  /** Update priceUsd for tokens present in the prices map. */
-  updatePrices(prices: Map<string, number>): string[] {
+  /** Update price fields for tokens present in the prices map. */
+  updatePrices(prices: Map<string, number | TokenMarketData>): string[] {
     const updated: string[] = []
-    for (const [address, price] of prices) {
+    for (const [address, marketDataOrPrice] of prices) {
       const token = this.map.get(address)
       if (token) {
-        token.priceUsd = price
+        if (typeof marketDataOrPrice === 'number') {
+          token.priceUsd = marketDataOrPrice
+        } else {
+          token.priceUsd = marketDataOrPrice.priceUsd
+          const pctPriceChange24h = marketDataOrPrice.pctPriceChange24h
+          if (pctPriceChange24h === undefined || !Number.isFinite(pctPriceChange24h)) {
+            delete token.pctPriceChange24h
+          } else {
+            token.pctPriceChange24h = pctPriceChange24h
+          }
+        }
         updated.push(address)
       }
     }
@@ -181,9 +185,7 @@ export class AptosTokenPlugin {
     return this.map
   }
 
-  private async fetchCoinInfo(
-    coinType: string,
-  ): Promise<AptosTokenData | undefined> {
+  private async fetchCoinInfo(coinType: string): Promise<AptosTokenData | undefined> {
     try {
       const accountAddress = coinType.split('::')[0] as `0x${string}`
       const data = await this.client.getAccountResource<{
@@ -192,14 +194,14 @@ export class AptosTokenPlugin {
         decimals: number
       }>({
         accountAddress,
-        resourceType: `0x1::coin::CoinInfo<${coinType}>`,
+        resourceType: `0x1::coin::CoinInfo<${coinType}>`
       })
       return {
         tokenId: coinType,
         standard: 'coin',
         decimals: data.decimals,
         name: data.name,
-        symbol: data.symbol,
+        symbol: data.symbol
       }
     } catch {
       return undefined
@@ -207,7 +209,7 @@ export class AptosTokenPlugin {
   }
 
   private async fetchFungibleAssetMetadata(
-    objectAddress: string,
+    objectAddress: string
   ): Promise<AptosTokenData | undefined> {
     try {
       const data = await this.client.getAccountResource<{
@@ -217,14 +219,14 @@ export class AptosTokenPlugin {
         icon_uri?: string
       }>({
         accountAddress: objectAddress as `0x${string}`,
-        resourceType: '0x1::fungible_asset::Metadata',
+        resourceType: '0x1::fungible_asset::Metadata'
       })
       const result: AptosTokenData = {
         tokenId: objectAddress,
         standard: 'fungible_asset',
         decimals: data.decimals,
         name: data.name,
-        symbol: data.symbol,
+        symbol: data.symbol
       }
       if (data.icon_uri) result.iconUri = data.icon_uri
       return result
@@ -234,7 +236,7 @@ export class AptosTokenPlugin {
   }
 
   private async fetchSingleToken(
-    tokenId: AptosTokenIdentifier,
+    tokenId: AptosTokenIdentifier
   ): Promise<AptosTokenData | undefined> {
     if (tokenId.includes('::')) {
       const coinResult = await this.fetchCoinInfo(tokenId)

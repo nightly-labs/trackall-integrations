@@ -14,23 +14,21 @@ export interface PositionValue {
   usdValue?: string
   /** Optional token price in USD used for this valuation (decimal string). */
   priceUsd?: string
+  /** Optional 24h percentage USD change for this component, decimal string. */
+  pctUsdValueChange24?: string
 }
 
 export type PositionMetadata = Record<string, Record<string, unknown>>
 
-export type PositionKind =
-  | 'lending'
-  | 'staking'
-  | 'liquidity'
-  | 'trading'
-  | 'vesting'
-  | 'reward'
+export type PositionKind = 'lending' | 'staking' | 'liquidity' | 'trading' | 'vesting' | 'reward'
 
 export interface BaseDefiPosition {
   /** Shared platform identifier from Platform.id. */
   platformId: string
   /** Optional top-level USD value of the position as a decimal string. */
   usdValue?: string
+  /** Optional top-level 24h percentage USD change, decimal string. */
+  pctUsdValueChange24?: string
   /** Optional integration-specific metadata. */
   meta?: PositionMetadata
   /** Reward token amounts for this position. */
