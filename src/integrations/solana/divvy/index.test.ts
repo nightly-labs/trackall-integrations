@@ -30,15 +30,27 @@ describe('divvy integration internals', () => {
     }
 
     const requests = first.value
-    expect(requests).toHaveLength(2)
+    expect(requests.length).toBeGreaterThanOrEqual(2)
+
+    const houseRequests = requests.filter(
+      (request) =>
+        request.kind === 'getProgramAccounts' &&
+        request.programId === 'dvyFwAPniptQNb1ey4eM12L8iLHrzdiDsPPDndd6xAR' &&
+        request.filters.some(
+          (f) =>
+            'memcmp' in f &&
+            f.memcmp.offset === 0 &&
+            f.memcmp.bytes === '4cEdzVs6LUe',
+        ),
+    )
+    expect(houseRequests.length).toBeGreaterThanOrEqual(2)
 
     const seenSizes = new Set<number>()
-    for (const request of requests) {
+    for (const request of houseRequests) {
       expect(request.kind).toBe('getProgramAccounts')
       if (request.kind !== 'getProgramAccounts') {
         throw new Error(`Unexpected request kind: ${request.kind}`)
       }
-      expect(request.programId).toBe('dvyFwAPniptQNb1ey4eM12L8iLHrzdiDsPPDndd6xAR')
 
       const hasMemcmp = request.filters.some(
         (f) => 'memcmp' in f && f.memcmp.offset === 0,
