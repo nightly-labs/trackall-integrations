@@ -148,7 +148,6 @@ export const divvyIntegration: SolanaIntegration = {
         kind: 'getProgramAccounts',
         programId: TOKEN_PROGRAM_ID,
         filters: [
-          { dataSize: TOKEN_ACCOUNT_SIZE },
           {
             memcmp: {
               offset: TOKEN_MINT_OFFSET,
