@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 import { Connection } from '@solana/web3.js'
-import type { UserPositionsPlan } from '../../../types/index'
+import type {
+  ConstantProductLiquidityDefiPosition,
+  UserDefiPosition,
+  UserPositionsPlan,
+} from '../../../types/index'
 import { runIntegrations, TokenPlugin } from '../../../types/index'
 import {
   fetchAccountsBatch,
@@ -17,6 +21,12 @@ const LEGACY_YSOL_MINT = '3htQDAvEx53jyMJ2FVHeztM5BRjfmNuBqceXu1fJRqWx'
 const V3_JUPSOL_POOL = 'C2SpNsmPB91ne4JdQRYZZdTJXkMLWyHfMSaZCS9nB33J'
 
 const wallets = [testAddress, '5G8GY87rWJ9GGfV22T87jxWprHP4fXvvaA7fEE8pqWWy']
+
+function isConstantProductLiquidity(
+  position: UserDefiPosition,
+): position is ConstantProductLiquidityDefiPosition {
+  return position.positionKind === 'liquidity' && position.liquidityModel === 'constant-product'
+}
 
 describe('symmetry integration', () => {
   const getUserPositions = symmetryIntegration.getUserPositions
@@ -42,9 +52,12 @@ describe('symmetry integration', () => {
     )
 
     if (!positions) throw new Error('No results returned')
+    const liquidityPositions = positions.filter(isConstantProductLiquidity)
 
-    const v3Position = positions.find((position) => position.poolAddress === V3_JUPSOL_POOL)
-    const legacyPosition = positions.find(
+    const v3Position = liquidityPositions.find(
+      (position) => position.poolAddress === V3_JUPSOL_POOL,
+    )
+    const legacyPosition = liquidityPositions.find(
       (position) => position.poolAddress === LEGACY_YSOL_MINT,
     )
 
@@ -105,7 +118,9 @@ describe('symmetry integration', () => {
 
     expect(results).toHaveLength(wallets.length)
     expect(
-      results[0]?.some((position) => position.poolAddress === LEGACY_YSOL_MINT),
+      results[0]
+        ?.filter(isConstantProductLiquidity)
+        .some((position) => position.poolAddress === LEGACY_YSOL_MINT),
     ).toBe(true)
   }, 60000)
 })
