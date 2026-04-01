@@ -10,7 +10,8 @@ type SolanaIntegrationModule = {
   testAddress?: string
 }
 
-const rpcUrl = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
+const rpcUrl =
+  process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
 console.log('Using RPC URL:', rpcUrl)
 const integrationsDir = new URL('../integrations/solana/', import.meta.url)
 
@@ -27,7 +28,9 @@ function preview(value: unknown, limit = 160): string {
   return text.length > limit ? `${text.slice(0, limit)}…` : text
 }
 
-const integrationDirs = (await readdir(integrationsDir, { withFileTypes: true }))
+const integrationDirs = (
+  await readdir(integrationsDir, { withFileTypes: true })
+)
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name)
   .sort()
@@ -63,13 +66,11 @@ describe('solana integrations getUserPositions macro', () => {
 
     it(`calls getUserPositions for ${integration.name}`, async () => {
       const connection = new Connection(rpcUrl, 'confirmed')
-      const connectionWithRpcRequest = connection as unknown as ConnectionWithRpcRequest
+      const connectionWithRpcRequest =
+        connection as unknown as ConnectionWithRpcRequest
       const rpcRequest = connectionWithRpcRequest._rpcRequest.bind(connection)
 
-      connectionWithRpcRequest._rpcRequest = async (
-        methodName,
-        params,
-      ) => {
+      connectionWithRpcRequest._rpcRequest = async (methodName, params) => {
         const start = Date.now()
 
         console.log(
@@ -102,7 +103,12 @@ describe('solana integrations getUserPositions macro', () => {
       let totalAccounts = 0
 
       const [positions] = await runIntegrations(
-        [integration.integration!.getUserPositions!(integration.testAddress!, plugins)],
+        [
+          integration.integration!.getUserPositions!(
+            integration.testAddress!,
+            plugins,
+          ),
+        ],
         async (addrs) => {
           totalBatches++
           totalAccounts += addrs.length

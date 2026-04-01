@@ -9,24 +9,11 @@
   "instructions": [
     {
       "name": "close_tuna_lp_position_fusion",
-      "discriminator": [
-        91,
-        149,
-        37,
-        23,
-        74,
-        118,
-        53,
-        119
-      ],
+      "discriminator": [91, 149, 37, 23, 74, 118, 53, 119],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -64,11 +51,7 @@
         },
         {
           "name": "fusionamm_program",
-          "docs": [
-            "",
-            "Fusion accounts",
-            ""
-          ]
+          "docs": ["", "Fusion accounts", ""]
         },
         {
           "name": "fusion_position",
@@ -76,35 +59,18 @@
         },
         {
           "name": "token_2022_program",
-          "docs": [
-            "",
-            "Other accounts",
-            ""
-          ]
+          "docs": ["", "Other accounts", ""]
         }
       ],
       "args": []
     },
     {
       "name": "close_tuna_lp_position_orca",
-      "discriminator": [
-        253,
-        98,
-        90,
-        239,
-        191,
-        36,
-        161,
-        26
-      ],
+      "discriminator": [253, 98, 90, 239, 191, 36, 161, 26],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -136,11 +102,7 @@
         },
         {
           "name": "whirlpool_program",
-          "docs": [
-            "",
-            "ORCA accounts",
-            ""
-          ]
+          "docs": ["", "ORCA accounts", ""]
         },
         {
           "name": "orca_position",
@@ -154,35 +116,18 @@
         },
         {
           "name": "token_2022_program",
-          "docs": [
-            "",
-            "Other accounts",
-            ""
-          ]
+          "docs": ["", "Other accounts", ""]
         }
       ],
       "args": []
     },
     {
       "name": "close_tuna_spot_position",
-      "discriminator": [
-        4,
-        189,
-        171,
-        84,
-        110,
-        220,
-        10,
-        8
-      ],
+      "discriminator": [4, 189, 171, 84, 110, 220, 10, 8],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -215,24 +160,11 @@
     },
     {
       "name": "collect_and_compound_fees_fusion",
-      "discriminator": [
-        61,
-        213,
-        30,
-        201,
-        89,
-        220,
-        156,
-        13
-      ],
+      "discriminator": [61, 213, 30, 201, 89, 220, 156, 13],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -302,11 +234,7 @@
         },
         {
           "name": "fusionamm_program",
-          "docs": [
-            "",
-            "Fusion accounts",
-            ""
-          ]
+          "docs": ["", "Fusion accounts", ""]
         },
         {
           "name": "fusion_pool",
@@ -321,11 +249,7 @@
         },
         {
           "name": "system_program",
-          "docs": [
-            "",
-            "Other accounts",
-            ""
-          ]
+          "docs": ["", "Other accounts", ""]
         }
       ],
       "args": [
@@ -345,24 +269,11 @@
     },
     {
       "name": "collect_and_compound_fees_orca",
-      "discriminator": [
-        213,
-        44,
-        171,
-        74,
-        209,
-        13,
-        137,
-        0
-      ],
+      "discriminator": [213, 44, 171, 74, 209, 13, 137, 0],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -426,11 +337,7 @@
         },
         {
           "name": "whirlpool_program",
-          "docs": [
-            "",
-            "ORCA accounts",
-            ""
-          ]
+          "docs": ["", "ORCA accounts", ""]
         },
         {
           "name": "whirlpool",
@@ -451,11 +358,7 @@
         },
         {
           "name": "system_program",
-          "docs": [
-            "",
-            "Other accounts",
-            ""
-          ]
+          "docs": ["", "Other accounts", ""]
         }
       ],
       "args": [
@@ -475,24 +378,11 @@
     },
     {
       "name": "collect_fees_fusion",
-      "discriminator": [
-        52,
-        219,
-        25,
-        250,
-        31,
-        203,
-        9,
-        129
-      ],
+      "discriminator": [52, 219, 25, 250, 31, 203, 9, 129],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -536,11 +426,7 @@
         },
         {
           "name": "fusionamm_program",
-          "docs": [
-            "",
-            "Fusion accounts",
-            ""
-          ]
+          "docs": ["", "Fusion accounts", ""]
         },
         {
           "name": "fusion_pool",
@@ -567,24 +453,11 @@
     },
     {
       "name": "collect_fees_orca",
-      "discriminator": [
-        147,
-        188,
-        191,
-        37,
-        255,
-        10,
-        239,
-        76
-      ],
+      "discriminator": [147, 188, 191, 37, 255, 10, 239, 76],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -622,11 +495,7 @@
         },
         {
           "name": "whirlpool_program",
-          "docs": [
-            "",
-            "ORCA accounts",
-            ""
-          ]
+          "docs": ["", "ORCA accounts", ""]
         },
         {
           "name": "whirlpool",
@@ -659,24 +528,11 @@
     },
     {
       "name": "collect_reward_orca",
-      "discriminator": [
-        99,
-        253,
-        84,
-        63,
-        250,
-        243,
-        165,
-        191
-      ],
+      "discriminator": [99, 253, 84, 63, 250, 243, 165, 191],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -702,11 +558,7 @@
         },
         {
           "name": "whirlpool_program",
-          "docs": [
-            "",
-            "ORCA accounts",
-            ""
-          ]
+          "docs": ["", "ORCA accounts", ""]
         },
         {
           "name": "whirlpool"
@@ -740,16 +592,7 @@
     },
     {
       "name": "create_market",
-      "discriminator": [
-        103,
-        226,
-        97,
-        235,
-        200,
-        188,
-        251,
-        254
-      ],
+      "discriminator": [103, 226, 97, 235, 200, 188, 251, 254],
       "accounts": [
         {
           "name": "authority",
@@ -837,16 +680,7 @@
     },
     {
       "name": "create_market_v2",
-      "discriminator": [
-        193,
-        18,
-        155,
-        62,
-        161,
-        124,
-        80,
-        25
-      ],
+      "discriminator": [193, 18, 155, 62, 161, 124, 80, 25],
       "accounts": [
         {
           "name": "authority",
@@ -886,16 +720,7 @@
     },
     {
       "name": "create_tuna_config",
-      "discriminator": [
-        79,
-        78,
-        175,
-        62,
-        234,
-        68,
-        202,
-        241
-      ],
+      "discriminator": [79, 78, 175, 62, 234, 68, 202, 241],
       "accounts": [
         {
           "name": "authority",
@@ -934,16 +759,7 @@
     },
     {
       "name": "create_vault",
-      "discriminator": [
-        29,
-        237,
-        247,
-        208,
-        193,
-        82,
-        54,
-        135
-      ],
+      "discriminator": [29, 237, 247, 208, 193, 82, 54, 135],
       "accounts": [
         {
           "name": "authority",
@@ -996,16 +812,7 @@
     },
     {
       "name": "create_vault_v2",
-      "discriminator": [
-        149,
-        224,
-        90,
-        50,
-        87,
-        159,
-        31,
-        221
-      ],
+      "discriminator": [149, 224, 90, 50, 87, 159, 31, 221],
       "accounts": [
         {
           "name": "authority",
@@ -1062,24 +869,11 @@
     },
     {
       "name": "decrease_tuna_lp_position_fusion",
-      "discriminator": [
-        175,
-        74,
-        205,
-        238,
-        4,
-        123,
-        166,
-        35
-      ],
+      "discriminator": [175, 74, 205, 238, 4, 123, 166, 35],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -1150,11 +944,7 @@
         },
         {
           "name": "fusionamm_program",
-          "docs": [
-            "",
-            "Fusion accounts",
-            ""
-          ]
+          "docs": ["", "Fusion accounts", ""]
         },
         {
           "name": "fusion_pool",
@@ -1207,24 +997,11 @@
     },
     {
       "name": "decrease_tuna_lp_position_orca",
-      "discriminator": [
-        30,
-        69,
-        45,
-        170,
-        183,
-        195,
-        12,
-        119
-      ],
+      "discriminator": [30, 69, 45, 170, 183, 195, 12, 119],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -1289,11 +1066,7 @@
         },
         {
           "name": "whirlpool_program",
-          "docs": [
-            "",
-            "ORCA accounts",
-            ""
-          ]
+          "docs": ["", "ORCA accounts", ""]
         },
         {
           "name": "whirlpool",
@@ -1352,16 +1125,7 @@
     },
     {
       "name": "deposit",
-      "discriminator": [
-        242,
-        35,
-        198,
-        137,
-        82,
-        225,
-        242,
-        182
-      ],
+      "discriminator": [242, 35, 198, 137, 82, 225, 242, 182],
       "accounts": [
         {
           "name": "authority",
@@ -1406,24 +1170,11 @@
     },
     {
       "name": "increase_tuna_lp_position_fusion",
-      "discriminator": [
-        186,
-        221,
-        60,
-        139,
-        153,
-        11,
-        193,
-        11
-      ],
+      "discriminator": [186, 221, 60, 139, 153, 11, 193, 11],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -1502,11 +1253,7 @@
         },
         {
           "name": "fusionamm_program",
-          "docs": [
-            "",
-            "Fusion accounts",
-            ""
-          ]
+          "docs": ["", "Fusion accounts", ""]
         },
         {
           "name": "fusion_pool",
@@ -1521,11 +1268,7 @@
         },
         {
           "name": "system_program",
-          "docs": [
-            "",
-            "Other accounts",
-            ""
-          ]
+          "docs": ["", "Other accounts", ""]
         }
       ],
       "args": [
@@ -1569,24 +1312,11 @@
     },
     {
       "name": "increase_tuna_lp_position_orca",
-      "discriminator": [
-        185,
-        68,
-        41,
-        204,
-        33,
-        179,
-        12,
-        78
-      ],
+      "discriminator": [185, 68, 41, 204, 33, 179, 12, 78],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -1659,11 +1389,7 @@
         },
         {
           "name": "whirlpool_program",
-          "docs": [
-            "",
-            "ORCA accounts",
-            ""
-          ]
+          "docs": ["", "ORCA accounts", ""]
         },
         {
           "name": "whirlpool",
@@ -1684,11 +1410,7 @@
         },
         {
           "name": "system_program",
-          "docs": [
-            "",
-            "Other accounts",
-            ""
-          ]
+          "docs": ["", "Other accounts", ""]
         }
       ],
       "args": [
@@ -1732,24 +1454,11 @@
     },
     {
       "name": "liquidate_tuna_lp_position_fusion",
-      "discriminator": [
-        57,
-        160,
-        162,
-        122,
-        114,
-        173,
-        138,
-        220
-      ],
+      "discriminator": [57, 160, 162, 122, 114, 173, 138, 220],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -1820,11 +1529,7 @@
         },
         {
           "name": "fusionamm_program",
-          "docs": [
-            "",
-            "Fusion accounts",
-            ""
-          ]
+          "docs": ["", "Fusion accounts", ""]
         },
         {
           "name": "fusion_pool",
@@ -1855,24 +1560,11 @@
     },
     {
       "name": "liquidate_tuna_lp_position_orca",
-      "discriminator": [
-        62,
-        92,
-        176,
-        35,
-        164,
-        100,
-        46,
-        141
-      ],
+      "discriminator": [62, 92, 176, 35, 164, 100, 46, 141],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -1937,11 +1629,7 @@
         },
         {
           "name": "whirlpool_program",
-          "docs": [
-            "",
-            "ORCA accounts",
-            ""
-          ]
+          "docs": ["", "ORCA accounts", ""]
         },
         {
           "name": "whirlpool",
@@ -1978,24 +1666,11 @@
     },
     {
       "name": "liquidate_tuna_spot_position_fusion",
-      "discriminator": [
-        143,
-        103,
-        22,
-        123,
-        180,
-        119,
-        148,
-        37
-      ],
+      "discriminator": [143, 103, 22, 123, 180, 119, 148, 37],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -2076,11 +1751,7 @@
         },
         {
           "name": "fusionamm_program",
-          "docs": [
-            "",
-            "Fusion accounts",
-            ""
-          ]
+          "docs": ["", "Fusion accounts", ""]
         },
         {
           "name": "fusion_pool",
@@ -2091,11 +1762,7 @@
         },
         {
           "name": "system_program",
-          "docs": [
-            "",
-            "Other accounts",
-            ""
-          ]
+          "docs": ["", "Other accounts", ""]
         }
       ],
       "args": [
@@ -2115,24 +1782,11 @@
     },
     {
       "name": "liquidate_tuna_spot_position_jupiter",
-      "discriminator": [
-        202,
-        175,
-        176,
-        66,
-        139,
-        120,
-        175,
-        193
-      ],
+      "discriminator": [202, 175, 176, 66, 139, 120, 175, 193],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -2214,11 +1868,7 @@
         },
         {
           "name": "jupiter_program",
-          "docs": [
-            "",
-            "Jupiter accounts",
-            ""
-          ]
+          "docs": ["", "Jupiter accounts", ""]
         },
         {
           "name": "jupiter_event_authority"
@@ -2228,11 +1878,7 @@
         },
         {
           "name": "token_program",
-          "docs": [
-            "",
-            "Other accounts",
-            ""
-          ]
+          "docs": ["", "Other accounts", ""]
         },
         {
           "name": "memo_program"
@@ -2254,24 +1900,11 @@
     },
     {
       "name": "liquidate_tuna_spot_position_orca",
-      "discriminator": [
-        4,
-        211,
-        103,
-        145,
-        6,
-        1,
-        243,
-        162
-      ],
+      "discriminator": [4, 211, 103, 145, 6, 1, 243, 162],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -2352,11 +1985,7 @@
         },
         {
           "name": "whirlpool_program",
-          "docs": [
-            "",
-            "Orca accounts",
-            ""
-          ]
+          "docs": ["", "Orca accounts", ""]
         },
         {
           "name": "whirlpool",
@@ -2367,11 +1996,7 @@
         },
         {
           "name": "system_program",
-          "docs": [
-            "",
-            "Other accounts",
-            ""
-          ]
+          "docs": ["", "Other accounts", ""]
         }
       ],
       "args": [
@@ -2391,24 +2016,11 @@
     },
     {
       "name": "modify_tuna_spot_position_fusion",
-      "discriminator": [
-        98,
-        4,
-        199,
-        84,
-        98,
-        89,
-        36,
-        30
-      ],
+      "discriminator": [98, 4, 199, 84, 98, 89, 36, 30],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -2485,11 +2097,7 @@
         },
         {
           "name": "fusionamm_program",
-          "docs": [
-            "",
-            "Fusion accounts",
-            ""
-          ]
+          "docs": ["", "Fusion accounts", ""]
         },
         {
           "name": "fusion_pool",
@@ -2500,11 +2108,7 @@
         },
         {
           "name": "system_program",
-          "docs": [
-            "",
-            "Other accounts",
-            ""
-          ]
+          "docs": ["", "Other accounts", ""]
         }
       ],
       "args": [
@@ -2536,24 +2140,11 @@
     },
     {
       "name": "modify_tuna_spot_position_jupiter",
-      "discriminator": [
-        35,
-        235,
-        114,
-        104,
-        23,
-        51,
-        164,
-        9
-      ],
+      "discriminator": [35, 235, 114, 104, 23, 51, 164, 9],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -2631,11 +2222,7 @@
         },
         {
           "name": "jupiter_program",
-          "docs": [
-            "",
-            "Jupiter accounts",
-            ""
-          ]
+          "docs": ["", "Jupiter accounts", ""]
         },
         {
           "name": "jupiter_event_authority"
@@ -2645,11 +2232,7 @@
         },
         {
           "name": "token_program",
-          "docs": [
-            "",
-            "Other accounts",
-            ""
-          ]
+          "docs": ["", "Other accounts", ""]
         },
         {
           "name": "memo_program"
@@ -2679,24 +2262,11 @@
     },
     {
       "name": "modify_tuna_spot_position_orca",
-      "discriminator": [
-        133,
-        227,
-        147,
-        148,
-        220,
-        22,
-        59,
-        218
-      ],
+      "discriminator": [133, 227, 147, 148, 220, 22, 59, 218],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -2773,11 +2343,7 @@
         },
         {
           "name": "whirlpool_program",
-          "docs": [
-            "",
-            "Orca accounts",
-            ""
-          ]
+          "docs": ["", "Orca accounts", ""]
         },
         {
           "name": "whirlpool",
@@ -2788,11 +2354,7 @@
         },
         {
           "name": "system_program",
-          "docs": [
-            "",
-            "Other accounts",
-            ""
-          ]
+          "docs": ["", "Other accounts", ""]
         }
       ],
       "args": [
@@ -2824,24 +2386,11 @@
     },
     {
       "name": "open_and_increase_tuna_lp_position_fusion",
-      "discriminator": [
-        123,
-        115,
-        192,
-        91,
-        113,
-        191,
-        73,
-        56
-      ],
+      "discriminator": [123, 115, 192, 91, 113, 191, 73, 56],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -2925,11 +2474,7 @@
         },
         {
           "name": "fusionamm_program",
-          "docs": [
-            "",
-            "Fusion accounts",
-            ""
-          ]
+          "docs": ["", "Fusion accounts", ""]
         },
         {
           "name": "fusion_pool",
@@ -2947,11 +2492,7 @@
         },
         {
           "name": "token_2022_program",
-          "docs": [
-            "",
-            "Other accounts",
-            ""
-          ]
+          "docs": ["", "Other accounts", ""]
         },
         {
           "name": "system_program"
@@ -3021,24 +2562,11 @@
     },
     {
       "name": "open_and_increase_tuna_lp_position_orca",
-      "discriminator": [
-        163,
-        21,
-        84,
-        199,
-        172,
-        40,
-        87,
-        122
-      ],
+      "discriminator": [163, 21, 84, 199, 172, 40, 87, 122],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -3116,11 +2644,7 @@
         },
         {
           "name": "whirlpool_program",
-          "docs": [
-            "",
-            "ORCA accounts",
-            ""
-          ]
+          "docs": ["", "ORCA accounts", ""]
         },
         {
           "name": "whirlpool",
@@ -3144,11 +2668,7 @@
         },
         {
           "name": "token_2022_program",
-          "docs": [
-            "",
-            "Other accounts",
-            ""
-          ]
+          "docs": ["", "Other accounts", ""]
         },
         {
           "name": "system_program"
@@ -3218,16 +2738,7 @@
     },
     {
       "name": "open_lending_position",
-      "discriminator": [
-        174,
-        227,
-        181,
-        127,
-        78,
-        227,
-        244,
-        19
-      ],
+      "discriminator": [174, 227, 181, 127, 78, 227, 244, 19],
       "accounts": [
         {
           "name": "authority",
@@ -3255,16 +2766,7 @@
     },
     {
       "name": "open_lending_position_v2",
-      "discriminator": [
-        227,
-        222,
-        46,
-        156,
-        56,
-        44,
-        48,
-        55
-      ],
+      "discriminator": [227, 222, 46, 156, 56, 44, 48, 55],
       "accounts": [
         {
           "name": "authority",
@@ -3289,24 +2791,11 @@
     },
     {
       "name": "open_tuna_lp_position_fusion",
-      "discriminator": [
-        78,
-        68,
-        77,
-        41,
-        132,
-        42,
-        34,
-        238
-      ],
+      "discriminator": [78, 68, 77, 41, 132, 42, 34, 238],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -3348,11 +2837,7 @@
         },
         {
           "name": "fusionamm_program",
-          "docs": [
-            "",
-            "Fusion AMM accounts",
-            ""
-          ]
+          "docs": ["", "Fusion AMM accounts", ""]
         },
         {
           "name": "fusion_pool"
@@ -3366,11 +2851,7 @@
         },
         {
           "name": "token_2022_program",
-          "docs": [
-            "",
-            "Other accounts",
-            ""
-          ]
+          "docs": ["", "Other accounts", ""]
         },
         {
           "name": "system_program"
@@ -3404,24 +2885,11 @@
     },
     {
       "name": "open_tuna_lp_position_orca",
-      "discriminator": [
-        201,
-        85,
-        45,
-        226,
-        182,
-        208,
-        246,
-        115
-      ],
+      "discriminator": [201, 85, 45, 226, 182, 208, 246, 115],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -3457,11 +2925,7 @@
         },
         {
           "name": "whirlpool_program",
-          "docs": [
-            "",
-            "ORCA accounts",
-            ""
-          ]
+          "docs": ["", "ORCA accounts", ""]
         },
         {
           "name": "whirlpool"
@@ -3481,11 +2945,7 @@
         },
         {
           "name": "token_2022_program",
-          "docs": [
-            "",
-            "Other accounts",
-            ""
-          ]
+          "docs": ["", "Other accounts", ""]
         },
         {
           "name": "system_program"
@@ -3519,24 +2979,11 @@
     },
     {
       "name": "open_tuna_spot_position",
-      "discriminator": [
-        87,
-        208,
-        173,
-        48,
-        231,
-        62,
-        210,
-        220
-      ],
+      "discriminator": [87, 208, 173, 48, 231, 62, 210, 220],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -3566,19 +3013,11 @@
         },
         {
           "name": "pool",
-          "docs": [
-            "",
-            "Fusion or Orca accounts",
-            ""
-          ]
+          "docs": ["", "Fusion or Orca accounts", ""]
         },
         {
           "name": "system_program",
-          "docs": [
-            "",
-            "Other accounts",
-            ""
-          ]
+          "docs": ["", "Other accounts", ""]
         },
         {
           "name": "associated_token_program"
@@ -3605,24 +3044,11 @@
     },
     {
       "name": "rebalance_tuna_lp_position_fusion",
-      "discriminator": [
-        190,
-        86,
-        41,
-        87,
-        5,
-        231,
-        10,
-        51
-      ],
+      "discriminator": [190, 86, 41, 87, 5, 231, 10, 51],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -3685,11 +3111,7 @@
         },
         {
           "name": "fusionamm_program",
-          "docs": [
-            "",
-            "Fusion accounts",
-            ""
-          ]
+          "docs": ["", "Fusion accounts", ""]
         },
         {
           "name": "fusion_pool",
@@ -3716,24 +3138,11 @@
     },
     {
       "name": "rebalance_tuna_lp_position_orca",
-      "discriminator": [
-        124,
-        212,
-        164,
-        128,
-        31,
-        143,
-        101,
-        231
-      ],
+      "discriminator": [124, 212, 164, 128, 31, 143, 101, 231],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -3790,11 +3199,7 @@
         },
         {
           "name": "whirlpool_program",
-          "docs": [
-            "",
-            "ORCA accounts",
-            ""
-          ]
+          "docs": ["", "ORCA accounts", ""]
         },
         {
           "name": "whirlpool",
@@ -3830,16 +3235,7 @@
     },
     {
       "name": "repay_bad_debt",
-      "discriminator": [
-        112,
-        144,
-        188,
-        157,
-        43,
-        106,
-        141,
-        34
-      ],
+      "discriminator": [112, 144, 188, 157, 43, 106, 141, 34],
       "accounts": [
         {
           "name": "authority",
@@ -3880,24 +3276,11 @@
     },
     {
       "name": "repay_tuna_lp_position_debt",
-      "discriminator": [
-        79,
-        200,
-        30,
-        15,
-        252,
-        22,
-        162,
-        8
-      ],
+      "discriminator": [79, 200, 30, 15, 252, 22, 162, 8],
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "",
-            "TUNA accounts",
-            ""
-          ],
+          "docs": ["", "TUNA accounts", ""],
           "writable": true,
           "signer": true
         },
@@ -3949,11 +3332,7 @@
         },
         {
           "name": "token_program_a",
-          "docs": [
-            "",
-            "Other accounts",
-            ""
-          ]
+          "docs": ["", "Other accounts", ""]
         },
         {
           "name": "token_program_b"
@@ -3978,16 +3357,7 @@
     },
     {
       "name": "reset_tuna_spot_position",
-      "discriminator": [
-        194,
-        68,
-        113,
-        71,
-        103,
-        77,
-        29,
-        127
-      ],
+      "discriminator": [194, 68, 113, 71, 103, 77, 29, 127],
       "accounts": [
         {
           "name": "authority",
@@ -4033,16 +3403,7 @@
     },
     {
       "name": "set_admin_authority",
-      "discriminator": [
-        72,
-        49,
-        37,
-        167,
-        149,
-        98,
-        49,
-        174
-      ],
+      "discriminator": [72, 49, 37, 167, 149, 98, 49, 174],
       "accounts": [
         {
           "name": "authority",
@@ -4063,16 +3424,7 @@
     },
     {
       "name": "set_default_liquidation_fee_rate",
-      "discriminator": [
-        108,
-        26,
-        90,
-        162,
-        79,
-        242,
-        222,
-        100
-      ],
+      "discriminator": [108, 26, 90, 162, 79, 242, 222, 100],
       "accounts": [
         {
           "name": "authority",
@@ -4093,16 +3445,7 @@
     },
     {
       "name": "set_default_max_percentage_of_leftovers",
-      "discriminator": [
-        37,
-        179,
-        107,
-        65,
-        203,
-        141,
-        183,
-        27
-      ],
+      "discriminator": [37, 179, 107, 65, 203, 141, 183, 27],
       "accounts": [
         {
           "name": "authority",
@@ -4123,16 +3466,7 @@
     },
     {
       "name": "set_default_max_swap_slippage",
-      "discriminator": [
-        122,
-        22,
-        122,
-        128,
-        248,
-        196,
-        227,
-        181
-      ],
+      "discriminator": [122, 22, 122, 128, 248, 196, 227, 181],
       "accounts": [
         {
           "name": "authority",
@@ -4153,16 +3487,7 @@
     },
     {
       "name": "set_default_oracle_price_deviation_threshold",
-      "discriminator": [
-        142,
-        158,
-        143,
-        67,
-        206,
-        91,
-        139,
-        120
-      ],
+      "discriminator": [142, 158, 143, 67, 206, 91, 139, 120],
       "accounts": [
         {
           "name": "authority",
@@ -4183,16 +3508,7 @@
     },
     {
       "name": "set_default_protocol_fee_rate",
-      "discriminator": [
-        107,
-        205,
-        249,
-        226,
-        151,
-        35,
-        86,
-        0
-      ],
+      "discriminator": [107, 205, 249, 226, 151, 35, 86, 0],
       "accounts": [
         {
           "name": "authority",
@@ -4213,16 +3529,7 @@
     },
     {
       "name": "set_default_rebalance_fee_rate",
-      "discriminator": [
-        18,
-        134,
-        189,
-        224,
-        249,
-        141,
-        15,
-        204
-      ],
+      "discriminator": [18, 134, 189, 224, 249, 141, 15, 204],
       "accounts": [
         {
           "name": "authority",
@@ -4243,16 +3550,7 @@
     },
     {
       "name": "set_fee_recipient",
-      "discriminator": [
-        227,
-        18,
-        215,
-        42,
-        237,
-        246,
-        151,
-        66
-      ],
+      "discriminator": [227, 18, 215, 42, 237, 246, 151, 66],
       "accounts": [
         {
           "name": "authority",
@@ -4273,16 +3571,7 @@
     },
     {
       "name": "set_liquidator_authority",
-      "discriminator": [
-        246,
-        146,
-        22,
-        66,
-        159,
-        216,
-        172,
-        143
-      ],
+      "discriminator": [246, 146, 22, 66, 159, 216, 172, 143],
       "accounts": [
         {
           "name": "authority",
@@ -4303,16 +3592,7 @@
     },
     {
       "name": "set_owner_authority",
-      "discriminator": [
-        128,
-        171,
-        210,
-        21,
-        103,
-        179,
-        80,
-        117
-      ],
+      "discriminator": [128, 171, 210, 21, 103, 179, 80, 117],
       "accounts": [
         {
           "name": "authority",
@@ -4333,16 +3613,7 @@
     },
     {
       "name": "set_suspended_state",
-      "discriminator": [
-        145,
-        13,
-        20,
-        161,
-        30,
-        62,
-        226,
-        32
-      ],
+      "discriminator": [145, 13, 20, 161, 30, 62, 226, 32],
       "accounts": [
         {
           "name": "authority",
@@ -4375,16 +3646,7 @@
     },
     {
       "name": "set_tuna_lp_position_flags",
-      "discriminator": [
-        110,
-        73,
-        96,
-        139,
-        194,
-        71,
-        253,
-        57
-      ],
+      "discriminator": [110, 73, 96, 139, 194, 71, 253, 57],
       "accounts": [
         {
           "name": "authority",
@@ -4404,16 +3666,7 @@
     },
     {
       "name": "set_tuna_lp_position_limit_orders",
-      "discriminator": [
-        65,
-        128,
-        90,
-        161,
-        171,
-        133,
-        122,
-        255
-      ],
+      "discriminator": [65, 128, 90, 161, 171, 133, 122, 255],
       "accounts": [
         {
           "name": "authority",
@@ -4441,16 +3694,7 @@
     },
     {
       "name": "set_tuna_lp_position_rebalance_threshold",
-      "discriminator": [
-        244,
-        174,
-        185,
-        58,
-        90,
-        150,
-        162,
-        51
-      ],
+      "discriminator": [244, 174, 185, 58, 90, 150, 162, 51],
       "accounts": [
         {
           "name": "authority",
@@ -4470,16 +3714,7 @@
     },
     {
       "name": "set_tuna_spot_position_limit_orders",
-      "discriminator": [
-        10,
-        180,
-        19,
-        205,
-        169,
-        133,
-        52,
-        118
-      ],
+      "discriminator": [10, 180, 19, 205, 169, 133, 52, 118],
       "accounts": [
         {
           "name": "authority",
@@ -4503,16 +3738,7 @@
     },
     {
       "name": "update_market",
-      "discriminator": [
-        153,
-        39,
-        2,
-        197,
-        179,
-        50,
-        199,
-        217
-      ],
+      "discriminator": [153, 39, 2, 197, 179, 50, 199, 217],
       "accounts": [
         {
           "name": "authority",
@@ -4588,16 +3814,7 @@
     },
     {
       "name": "update_vault",
-      "discriminator": [
-        67,
-        229,
-        185,
-        188,
-        226,
-        11,
-        210,
-        60
-      ],
+      "discriminator": [67, 229, 185, 188, 226, 11, 210, 60],
       "accounts": [
         {
           "name": "authority",
@@ -4633,16 +3850,7 @@
     },
     {
       "name": "withdraw",
-      "discriminator": [
-        183,
-        18,
-        70,
-        156,
-        148,
-        109,
-        161,
-        34
-      ],
+      "discriminator": [183, 18, 70, 156, 148, 109, 161, 34],
       "accounts": [
         {
           "name": "authority",
@@ -4693,107 +3901,35 @@
   "accounts": [
     {
       "name": "FusionPool",
-      "discriminator": [
-        254,
-        204,
-        207,
-        98,
-        25,
-        181,
-        29,
-        67
-      ]
+      "discriminator": [254, 204, 207, 98, 25, 181, 29, 67]
     },
     {
       "name": "LendingPosition",
-      "discriminator": [
-        47,
-        255,
-        252,
-        35,
-        20,
-        245,
-        157,
-        243
-      ]
+      "discriminator": [47, 255, 252, 35, 20, 245, 157, 243]
     },
     {
       "name": "Market",
-      "discriminator": [
-        219,
-        190,
-        213,
-        55,
-        0,
-        227,
-        198,
-        154
-      ]
+      "discriminator": [219, 190, 213, 55, 0, 227, 198, 154]
     },
     {
       "name": "TunaConfig",
-      "discriminator": [
-        124,
-        149,
-        24,
-        7,
-        195,
-        168,
-        153,
-        58
-      ]
+      "discriminator": [124, 149, 24, 7, 195, 168, 153, 58]
     },
     {
       "name": "TunaLpPosition",
-      "discriminator": [
-        76,
-        197,
-        161,
-        51,
-        232,
-        15,
-        137,
-        220
-      ]
+      "discriminator": [76, 197, 161, 51, 232, 15, 137, 220]
     },
     {
       "name": "TunaSpotPosition",
-      "discriminator": [
-        118,
-        56,
-        124,
-        104,
-        178,
-        205,
-        174,
-        77
-      ]
+      "discriminator": [118, 56, 124, 104, 178, 205, 174, 77]
     },
     {
       "name": "Vault",
-      "discriminator": [
-        211,
-        8,
-        232,
-        43,
-        2,
-        152,
-        117,
-        119
-      ]
+      "discriminator": [211, 8, 232, 43, 2, 152, 117, 119]
     },
     {
       "name": "Whirlpool",
-      "discriminator": [
-        63,
-        149,
-        209,
-        12,
-        225,
-        128,
-        99,
-        9
-      ]
+      "discriminator": [63, 149, 209, 12, 225, 128, 99, 9]
     }
   ],
   "errors": [
@@ -5157,10 +4293,7 @@
           {
             "name": "bump",
             "type": {
-              "array": [
-                "u8",
-                1
-              ]
+              "array": ["u8", 1]
             }
           },
           {
@@ -5190,10 +4323,7 @@
           {
             "name": "tick_spacing_seed",
             "type": {
-              "array": [
-                "u8",
-                2
-              ]
+              "array": ["u8", 2]
             }
           },
           {
@@ -5271,10 +4401,7 @@
           {
             "name": "reserved",
             "type": {
-              "array": [
-                "u8",
-                116
-              ]
+              "array": ["u8", 116]
             }
           }
         ]
@@ -5287,35 +4414,24 @@
         "fields": [
           {
             "name": "version",
-            "docs": [
-              "Struct version"
-            ],
+            "docs": ["Struct version"],
             "type": "u16"
           },
           {
             "name": "bump",
-            "docs": [
-              "Bump seed for the lending position account"
-            ],
+            "docs": ["Bump seed for the lending position account"],
             "type": {
-              "array": [
-                "u8",
-                1
-              ]
+              "array": ["u8", 1]
             }
           },
           {
             "name": "authority",
-            "docs": [
-              "Authority address used for managing the position"
-            ],
+            "docs": ["Authority address used for managing the position"],
             "type": "pubkey"
           },
           {
             "name": "mint",
-            "docs": [
-              "Mint address of the token in the vault"
-            ],
+            "docs": ["Mint address of the token in the vault"],
             "type": "pubkey"
           },
           {
@@ -5334,21 +4450,14 @@
           },
           {
             "name": "vault",
-            "docs": [
-              "The vault therwise Pubkey::default()."
-            ],
+            "docs": ["The vault therwise Pubkey::default()."],
             "type": "pubkey"
           },
           {
             "name": "reserved",
-            "docs": [
-              "Reserved"
-            ],
+            "docs": ["Reserved"],
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           }
         ]
@@ -5361,28 +4470,19 @@
         "fields": [
           {
             "name": "version",
-            "docs": [
-              "Struct version"
-            ],
+            "docs": ["Struct version"],
             "type": "u16"
           },
           {
             "name": "bump",
-            "docs": [
-              "Bump seed for the market account"
-            ],
+            "docs": ["Bump seed for the market account"],
             "type": {
-              "array": [
-                "u8",
-                1
-              ]
+              "array": ["u8", 1]
             }
           },
           {
             "name": "market_maker",
-            "docs": [
-              "Market maker: Orca, Fusion, etc..."
-            ],
+            "docs": ["Market maker: Orca, Fusion, etc..."],
             "type": {
               "defined": {
                 "name": "MarketMaker"
@@ -5391,23 +4491,17 @@
           },
           {
             "name": "pool",
-            "docs": [
-              "Liquidity pool address"
-            ],
+            "docs": ["Liquidity pool address"],
             "type": "pubkey"
           },
           {
             "name": "address_lookup_table",
-            "docs": [
-              "Address Lookup Table address for this market"
-            ],
+            "docs": ["Address Lookup Table address for this market"],
             "type": "pubkey"
           },
           {
             "name": "max_leverage",
-            "docs": [
-              "Maximum allowed leverage for this market"
-            ],
+            "docs": ["Maximum allowed leverage for this market"],
             "type": "u32"
           },
           {
@@ -5461,30 +4555,22 @@
           },
           {
             "name": "borrowed_shares_a",
-            "docs": [
-              "Total borrowed shares of token A."
-            ],
+            "docs": ["Total borrowed shares of token A."],
             "type": "u64"
           },
           {
             "name": "borrowed_shares_b",
-            "docs": [
-              "Total borrowed shares of token B."
-            ],
+            "docs": ["Total borrowed shares of token B."],
             "type": "u64"
           },
           {
             "name": "borrow_limit_a",
-            "docs": [
-              "Total borrow limit for this market in token A."
-            ],
+            "docs": ["Total borrow limit for this market in token A."],
             "type": "u64"
           },
           {
             "name": "borrow_limit_b",
-            "docs": [
-              "Total borrow limit for this market in token B."
-            ],
+            "docs": ["Total borrow limit for this market in token B."],
             "type": "u64"
           },
           {
@@ -5517,28 +4603,19 @@
           },
           {
             "name": "vault_a",
-            "docs": [
-              "Lending vault A address"
-            ],
+            "docs": ["Lending vault A address"],
             "type": "pubkey"
           },
           {
             "name": "vault_b",
-            "docs": [
-              "Lending vault B address"
-            ],
+            "docs": ["Lending vault B address"],
             "type": "pubkey"
           },
           {
             "name": "reserved",
-            "docs": [
-              "Reserved"
-            ],
+            "docs": ["Reserved"],
             "type": {
-              "array": [
-                "u8",
-                127
-              ]
+              "array": ["u8", 127]
             }
           }
         ]
@@ -5623,16 +4700,12 @@
         "fields": [
           {
             "name": "version",
-            "docs": [
-              "Struct version."
-            ],
+            "docs": ["Struct version."],
             "type": "u16"
           },
           {
             "name": "bump",
-            "docs": [
-              "Bump seed for the vaults config account."
-            ],
+            "docs": ["Bump seed for the vaults config account."],
             "type": "u8"
           },
           {
@@ -5644,9 +4717,7 @@
           },
           {
             "name": "fee_recipient",
-            "docs": [
-              "Fee recipient address."
-            ],
+            "docs": ["Fee recipient address."],
             "type": "pubkey"
           },
           {
@@ -5658,30 +4729,22 @@
           },
           {
             "name": "max_swap_slippage",
-            "docs": [
-              "Maximum allowed swap slippage percentage."
-            ],
+            "docs": ["Maximum allowed swap slippage percentage."],
             "type": "u32"
           },
           {
             "name": "max_percentage_of_leftovers",
-            "docs": [
-              "Maximum allowed percentage of leftovers."
-            ],
+            "docs": ["Maximum allowed percentage of leftovers."],
             "type": "u32"
           },
           {
             "name": "suspend_lending_deposits",
-            "docs": [
-              "Suspends lending deposits in case of emergency."
-            ],
+            "docs": ["Suspends lending deposits in case of emergency."],
             "type": "bool"
           },
           {
             "name": "suspend_lending_withdrawals",
-            "docs": [
-              "Suspends lending withdrawals in case of emergency."
-            ],
+            "docs": ["Suspends lending withdrawals in case of emergency."],
             "type": "bool"
           },
           {
@@ -5700,49 +4763,34 @@
           },
           {
             "name": "liquidator_authority",
-            "docs": [
-              "Liquidation bot wallet."
-            ],
+            "docs": ["Liquidation bot wallet."],
             "type": "pubkey"
           },
           {
             "name": "oracle_price_deviation_threshold",
-            "docs": [
-              "Maximum allowed oracle price deviation in percent."
-            ],
+            "docs": ["Maximum allowed oracle price deviation in percent."],
             "type": "u32"
           },
           {
             "name": "default_protocol_fee_rate",
-            "docs": [
-              "The default protocol fee rate."
-            ],
+            "docs": ["The default protocol fee rate."],
             "type": "u16"
           },
           {
             "name": "default_liquidation_fee_rate",
-            "docs": [
-              "The default liquidation fee rate."
-            ],
+            "docs": ["The default liquidation fee rate."],
             "type": "u32"
           },
           {
             "name": "default_rebalance_fee_rate",
-            "docs": [
-              "The default rebalance fee rate."
-            ],
+            "docs": ["The default rebalance fee rate."],
             "type": "u32"
           },
           {
             "name": "reserved",
-            "docs": [
-              "Reserved"
-            ],
+            "docs": ["Reserved"],
             "type": {
-              "array": [
-                "u8",
-                166
-              ]
+              "array": ["u8", 166]
             }
           }
         ]
@@ -5755,49 +4803,34 @@
         "fields": [
           {
             "name": "version",
-            "docs": [
-              "Struct version"
-            ],
+            "docs": ["Struct version"],
             "type": "u16"
           },
           {
             "name": "bump",
-            "docs": [
-              "Bump seed for the tuna position account"
-            ],
+            "docs": ["Bump seed for the tuna position account"],
             "type": {
-              "array": [
-                "u8",
-                1
-              ]
+              "array": ["u8", 1]
             }
           },
           {
             "name": "authority",
-            "docs": [
-              "The authority address used for managing the position"
-            ],
+            "docs": ["The authority address used for managing the position"],
             "type": "pubkey"
           },
           {
             "name": "pool",
-            "docs": [
-              "Liquidity pool address this position belongs to"
-            ],
+            "docs": ["Liquidity pool address this position belongs to"],
             "type": "pubkey"
           },
           {
             "name": "mint_a",
-            "docs": [
-              "The mint address for token A"
-            ],
+            "docs": ["The mint address for token A"],
             "type": "pubkey"
           },
           {
             "name": "mint_b",
-            "docs": [
-              "The mint address for token B"
-            ],
+            "docs": ["The mint address for token B"],
             "type": "pubkey"
           },
           {
@@ -5809,37 +4842,27 @@
           },
           {
             "name": "liquidity",
-            "docs": [
-              "Total minted liquidity"
-            ],
+            "docs": ["Total minted liquidity"],
             "type": "u128"
           },
           {
             "name": "tick_lower_index",
-            "docs": [
-              "Position lower tick"
-            ],
+            "docs": ["Position lower tick"],
             "type": "i32"
           },
           {
             "name": "tick_upper_index",
-            "docs": [
-              "Position upper tick"
-            ],
+            "docs": ["Position upper tick"],
             "type": "i32"
           },
           {
             "name": "loan_shares_a",
-            "docs": [
-              "The amount of shares borrowed by user from vault A."
-            ],
+            "docs": ["The amount of shares borrowed by user from vault A."],
             "type": "u64"
           },
           {
             "name": "loan_shares_b",
-            "docs": [
-              "The amount of shares borrowed by user from vault B."
-            ],
+            "docs": ["The amount of shares borrowed by user from vault B."],
             "type": "u64"
           },
           {
@@ -5935,9 +4958,7 @@
           },
           {
             "name": "market_maker",
-            "docs": [
-              "Market maker (Orca, Fusion)"
-            ],
+            "docs": ["Market maker (Orca, Fusion)"],
             "type": {
               "defined": {
                 "name": "MarketMaker"
@@ -5946,9 +4967,7 @@
           },
           {
             "name": "entry_sqrt_price",
-            "docs": [
-              "Position entry sqrt price."
-            ],
+            "docs": ["Position entry sqrt price."],
             "type": "u128"
           },
           {
@@ -5975,14 +4994,9 @@
           },
           {
             "name": "reserved",
-            "docs": [
-              "Reserved"
-            ],
+            "docs": ["Reserved"],
             "type": {
-              "array": [
-                "u8",
-                9
-              ]
+              "array": ["u8", 9]
             }
           }
         ]
@@ -6015,56 +5029,39 @@
         "fields": [
           {
             "name": "version",
-            "docs": [
-              "Struct version"
-            ],
+            "docs": ["Struct version"],
             "type": "u16"
           },
           {
             "name": "bump",
-            "docs": [
-              "Bump seed for the tuna position account"
-            ],
+            "docs": ["Bump seed for the tuna position account"],
             "type": {
-              "array": [
-                "u8",
-                1
-              ]
+              "array": ["u8", 1]
             }
           },
           {
             "name": "authority",
-            "docs": [
-              "The authority address used for managing the position"
-            ],
+            "docs": ["The authority address used for managing the position"],
             "type": "pubkey"
           },
           {
             "name": "pool",
-            "docs": [
-              "Liquidity pool address this position belongs to"
-            ],
+            "docs": ["Liquidity pool address this position belongs to"],
             "type": "pubkey"
           },
           {
             "name": "mint_a",
-            "docs": [
-              "The mint address for token A"
-            ],
+            "docs": ["The mint address for token A"],
             "type": "pubkey"
           },
           {
             "name": "mint_b",
-            "docs": [
-              "The mint address for token B"
-            ],
+            "docs": ["The mint address for token B"],
             "type": "pubkey"
           },
           {
             "name": "market_maker",
-            "docs": [
-              "Market maker (Orca, Fusion)"
-            ],
+            "docs": ["Market maker (Orca, Fusion)"],
             "type": {
               "defined": {
                 "name": "MarketMaker"
@@ -6084,9 +5081,7 @@
           },
           {
             "name": "collateral_token",
-            "docs": [
-              "The token used as collateral."
-            ],
+            "docs": ["The token used as collateral."],
             "type": {
               "defined": {
                 "name": "PoolToken"
@@ -6095,9 +5090,7 @@
           },
           {
             "name": "flags",
-            "docs": [
-              "Position options (unused)"
-            ],
+            "docs": ["Position options (unused)"],
             "type": "u32"
           },
           {
@@ -6123,9 +5116,7 @@
           },
           {
             "name": "entry_sqrt_price",
-            "docs": [
-              "Position entry sqrt price."
-            ],
+            "docs": ["Position entry sqrt price."],
             "type": "u128"
           },
           {
@@ -6144,14 +5135,9 @@
           },
           {
             "name": "reserved",
-            "docs": [
-              "Reserved"
-            ],
+            "docs": ["Reserved"],
             "type": {
-              "array": [
-                "u8",
-                128
-              ]
+              "array": ["u8", 128]
             }
           }
         ]
@@ -6164,28 +5150,19 @@
         "fields": [
           {
             "name": "version",
-            "docs": [
-              "Struct version"
-            ],
+            "docs": ["Struct version"],
             "type": "u16"
           },
           {
             "name": "bump",
-            "docs": [
-              "Bump seed for the vault account"
-            ],
+            "docs": ["Bump seed for the vault account"],
             "type": {
-              "array": [
-                "u8",
-                1
-              ]
+              "array": ["u8", 1]
             }
           },
           {
             "name": "mint",
-            "docs": [
-              "The mint of the token that this vault holds"
-            ],
+            "docs": ["The mint of the token that this vault holds"],
             "type": "pubkey"
           },
           {
@@ -6197,9 +5174,7 @@
           },
           {
             "name": "deposited_shares",
-            "docs": [
-              "The amount of shares deposited in the vault"
-            ],
+            "docs": ["The amount of shares deposited in the vault"],
             "type": "u64"
           },
           {
@@ -6211,9 +5186,7 @@
           },
           {
             "name": "borrowed_shares",
-            "docs": [
-              "The amount of shares borrowed from the vault"
-            ],
+            "docs": ["The amount of shares borrowed from the vault"],
             "type": "u64"
           },
           {
@@ -6232,30 +5205,22 @@
           },
           {
             "name": "last_update_timestamp",
-            "docs": [
-              "The last time the vault was updated."
-            ],
+            "docs": ["The last time the vault was updated."],
             "type": "u64"
           },
           {
             "name": "supply_limit",
-            "docs": [
-              "The maximum allowed supply for this vault."
-            ],
+            "docs": ["The maximum allowed supply for this vault."],
             "type": "u64"
           },
           {
             "name": "pyth_oracle_price_update",
-            "docs": [
-              "Pyth oracle price update account."
-            ],
+            "docs": ["Pyth oracle price update account."],
             "type": "pubkey"
           },
           {
             "name": "pyth_oracle_feed_id",
-            "docs": [
-              "Pyth oracle price feed id."
-            ],
+            "docs": ["Pyth oracle price feed id."],
             "type": "pubkey"
           },
           {
@@ -6267,14 +5232,9 @@
           },
           {
             "name": "reserved",
-            "docs": [
-              "Reserved"
-            ],
+            "docs": ["Reserved"],
             "type": {
-              "array": [
-                "u8",
-                180
-              ]
+              "array": ["u8", 180]
             }
           }
         ]
@@ -6292,10 +5252,7 @@
           {
             "name": "whirlpool_bump",
             "type": {
-              "array": [
-                "u8",
-                1
-              ]
+              "array": ["u8", 1]
             }
           },
           {
@@ -6305,10 +5262,7 @@
           {
             "name": "fee_tier_index_seed",
             "type": {
-              "array": [
-                "u8",
-                2
-              ]
+              "array": ["u8", 2]
             }
           },
           {
@@ -6396,16 +5350,12 @@
         "fields": [
           {
             "name": "mint",
-            "docs": [
-              "Reward token mint."
-            ],
+            "docs": ["Reward token mint."],
             "type": "pubkey"
           },
           {
             "name": "vault",
-            "docs": [
-              "Reward vault token account."
-            ],
+            "docs": ["Reward vault token account."],
             "type": "pubkey"
           },
           {

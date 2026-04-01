@@ -336,7 +336,10 @@ function getOriginProtocol(assetTag: number): OriginProtocol | null {
   }
 }
 
-function getBalanceAssetTag(balance: MarginfiBalanceRaw, bank: MarginfiBankRaw) {
+function getBalanceAssetTag(
+  balance: MarginfiBalanceRaw,
+  bank: MarginfiBankRaw,
+) {
   return balance.bank_asset_tag ?? bank.config.asset_tag
 }
 
@@ -460,16 +463,15 @@ export const project0Integration: SolanaIntegration = {
         const externalAddress = bank.integration_acc_1.toBase58()
         if (externalAddress === DEFAULT_PUBKEY) continue
 
-        if (assetTag === ASSET_TAG_KAMINO) kaminoReserveAddressSet.add(externalAddress)
-        if (assetTag === ASSET_TAG_DRIFT) driftSpotMarketAddressSet.add(externalAddress)
+        if (assetTag === ASSET_TAG_KAMINO)
+          kaminoReserveAddressSet.add(externalAddress)
+        if (assetTag === ASSET_TAG_DRIFT)
+          driftSpotMarketAddressSet.add(externalAddress)
       }
     }
 
     const externalAddresses = [
-      ...new Set([
-        ...kaminoReserveAddressSet,
-        ...driftSpotMarketAddressSet,
-      ]),
+      ...new Set([...kaminoReserveAddressSet, ...driftSpotMarketAddressSet]),
     ]
     const externalAccountsMap =
       externalAddresses.length > 0 ? yield externalAddresses : {}
@@ -478,9 +480,13 @@ export const project0Integration: SolanaIntegration = {
 
     for (const reserveAddress of kaminoReserveAddressSet) {
       const account = externalAccountsMap[reserveAddress]
-      if (!account?.exists || account.programAddress !== KLEND_PROGRAM_ID) continue
+      if (!account?.exists || account.programAddress !== KLEND_PROGRAM_ID)
+        continue
       try {
-        kaminoReservesByAddress.set(reserveAddress, decodeKlendReserve(account.data))
+        kaminoReservesByAddress.set(
+          reserveAddress,
+          decodeKlendReserve(account.data),
+        )
       } catch {
         // Ignore reserves that fail to decode.
       }
@@ -488,7 +494,8 @@ export const project0Integration: SolanaIntegration = {
 
     for (const spotMarketAddress of driftSpotMarketAddressSet) {
       const account = externalAccountsMap[spotMarketAddress]
-      if (!account?.exists || account.programAddress !== DRIFT_PROGRAM_ID) continue
+      if (!account?.exists || account.programAddress !== DRIFT_PROGRAM_ID)
+        continue
       try {
         const spotMarket = driftAccountsCoder.decode(
           'SpotMarket',

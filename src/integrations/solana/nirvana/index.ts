@@ -211,7 +211,6 @@ export const nirvanaIntegration: SolanaIntegration = {
 
         result.push(lendingPosition)
       }
-
     }
 
     return result

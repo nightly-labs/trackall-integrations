@@ -30,8 +30,6 @@ const OBLIGATION_BORROW_AMOUNT_OFFSET = 168
 const RESERVE_LIQUIDITY_MINT_OFFSET = 40
 const MINT_DECIMALS_OFFSET = 44
 
-const ILOOP_ACCOUNTS_CACHE_TTL_MS = 5 * 60 * 1000
-
 type IloopObligation = {
   address: string
   lendingMarket: string
@@ -65,7 +63,10 @@ function hasObligationDiscriminator(data: Uint8Array): boolean {
   return Buffer.from(data).subarray(0, 8).equals(OBLIGATION_DISCRIMINATOR)
 }
 
-function parseObligation(address: string, data: Uint8Array): IloopObligation | null {
+function parseObligation(
+  address: string,
+  data: Uint8Array,
+): IloopObligation | null {
   if (data.length < OBLIGATION_BORROW_AMOUNT_OFFSET + 8) return null
   if (!hasObligationDiscriminator(data)) return null
 
@@ -147,7 +148,9 @@ function buildSuppliedAsset(
       amount: amountRaw.toString(),
       decimals: decimals.toString(),
     },
-    ...(token?.priceUsd !== undefined && { priceUsd: token.priceUsd.toString() }),
+    ...(token?.priceUsd !== undefined && {
+      priceUsd: token.priceUsd.toString(),
+    }),
     ...(usdValue !== undefined && { usdValue }),
   }
 }
@@ -167,7 +170,9 @@ function buildBorrowedAsset(
       amount: amountRaw.toString(),
       decimals: decimals.toString(),
     },
-    ...(token?.priceUsd !== undefined && { priceUsd: token.priceUsd.toString() }),
+    ...(token?.priceUsd !== undefined && {
+      priceUsd: token.priceUsd.toString(),
+    }),
     ...(usdValue !== undefined && { usdValue }),
   }
 }
@@ -194,7 +199,6 @@ export const iloopIntegration: SolanaIntegration = {
     const obligationMap = yield {
       kind: 'getProgramAccounts' as const,
       programId: ILOOP_PROGRAM_ID,
-      cacheTtlMs: ILOOP_ACCOUNTS_CACHE_TTL_MS,
       filters: [
         {
           memcmp: {
@@ -286,7 +290,10 @@ export const iloopIntegration: SolanaIntegration = {
         }
       }
 
-      if (obligation.borrowAmount > 0n && !isDefaultKey(obligation.borrowReserve)) {
+      if (
+        obligation.borrowAmount > 0n &&
+        !isDefaultKey(obligation.borrowReserve)
+      ) {
         const reserve = reservesByAddress.get(obligation.borrowReserve)
         if (reserve) {
           const decimals = mintDecimals(

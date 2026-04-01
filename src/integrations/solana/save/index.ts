@@ -43,7 +43,6 @@ const TOKEN_ACCOUNT_OWNER_OFFSET = 32
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
 
 const WAD = 10n ** 18n
-const SAVE_RESERVES_CACHE_TTL_MS = 5 * 60 * 1000
 
 interface ParsedObligationDeposit {
   reserve: string
@@ -114,7 +113,10 @@ function parseObligation(
     if (cursor + OBLIGATION_DEPOSIT_SIZE > data.length) break
     deposits.push({
       reserve: readPubkey(data, cursor + OBLIGATION_DEPOSIT_RESERVE_OFFSET),
-      depositedAmount: readU64LE(data, cursor + OBLIGATION_DEPOSIT_AMOUNT_OFFSET),
+      depositedAmount: readU64LE(
+        data,
+        cursor + OBLIGATION_DEPOSIT_AMOUNT_OFFSET,
+      ),
     })
     cursor += OBLIGATION_DEPOSIT_SIZE
   }
@@ -216,7 +218,9 @@ function buildSuppliedAsset(
       amount: amountRaw.toString(),
       decimals: decimals.toString(),
     },
-    ...(token?.priceUsd !== undefined && { priceUsd: token.priceUsd.toString() }),
+    ...(token?.priceUsd !== undefined && {
+      priceUsd: token.priceUsd.toString(),
+    }),
     ...(usdValue !== undefined && { usdValue }),
   }
 }
@@ -235,7 +239,9 @@ function buildBorrowedAsset(
       amount: amountRaw.toString(),
       decimals: decimals.toString(),
     },
-    ...(token?.priceUsd !== undefined && { priceUsd: token.priceUsd.toString() }),
+    ...(token?.priceUsd !== undefined && {
+      priceUsd: token.priceUsd.toString(),
+    }),
     ...(usdValue !== undefined && { usdValue }),
   }
 }
@@ -253,9 +259,7 @@ function collateralToUnderlyingAmount(
 
   if (totalSupplyRaw <= 0n) return 0n
 
-  return (
-    (collateralAmount * totalSupplyRaw) / reserve.collateralMintTotalSupply
-  )
+  return (collateralAmount * totalSupplyRaw) / reserve.collateralMintTotalSupply
 }
 
 function borrowWadsToUnderlyingAmount(
@@ -331,7 +335,6 @@ export const saveIntegration: SolanaIntegration = {
     const reservesMap = yield {
       kind: 'getProgramAccounts' as const,
       programId: SAVE_PROGRAM_ID,
-      cacheTtlMs: SAVE_RESERVES_CACHE_TTL_MS,
       filters: [{ dataSize: RESERVE_ACCOUNT_SIZE }],
     }
 
@@ -421,8 +424,9 @@ export const saveIntegration: SolanaIntegration = {
       }
 
       if (suppliedUsd !== undefined || borrowedUsd !== undefined) {
-        position.usdValue =
-          (Number(suppliedUsd ?? '0') - Number(borrowedUsd ?? '0')).toString()
+        position.usdValue = (
+          Number(suppliedUsd ?? '0') - Number(borrowedUsd ?? '0')
+        ).toString()
       }
 
       positions.push(position)

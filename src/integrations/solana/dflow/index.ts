@@ -65,7 +65,10 @@ function buildPositionValue(
 
   if (priceUsd !== undefined && amountRaw <= BigInt(Number.MAX_SAFE_INTEGER)) {
     value.priceUsd = priceUsd.toString()
-    value.usdValue = ((Number(amountRaw) / 10 ** decimals) * priceUsd).toString()
+    value.usdValue = (
+      (Number(amountRaw) / 10 ** decimals) *
+      priceUsd
+    ).toString()
   }
 
   return value
@@ -254,7 +257,9 @@ export const dflowIntegration: SolanaIntegration = {
       )
       group.outcomes.sort((left, right) => left.mint.localeCompare(right.mint))
 
-      const usdValue = sumUsdValues(group.deposited.map((item) => item.usdValue))
+      const usdValue = sumUsdValues(
+        group.deposited.map((item) => item.usdValue),
+      )
 
       positions.push({
         platformId: 'dflow',

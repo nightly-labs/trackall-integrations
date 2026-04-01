@@ -1,10 +1,6 @@
 import { BN } from '@coral-xyz/anchor'
 import type { WhirlpoolData } from '@orca-so/whirlpools-sdk'
-import {
-  ParsableWhirlpool,
-  PoolUtil,
-  PriceMath,
-} from '@orca-so/whirlpools-sdk'
+import { ParsableWhirlpool, PoolUtil, PriceMath } from '@orca-so/whirlpools-sdk'
 import { PublicKey } from '@solana/web3.js'
 import type {
   MaybeSolanaAccount,
@@ -28,7 +24,6 @@ const DEFAULT_PUBLIC_KEY = '11111111111111111111111111111111'
 const MINT_DECIMALS_OFFSET = 44
 const FIXED_POINT_SCALE = 1n << 60n
 const SECONDS_PER_YEAR = 31_536_000n
-const CACHE_TTL_MS = 5 * 60 * 1000
 
 const LENDING_POSITION_DISCRIMINATOR_B64 = accountDiscriminatorBase64(
   tunaIdl as {
@@ -194,7 +189,9 @@ function accountDiscriminatorBase64(
 
 function hasDiscriminator(data: Uint8Array, discriminatorB64: string): boolean {
   if (data.length < 8) return false
-  return Buffer.from(data.subarray(0, 8)).toString('base64') === discriminatorB64
+  return (
+    Buffer.from(data.subarray(0, 8)).toString('base64') === discriminatorB64
+  )
 }
 
 function readPubkey(data: Uint8Array, offset: number): string | null {
@@ -500,7 +497,10 @@ function divideToDecimalString(
 }
 
 function annualizeRate(interestRate: bigint): string {
-  return divideToDecimalString(interestRate * SECONDS_PER_YEAR, FIXED_POINT_SCALE)
+  return divideToDecimalString(
+    interestRate * SECONDS_PER_YEAR,
+    FIXED_POINT_SCALE,
+  )
 }
 
 function buildUsdValue(
@@ -583,7 +583,6 @@ export const defitunaIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: TUNA_PROGRAM_ID,
-        cacheTtlMs: CACHE_TTL_MS,
         filters: [
           {
             memcmp: {
@@ -597,7 +596,6 @@ export const defitunaIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: TUNA_PROGRAM_ID,
-        cacheTtlMs: CACHE_TTL_MS,
         filters: [
           {
             memcmp: {
@@ -618,7 +616,8 @@ export const defitunaIntegration: SolanaIntegration = {
     const marketByPoolAndMaker = new Map<string, MarketRaw>()
 
     for (const account of Object.values(phase0Accounts)) {
-      if (!account.exists || account.programAddress !== TUNA_PROGRAM_ID) continue
+      if (!account.exists || account.programAddress !== TUNA_PROGRAM_ID)
+        continue
 
       if (hasDiscriminator(account.data, VAULT_DISCRIMINATOR_B64)) {
         const parsed = parseVault(account.address, account.data)
@@ -660,7 +659,9 @@ export const defitunaIntegration: SolanaIntegration = {
         continue
       }
 
-      if (hasDiscriminator(account.data, TUNA_SPOT_POSITION_DISCRIMINATOR_B64)) {
+      if (
+        hasDiscriminator(account.data, TUNA_SPOT_POSITION_DISCRIMINATOR_B64)
+      ) {
         const parsed = parseTunaSpotPosition(account.address, account.data)
         if (parsed && parsed.authority === address) {
           spotAccounts.push(parsed)
@@ -689,8 +690,7 @@ export const defitunaIntegration: SolanaIntegration = {
       mintAddresses.add(spot.mintB)
     }
 
-    const mintAccounts =
-      mintAddresses.size > 0 ? yield [...mintAddresses] : {}
+    const mintAccounts = mintAddresses.size > 0 ? yield [...mintAddresses] : {}
     const orcaPoolAddresses = [
       ...new Set(
         lpAccounts
@@ -702,7 +702,10 @@ export const defitunaIntegration: SolanaIntegration = {
       orcaPoolAddresses.length > 0 ? yield orcaPoolAddresses : {}
     const whirlpoolByAddress = new Map<string, WhirlpoolData>()
     for (const poolAddress of orcaPoolAddresses) {
-      const whirlpool = parseWhirlpool(poolAddress, orcaPoolAccounts[poolAddress])
+      const whirlpool = parseWhirlpool(
+        poolAddress,
+        orcaPoolAccounts[poolAddress],
+      )
       if (whirlpool) whirlpoolByAddress.set(poolAddress, whirlpool)
     }
 
@@ -743,7 +746,11 @@ export const defitunaIntegration: SolanaIntegration = {
         }),
       }
 
-      const usdValue = buildUsdValue(currentAmount, decimals, tokenInfo?.priceUsd)
+      const usdValue = buildUsdValue(
+        currentAmount,
+        decimals,
+        tokenInfo?.priceUsd,
+      )
       if (usdValue !== undefined) {
         supplied.usdValue = usdValue
       }
@@ -778,10 +785,18 @@ export const defitunaIntegration: SolanaIntegration = {
       const vaultB = market ? vaultByAddress.get(market.vaultB) : undefined
 
       const borrowedA = vaultA
-        ? sharesToFunds(lp.loanSharesA, vaultA.borrowedFunds, vaultA.borrowedShares)
+        ? sharesToFunds(
+            lp.loanSharesA,
+            vaultA.borrowedFunds,
+            vaultA.borrowedShares,
+          )
         : lp.loanFundsA
       const borrowedB = vaultB
-        ? sharesToFunds(lp.loanSharesB, vaultB.borrowedFunds, vaultB.borrowedShares)
+        ? sharesToFunds(
+            lp.loanSharesB,
+            vaultB.borrowedFunds,
+            vaultB.borrowedShares,
+          )
         : lp.loanFundsB
 
       const decimalsA = resolveMintDecimals(lp.mintA, mintAccounts, tokens)
@@ -829,24 +844,44 @@ export const defitunaIntegration: SolanaIntegration = {
       }
       if (hasBorrowedExposure && (lp.leftoversA > 0n || includeZeroTokenRows)) {
         poolTokens.push(
-          buildPositionValue(lp.mintA, lp.leftoversA, decimalsA, tokenA?.priceUsd),
+          buildPositionValue(
+            lp.mintA,
+            lp.leftoversA,
+            decimalsA,
+            tokenA?.priceUsd,
+          ),
         )
       }
       if (hasBorrowedExposure && (lp.leftoversB > 0n || includeZeroTokenRows)) {
         poolTokens.push(
-          buildPositionValue(lp.mintB, lp.leftoversB, decimalsB, tokenB?.priceUsd),
+          buildPositionValue(
+            lp.mintB,
+            lp.leftoversB,
+            decimalsB,
+            tokenB?.priceUsd,
+          ),
         )
       }
 
       const rewards: PositionValue[] = []
       if (!hasBorrowedExposure && lp.leftoversA > 0n) {
         rewards.push(
-          buildPositionValue(lp.mintA, lp.leftoversA, decimalsA, tokenA?.priceUsd),
+          buildPositionValue(
+            lp.mintA,
+            lp.leftoversA,
+            decimalsA,
+            tokenA?.priceUsd,
+          ),
         )
       }
       if (!hasBorrowedExposure && lp.leftoversB > 0n) {
         rewards.push(
-          buildPositionValue(lp.mintB, lp.leftoversB, decimalsB, tokenB?.priceUsd),
+          buildPositionValue(
+            lp.mintB,
+            lp.leftoversB,
+            decimalsB,
+            tokenB?.priceUsd,
+          ),
         )
       }
       if (lp.compoundedYieldA > 0n) {
@@ -891,7 +926,8 @@ export const defitunaIntegration: SolanaIntegration = {
         meta: {
           defitunaLp: {
             account: lp.address,
-            marketMaker: lp.marketMaker === MARKET_MAKER_ORCA ? 'orca' : 'fusion',
+            marketMaker:
+              lp.marketMaker === MARKET_MAKER_ORCA ? 'orca' : 'fusion',
             positionMint: lp.positionMint,
             marketAddress: market?.address,
             tickLowerIndex: lp.tickLowerIndex,
@@ -961,7 +997,11 @@ export const defitunaIntegration: SolanaIntegration = {
         sizeToken?.priceUsd,
       )
 
-      const borrowedDecimals = resolveMintDecimals(borrowedMint, mintAccounts, tokens)
+      const borrowedDecimals = resolveMintDecimals(
+        borrowedMint,
+        mintAccounts,
+        tokens,
+      )
       const borrowedToken = tokens.get(borrowedMint)
       const borrowedValue = buildPositionValue(
         borrowedMint,
@@ -990,7 +1030,8 @@ export const defitunaIntegration: SolanaIntegration = {
         meta: {
           defitunaSpot: {
             account: spot.address,
-            marketMaker: spot.marketMaker === MARKET_MAKER_ORCA ? 'orca' : 'fusion',
+            marketMaker:
+              spot.marketMaker === MARKET_MAKER_ORCA ? 'orca' : 'fusion',
             pool: spot.pool,
             marketAddress: market?.address,
             positionToken: spot.positionToken,

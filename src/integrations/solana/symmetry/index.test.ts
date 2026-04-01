@@ -14,7 +14,9 @@ import { symmetryIntegration, testAddress } from '.'
 
 const solanaRpcUrl = process.env.SOLANA_RPC_URL
 if (!solanaRpcUrl) {
-  throw new Error('SOLANA_RPC_URL is required. Set it in your environment or .env.')
+  throw new Error(
+    'SOLANA_RPC_URL is required. Set it in your environment or .env.',
+  )
 }
 
 const LEGACY_YSOL_MINT = '3htQDAvEx53jyMJ2FVHeztM5BRjfmNuBqceXu1fJRqWx'
@@ -25,7 +27,10 @@ const wallets = [testAddress, '5G8GY87rWJ9GGfV22T87jxWprHP4fXvvaA7fEE8pqWWy']
 function isConstantProductLiquidity(
   position: UserDefiPosition,
 ): position is ConstantProductLiquidityDefiPosition {
-  return position.positionKind === 'liquidity' && position.liquidityModel === 'constant-product'
+  return (
+    position.positionKind === 'liquidity' &&
+    position.liquidityModel === 'constant-product'
+  )
 }
 
 describe('symmetry integration', () => {
@@ -45,7 +50,9 @@ describe('symmetry integration', () => {
       async (addresses) => {
         totalBatches++
         totalAccounts += addresses.length
-        console.log(`  batch ${totalBatches}: fetching ${addresses.length} accounts`)
+        console.log(
+          `  batch ${totalBatches}: fetching ${addresses.length} accounts`,
+        )
         return fetchAccountsBatch(connection, addresses)
       },
       (req) => fetchProgramAccountsBatch(connection, req),
@@ -98,17 +105,24 @@ describe('symmetry integration', () => {
       async (addresses) => {
         totalBatches++
         totalAccounts += addresses.length
-        console.log(`  batch ${totalBatches}: fetching ${addresses.length} accounts`)
+        console.log(
+          `  batch ${totalBatches}: fetching ${addresses.length} accounts`,
+        )
         return fetchAccountsBatch(connection, addresses)
       },
       (req) => fetchProgramAccountsBatch(connection, req),
     )
 
-    const totalPositions = results.reduce((sum, positions) => sum + positions.length, 0)
+    const totalPositions = results.reduce(
+      (sum, positions) => sum + positions.length,
+      0,
+    )
     const saved = naiveTotal - totalAccounts
     const savedPct = naiveTotal > 0 ? Math.round((saved / naiveTotal) * 100) : 0
 
-    console.log(`\n${wallets.length} wallets -> ${totalPositions} total positions`)
+    console.log(
+      `\n${wallets.length} wallets -> ${totalPositions} total positions`,
+    )
     console.log(
       `RPC batches: ${totalBatches}, actual accounts fetched: ${totalAccounts}`,
     )

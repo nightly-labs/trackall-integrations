@@ -68,7 +68,10 @@ function decodeSandglassAccount(
 ): SandglassAccountSnapshot | null {
   if (account.data.length < SANDGLASS_ACCOUNT_SIZE) return null
 
-  const marketAccount = readPubkey(account.data, SANDGLASS_MARKET_ACCOUNT_OFFSET)
+  const marketAccount = readPubkey(
+    account.data,
+    SANDGLASS_MARKET_ACCOUNT_OFFSET,
+  )
   const stakePtAmount = readU64(account.data, SANDGLASS_STAKE_PT_AMOUNT_OFFSET)
   const stakeYtAmount = readU64(account.data, SANDGLASS_STAKE_YT_AMOUNT_OFFSET)
   const stakeLpAmount = readU64(account.data, SANDGLASS_STAKE_LP_AMOUNT_OFFSET)
@@ -197,7 +200,9 @@ function pushStakePosition(
     platformId: 'sandglass',
     positionKind: 'staking',
     staked: [stakedAsset],
-    ...(stakedAsset.usdValue !== undefined && { usdValue: stakedAsset.usdValue }),
+    ...(stakedAsset.usdValue !== undefined && {
+      usdValue: stakedAsset.usdValue,
+    }),
     meta: {
       sandglass: {
         sandglassAccount: params.sandglassAccountAddress,
@@ -240,7 +245,9 @@ export const sandglassIntegration: SolanaIntegration = {
 
     const userStakeSnapshots = sandglassAccounts
       .map((account) => decodeSandglassAccount(account))
-      .filter((account): account is SandglassAccountSnapshot => account !== null)
+      .filter(
+        (account): account is SandglassAccountSnapshot => account !== null,
+      )
       .filter(
         (account) =>
           account.stakePtAmount > 0n ||
@@ -254,7 +261,8 @@ export const sandglassIntegration: SolanaIntegration = {
       ...new Set(userStakeSnapshots.map((account) => account.marketAccount)),
     ]
 
-    const marketAccountsMap = marketAddresses.length > 0 ? yield marketAddresses : {}
+    const marketAccountsMap =
+      marketAddresses.length > 0 ? yield marketAddresses : {}
     const marketsByAddress = new Map<string, SandglassMarketSnapshot>()
 
     for (const marketAddress of marketAddresses) {

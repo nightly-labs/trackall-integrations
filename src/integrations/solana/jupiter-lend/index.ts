@@ -1,10 +1,6 @@
 import { BorshCoder } from '@coral-xyz/anchor'
 import { borrowPda } from '@jup-ag/lend'
-import {
-  getRatioAtTick,
-  INIT_TICK,
-  MIN_TICK,
-} from '@jup-ag/lend/borrow'
+import { getRatioAtTick, INIT_TICK, MIN_TICK } from '@jup-ag/lend/borrow'
 import {
   getAssociatedTokenAddressSync,
   TOKEN_2022_PROGRAM_ID,
@@ -45,7 +41,6 @@ const INTERNAL_VAULT_DECIMALS = 9
 
 const lendingCoder = new BorshCoder(lendingIdl as never)
 const vaultsCoder = new BorshCoder(vaultsIdl as never)
-const JUPITER_LENDING_POOLS_TTL_MS = 5 * 60 * 1000
 
 function accountDiscriminatorBase64(
   idl: { accounts?: Array<{ name: string; discriminator?: number[] }> },
@@ -132,7 +127,6 @@ export const jupiterLendIntegration: SolanaIntegration = {
     const lendingMap = yield {
       kind: 'getProgramAccounts' as const,
       programId: LENDING_PROGRAM_ID,
-      cacheTtlMs: JUPITER_LENDING_POOLS_TTL_MS,
       filters: [
         {
           memcmp: {
@@ -396,7 +390,10 @@ export const jupiterLendIntegration: SolanaIntegration = {
 
       const colInternalAmount =
         (pos.supplyAmount * state.vaultSupplyExchangePrice) / EXCHANGE_PRECISION
-      const colAmount = denormalizeVaultAmount(colInternalAmount, supplyDecimals)
+      const colAmount = denormalizeVaultAmount(
+        colInternalAmount,
+        supplyDecimals,
+      )
 
       const netDebtRaw = computeNetDebtRaw(
         pos.supplyAmount,

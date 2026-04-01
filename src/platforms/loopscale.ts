@@ -4,8 +4,10 @@ const loopscalePlatform = {
   id: 'loopscale' as const,
   networks: ['solana'],
   name: 'Loopscale',
-  image: 'https://bridgesplit-app.s3.us-east-1.amazonaws.com/logo/logo_new_blue.png',
-  description: 'Loopscale is a Solana lending marketplace for loans and vault deposits.',
+  image:
+    'https://bridgesplit-app.s3.us-east-1.amazonaws.com/logo/logo_new_blue.png',
+  description:
+    'Loopscale is a Solana lending marketplace for loans and vault deposits.',
   tags: ['lending'],
   links: {
     website: 'https://app.loopscale.com/lend',

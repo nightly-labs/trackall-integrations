@@ -104,7 +104,8 @@ function parsePool(account: SolanaAccount): AllbridgePool | null {
     POOL_ACC_REWARD_PER_SHARE_P_OFFSET,
   )
 
-  if (!mint || decimals === undefined || accRewardPerShareP === null) return null
+  if (!mint || decimals === undefined || accRewardPerShareP === null)
+    return null
 
   return {
     address: account.address,
@@ -151,7 +152,9 @@ function buildPositionValue(
       amount: amountRaw.toString(),
       decimals: decimals.toString(),
     },
-    ...(token?.priceUsd !== undefined && { priceUsd: token.priceUsd.toString() }),
+    ...(token?.priceUsd !== undefined && {
+      priceUsd: token.priceUsd.toString(),
+    }),
     ...(usdValue !== undefined && { usdValue }),
   }
 }
@@ -225,7 +228,9 @@ export const allbridgeIntegration: SolanaIntegration = {
       .map(parseUserDeposit)
       .filter(
         (deposit): deposit is AllbridgeUserDeposit =>
-          deposit !== null && deposit.owner === address && deposit.lpAmount > 0n,
+          deposit !== null &&
+          deposit.owner === address &&
+          deposit.lpAmount > 0n,
       )
 
     if (userDeposits.length === 0) return []
@@ -262,10 +267,18 @@ export const allbridgeIntegration: SolanaIntegration = {
       )
       const rewardValue =
         rewardsRaw > 0n
-          ? buildPositionValue(userDeposit.mint, rewardsRaw, pool.decimals, tokens)
+          ? buildPositionValue(
+              userDeposit.mint,
+              rewardsRaw,
+              pool.decimals,
+              tokens,
+            )
           : undefined
 
-      const positionUsdValue = sumUsdValues([poolToken.usdValue, rewardValue?.usdValue])
+      const positionUsdValue = sumUsdValues([
+        poolToken.usdValue,
+        rewardValue?.usdValue,
+      ])
 
       const position: ConstantProductLiquidityDefiPosition = {
         positionKind: 'liquidity',
