@@ -7,7 +7,7 @@ import type {
   StakedAsset,
   StakingDefiPosition,
   UserDefiPosition,
-  UserPositionsPlan,
+  UserPositionsPlan
 } from '../../../types/index'
 
 const DIVVY_HOUSE_PROGRAM_ID = 'dvyFwAPniptQNb1ey4eM12L8iLHrzdiDsPPDndd6xAR'
@@ -32,7 +32,7 @@ export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 export const PROGRAM_IDS = [
   DIVVY_HOUSE_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
-  TOKEN_2022_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID
 ] as const
 
 type HouseInfo = {
@@ -67,14 +67,14 @@ function parseHouse(account: SolanaAccount): HouseInfo | null {
     address: account.address,
     houseMint,
     currencyMint,
-    currencyDecimals: account.data[HOUSE_CURRENCY_DECIMALS_OFFSET] ?? 0,
+    currencyDecimals: account.data[HOUSE_CURRENCY_DECIMALS_OFFSET] ?? 0
   }
 }
 
 function toUsdValue(
   amount: bigint,
   decimals: number,
-  priceUsd: number | undefined,
+  priceUsd: number | undefined
 ): string | undefined {
   if (priceUsd === undefined) return undefined
   if (amount > BigInt(Number.MAX_SAFE_INTEGER)) return undefined
@@ -85,14 +85,14 @@ function buildStakedAsset(
   token: string,
   amount: bigint,
   decimals: number,
-  priceUsd: number | undefined,
+  priceUsd: number | undefined
 ): StakedAsset {
   const value: StakedAsset = {
     amount: {
       token,
       amount: amount.toString(),
-      decimals: decimals.toString(),
-    },
+      decimals: decimals.toString()
+    }
   }
 
   if (priceUsd !== undefined) {
@@ -104,10 +104,7 @@ function buildStakedAsset(
   return value
 }
 
-function getMintDecimals(
-  account: SolanaAccount | undefined,
-  fallback: number,
-): number {
+function getMintDecimals(account: SolanaAccount | undefined, fallback: number): number {
   if (!account) return fallback
   if (account.programAddress !== TOKEN_PROGRAM_ID) return fallback
   if (account.data.length <= MINT_DECIMALS_OFFSET) return fallback
@@ -119,10 +116,9 @@ export const divvyIntegration: SolanaIntegration = {
 
   getUserPositions: async function* (
     address: string,
-    { tokens }: SolanaPlugins,
+    { tokens }: SolanaPlugins
   ): UserPositionsPlan {
-    const houseRequests: GetProgramAccountsRequest[] = HOUSE_ACCOUNT_SIZES.map(
-      (dataSize) => ({
+    const houseRequests: GetProgramAccountsRequest[] = HOUSE_ACCOUNT_SIZES.map(dataSize => ({
       kind: 'getProgramAccounts' as const,
       programId: DIVVY_HOUSE_PROGRAM_ID,
       filters: [
@@ -130,25 +126,24 @@ export const divvyIntegration: SolanaIntegration = {
           memcmp: {
             offset: 0,
             bytes: HOUSE_DISCRIMINATOR_B58,
-            encoding: 'base58',
-          },
+            encoding: 'base58'
+          }
         },
-        { dataSize },
+        { dataSize }
       ],
-      cacheTtlMs: 60_000,
-      }),
-    )
+      cacheTtlMs: 60_000
+    }))
     const housesMap = yield houseRequests
 
     const houses = Object.values(housesMap)
       .filter((account): account is SolanaAccount => account.exists)
-      .filter((account) => account.programAddress === DIVVY_HOUSE_PROGRAM_ID)
+      .filter(account => account.programAddress === DIVVY_HOUSE_PROGRAM_ID)
       .map(parseHouse)
       .filter((house): house is HouseInfo => house !== null)
 
     if (houses.length === 0) return []
 
-    const tokenRequests: GetProgramAccountsRequest[] = houses.flatMap((house) => [
+    const tokenRequests: GetProgramAccountsRequest[] = houses.flatMap(house => [
       {
         kind: 'getProgramAccounts',
         programId: TOKEN_PROGRAM_ID,
@@ -158,44 +153,43 @@ export const divvyIntegration: SolanaIntegration = {
             memcmp: {
               offset: TOKEN_MINT_OFFSET,
               bytes: house.houseMint,
-              encoding: 'base58',
-            },
+              encoding: 'base58'
+            }
           },
           {
             memcmp: {
               offset: TOKEN_OWNER_OFFSET,
               bytes: address,
-              encoding: 'base58',
-            },
-          },
-        ],
+              encoding: 'base58'
+            }
+          }
+        ]
       },
       {
         kind: 'getProgramAccounts',
         programId: TOKEN_2022_PROGRAM_ID,
         filters: [
-          { dataSize: TOKEN_ACCOUNT_SIZE },
           {
             memcmp: {
               offset: TOKEN_MINT_OFFSET,
               bytes: house.houseMint,
-              encoding: 'base58',
-            },
+              encoding: 'base58'
+            }
           },
           {
             memcmp: {
               offset: TOKEN_OWNER_OFFSET,
               bytes: address,
-              encoding: 'base58',
-            },
-          },
-        ],
-      },
+              encoding: 'base58'
+            }
+          }
+        ]
+      }
     ])
 
     const tokenAccounts = yield tokenRequests
 
-    const houseByMint = new Map(houses.map((house) => [house.houseMint, house]))
+    const houseByMint = new Map(houses.map(house => [house.houseMint, house]))
     const balancesByMint = new Map<string, bigint>()
 
     for (const account of Object.values(tokenAccounts)) {
@@ -218,14 +212,14 @@ export const divvyIntegration: SolanaIntegration = {
       balancesByMint.set(mint, current + amount)
     }
 
-    const relevantHouses = houses.filter((house) => {
+    const relevantHouses = houses.filter(house => {
       const balance = balancesByMint.get(house.houseMint)
       return balance !== undefined && balance > 0n
     })
 
     if (relevantHouses.length === 0) return []
 
-    const uniqueMints = [...new Set(relevantHouses.map((house) => house.houseMint))]
+    const uniqueMints = [...new Set(relevantHouses.map(house => house.houseMint))]
     const mintAccounts = yield uniqueMints
 
     const positions: UserDefiPosition[] = []
@@ -240,12 +234,7 @@ export const divvyIntegration: SolanaIntegration = {
           : house.currencyDecimals
 
       const token = tokens.get(house.houseMint)
-      const stakedValue = buildStakedAsset(
-        house.houseMint,
-        amount,
-        mintDecimals,
-        token?.priceUsd,
-      )
+      const stakedValue = buildStakedAsset(house.houseMint, amount, mintDecimals, token?.priceUsd)
 
       const position: StakingDefiPosition = {
         platformId: 'divvy',
@@ -257,9 +246,9 @@ export const divvyIntegration: SolanaIntegration = {
             houseAddress: house.address,
             houseMint: house.houseMint,
             currencyMint: house.currencyMint,
-            currencyDecimals: house.currencyDecimals.toString(),
-          },
-        },
+            currencyDecimals: house.currencyDecimals.toString()
+          }
+        }
       }
 
       positions.push(position)
@@ -272,7 +261,7 @@ export const divvyIntegration: SolanaIntegration = {
     })
 
     return positions
-  },
+  }
 }
 
 export default divvyIntegration
