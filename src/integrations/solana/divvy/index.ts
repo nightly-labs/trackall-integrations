@@ -17,6 +17,8 @@ const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
 const TOKEN_2022_PROGRAM_ID = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'
 const HOUSE_DISCRIMINATOR_B58 = '4cEdzVs6LUe'
 const HOUSE_ACCOUNT_SIZES = [294, 312] as const
+const MINER_DISCRIMINATOR_B58 = 'eNfVyjwGziX'
+const MINER_ACCOUNT_SIZE = 96
 
 const TOKEN_MINT_OFFSET = 0
 const TOKEN_AMOUNT_OFFSET = 64
@@ -26,6 +28,11 @@ const HOUSE_CURRENCY_OFFSET = 136
 const HOUSE_CURRENCY_DECIMALS_OFFSET = 168
 const HOUSE_TOKEN_SUPPLY_OFFSET = 175
 const HOUSE_LIQUIDITY_OFFSET = 183
+
+const REWARDER_HOUSE_OFFSET = 8
+const MINER_REWARDER_OFFSET = 9
+const MINER_AUTHORITY_OFFSET = 41
+const MINER_AMOUNT_OFFSET = 73
 
 const MINT_DECIMALS_OFFSET = 44
 
@@ -44,6 +51,11 @@ type HouseInfo = {
   currencyDecimals: number
   houseTokenSupply: bigint
   liquidity: bigint
+}
+
+type MinerInfo = {
+  rewarder: string
+  amount: bigint
 }
 
 function readPubkey(data: Uint8Array, offset: number): string | null {
@@ -175,6 +187,53 @@ export const divvyIntegration: SolanaIntegration = {
 
     if (houses.length === 0) return []
 
+    const minerMap = yield {
+      kind: 'getProgramAccounts' as const,
+      programId: DIVVY_HOUSE_PROGRAM_ID,
+      filters: [
+        {
+          memcmp: {
+            offset: 0,
+            bytes: MINER_DISCRIMINATOR_B58,
+            encoding: 'base58'
+          }
+        },
+        { dataSize: MINER_ACCOUNT_SIZE },
+        {
+          memcmp: {
+            offset: MINER_AUTHORITY_OFFSET,
+            bytes: address,
+            encoding: 'base58'
+          }
+        }
+      ],
+      cacheTtlMs: 60_000
+    }
+
+    const miners: MinerInfo[] = Object.values(minerMap)
+      .filter((account): account is SolanaAccount => account.exists)
+      .filter(account => account.programAddress === DIVVY_HOUSE_PROGRAM_ID)
+      .map(account => {
+        const rewarder = readPubkey(account.data, MINER_REWARDER_OFFSET)
+        const amount = readU64(account.data, MINER_AMOUNT_OFFSET)
+        if (!rewarder || amount === null || amount <= 0n) return null
+        return { rewarder, amount }
+      })
+      .filter((miner): miner is MinerInfo => miner !== null)
+
+    const uniqueRewarders = [...new Set(miners.map(miner => miner.rewarder))]
+    const rewarderAccounts = uniqueRewarders.length > 0 ? yield uniqueRewarders : {}
+
+    const rewarderHouseByAddress = new Map<string, string>()
+    for (const rewarderAddress of uniqueRewarders) {
+      const rewarder = rewarderAccounts[rewarderAddress]
+      if (!rewarder?.exists) continue
+      if (rewarder.programAddress !== DIVVY_HOUSE_PROGRAM_ID) continue
+      const houseAddress = readPubkey(rewarder.data, REWARDER_HOUSE_OFFSET)
+      if (!houseAddress) continue
+      rewarderHouseByAddress.set(rewarderAddress, houseAddress)
+    }
+
     const tokenRequests = [
       {
         kind: 'getTokenAccountsByOwner' as const,
@@ -190,6 +249,7 @@ export const divvyIntegration: SolanaIntegration = {
 
     const tokenAccounts = yield tokenRequests
 
+    const houseByAddress = new Map(houses.map(house => [house.address, house]))
     const houseByMint = new Map(houses.map(house => [house.houseMint, house]))
     const balancesByMint = new Map<string, bigint>()
 
@@ -218,16 +278,77 @@ export const divvyIntegration: SolanaIntegration = {
       return balance !== undefined && balance > 0n
     })
 
-    if (relevantHouses.length === 0) return []
+    const stakedByHouseMint = new Map<
+      string,
+      { amount: bigint; houseAddress: string; currencyMint: string; currencyDecimals: number }
+    >()
+    for (const miner of miners) {
+      const houseAddress = rewarderHouseByAddress.get(miner.rewarder)
+      if (!houseAddress) continue
+      const house = houseByAddress.get(houseAddress)
+      if (!house) continue
 
-    const uniqueMints = [...new Set(relevantHouses.map(house => house.houseMint))]
-    const mintAccounts = yield uniqueMints
+      const current = stakedByHouseMint.get(house.houseMint)
+      if (current) {
+        stakedByHouseMint.set(house.houseMint, {
+          amount: current.amount + miner.amount,
+          houseAddress,
+          currencyMint: house.currencyMint,
+          currencyDecimals: house.currencyDecimals
+        })
+      } else {
+        stakedByHouseMint.set(house.houseMint, {
+          amount: miner.amount,
+          houseAddress,
+          currencyMint: house.currencyMint,
+          currencyDecimals: house.currencyDecimals
+        })
+      }
+    }
+
+    const stakingMints = [...stakedByHouseMint.keys()]
+    const liquidityMints = relevantHouses.map(house => house.houseMint)
+    const uniqueMints = [...new Set([...stakingMints, ...liquidityMints])]
+    const mintAccounts = uniqueMints.length > 0 ? yield uniqueMints : {}
 
     const positions: UserDefiPosition[] = []
     const liquidityByMint = new Map<
       string,
       { amount: bigint; decimals: number }
     >()
+
+    for (const [houseMint, stakedInfo] of stakedByHouseMint.entries()) {
+      if (stakedInfo.amount <= 0n) continue
+
+      const mintAccount = mintAccounts[houseMint]
+      const mintDecimals =
+        mintAccount?.exists === true
+          ? getMintDecimals(mintAccount, stakedInfo.currencyDecimals)
+          : stakedInfo.currencyDecimals
+
+      const token = tokens.get(houseMint)
+      const stakedValue = buildStakedAsset(
+        houseMint,
+        stakedInfo.amount,
+        mintDecimals,
+        token?.priceUsd,
+      )
+
+      positions.push({
+        platformId: 'divvy',
+        positionKind: 'staking',
+        staked: [stakedValue],
+        ...(stakedValue.usdValue !== undefined && { usdValue: stakedValue.usdValue }),
+        meta: {
+          divvy: {
+            houseAddress: stakedInfo.houseAddress,
+            houseMint,
+            currencyMint: stakedInfo.currencyMint,
+            currencyDecimals: stakedInfo.currencyDecimals.toString()
+          }
+        }
+      } satisfies StakingDefiPosition)
+    }
 
     for (const house of relevantHouses) {
       const amount = balancesByMint.get(house.houseMint)
@@ -251,31 +372,6 @@ export const divvyIntegration: SolanaIntegration = {
         }
       }
 
-      const mintAccount = mintAccounts[house.houseMint]
-      const mintDecimals =
-        mintAccount?.exists === true
-          ? getMintDecimals(mintAccount, house.currencyDecimals)
-          : house.currencyDecimals
-
-      const token = tokens.get(house.houseMint)
-      const stakedValue = buildStakedAsset(house.houseMint, amount, mintDecimals, token?.priceUsd)
-
-      const position: StakingDefiPosition = {
-        platformId: 'divvy',
-        positionKind: 'staking',
-        staked: [stakedValue],
-        ...(stakedValue.usdValue !== undefined && { usdValue: stakedValue.usdValue }),
-        meta: {
-          divvy: {
-            houseAddress: house.address,
-            houseMint: house.houseMint,
-            currencyMint: house.currencyMint,
-            currencyDecimals: house.currencyDecimals.toString()
-          }
-        }
-      }
-
-      positions.push(position)
     }
 
     if (liquidityByMint.size > 0) {
