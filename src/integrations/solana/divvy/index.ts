@@ -154,8 +154,20 @@ export const divvyIntegration: SolanaIntegration = {
         programId: TOKEN_PROGRAM_ID,
         filters: [
           { dataSize: TOKEN_ACCOUNT_SIZE },
-          { memcmp: { offset: TOKEN_MINT_OFFSET, bytes: house.houseMint } },
-          { memcmp: { offset: TOKEN_OWNER_OFFSET, bytes: address } },
+          {
+            memcmp: {
+              offset: TOKEN_MINT_OFFSET,
+              bytes: house.houseMint,
+              encoding: 'base58',
+            },
+          },
+          {
+            memcmp: {
+              offset: TOKEN_OWNER_OFFSET,
+              bytes: address,
+              encoding: 'base58',
+            },
+          },
         ],
       },
       {
@@ -163,8 +175,20 @@ export const divvyIntegration: SolanaIntegration = {
         programId: TOKEN_2022_PROGRAM_ID,
         filters: [
           { dataSize: TOKEN_ACCOUNT_SIZE },
-          { memcmp: { offset: TOKEN_MINT_OFFSET, bytes: house.houseMint } },
-          { memcmp: { offset: TOKEN_OWNER_OFFSET, bytes: address } },
+          {
+            memcmp: {
+              offset: TOKEN_MINT_OFFSET,
+              bytes: house.houseMint,
+              encoding: 'base58',
+            },
+          },
+          {
+            memcmp: {
+              offset: TOKEN_OWNER_OFFSET,
+              bytes: address,
+              encoding: 'base58',
+            },
+          },
         ],
       },
     ])
