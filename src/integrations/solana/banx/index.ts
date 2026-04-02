@@ -383,6 +383,41 @@ function sumPositionUsdValue(
   return values.reduce((sum, value) => sum + value, 0).toString()
 }
 
+function computeAssetsPctUsdValueChange24(
+  assets:
+    | Array<{
+        amount: { token: string }
+        usdValue?: string
+      }>
+    | undefined,
+  tokens: SolanaPlugins['tokens'],
+): string | undefined {
+  if (!assets || assets.length === 0) return undefined
+
+  let totalUsd = 0
+  let weightedPct = 0
+
+  for (const asset of assets) {
+    const usdValue = Number(asset.usdValue)
+    if (!Number.isFinite(usdValue) || usdValue <= 0) continue
+
+    const token = tokens.get(asset.amount.token)
+    const pctPriceChange24h = token?.pctPriceChange24h
+    if (
+      pctPriceChange24h === undefined ||
+      !Number.isFinite(pctPriceChange24h)
+    ) {
+      continue
+    }
+
+    totalUsd += usdValue
+    weightedPct += usdValue * pctPriceChange24h
+  }
+
+  if (totalUsd <= 0) return undefined
+  return (weightedPct / totalUsd).toString()
+}
+
 export const banxIntegration: SolanaIntegration = {
   platformId: 'banx',
 
@@ -811,6 +846,13 @@ export const banxIntegration: SolanaIntegration = {
               position.borrowed,
             )
             if (usdValue !== undefined) position.usdValue = usdValue
+            const pctUsdValueChange24 = computeAssetsPctUsdValueChange24(
+              [...(position.supplied ?? []), ...(position.borrowed ?? [])],
+              tokens,
+            )
+            if (pctUsdValueChange24 !== undefined) {
+              position.pctUsdValueChange24 = pctUsdValueChange24
+            }
             positions.push(position)
             seenPositionKeys.add(key)
           }
@@ -868,6 +910,13 @@ export const banxIntegration: SolanaIntegration = {
               position.borrowed,
             )
             if (usdValue !== undefined) position.usdValue = usdValue
+            const pctUsdValueChange24 = computeAssetsPctUsdValueChange24(
+              [...(position.supplied ?? []), ...(position.borrowed ?? [])],
+              tokens,
+            )
+            if (pctUsdValueChange24 !== undefined) {
+              position.pctUsdValueChange24 = pctUsdValueChange24
+            }
             positions.push(position)
             seenPositionKeys.add(key)
           }
@@ -913,6 +962,13 @@ export const banxIntegration: SolanaIntegration = {
 
       const usdValue = sumPositionUsdValue(position.supplied, position.borrowed)
       if (usdValue !== undefined) position.usdValue = usdValue
+      const pctUsdValueChange24 = computeAssetsPctUsdValueChange24(
+        [...(position.supplied ?? []), ...(position.borrowed ?? [])],
+        tokens,
+      )
+      if (pctUsdValueChange24 !== undefined) {
+        position.pctUsdValueChange24 = pctUsdValueChange24
+      }
       positions.push(position)
       seenPositionKeys.add(key)
     }
@@ -951,6 +1007,13 @@ export const banxIntegration: SolanaIntegration = {
 
       const usdValue = sumPositionUsdValue(position.supplied, position.borrowed)
       if (usdValue !== undefined) position.usdValue = usdValue
+      const pctUsdValueChange24 = computeAssetsPctUsdValueChange24(
+        [...(position.supplied ?? []), ...(position.borrowed ?? [])],
+        tokens,
+      )
+      if (pctUsdValueChange24 !== undefined) {
+        position.pctUsdValueChange24 = pctUsdValueChange24
+      }
       positions.push(position)
       seenPositionKeys.add(key)
     }
@@ -988,6 +1051,13 @@ export const banxIntegration: SolanaIntegration = {
       }
       const usdValue = sumPositionUsdValue(position.supplied, position.borrowed)
       if (usdValue !== undefined) position.usdValue = usdValue
+      const pctUsdValueChange24 = computeAssetsPctUsdValueChange24(
+        [...(position.supplied ?? []), ...(position.borrowed ?? [])],
+        tokens,
+      )
+      if (pctUsdValueChange24 !== undefined) {
+        position.pctUsdValueChange24 = pctUsdValueChange24
+      }
       positions.push(position)
       seenPositionKeys.add(key)
     }
@@ -1021,6 +1091,13 @@ export const banxIntegration: SolanaIntegration = {
       }
       if (staked.usdValue !== undefined) {
         position.usdValue = staked.usdValue
+      }
+      const pctUsdValueChange24 = computeAssetsPctUsdValueChange24(
+        position.staked,
+        tokens,
+      )
+      if (pctUsdValueChange24 !== undefined) {
+        position.pctUsdValueChange24 = pctUsdValueChange24
       }
 
       positions.push(position)
