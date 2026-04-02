@@ -132,3 +132,8 @@ export {
   fetchAccountsBatch,
   fetchProgramAccountsBatch,
 } from './src/utils/solana'
+export {
+  applyPositionPctUsdValueChange24,
+  applyPositionsPctUsdValueChange24,
+  computePositionPctUsdValueChange24,
+} from './src/utils/positionChange'
