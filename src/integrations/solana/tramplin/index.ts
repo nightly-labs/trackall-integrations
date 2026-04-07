@@ -4,7 +4,7 @@ import type {
   SolanaPlugins,
   StakingDefiPosition,
   UserDefiPosition,
-  UserPositionsPlan
+  UserPositionsPlan,
 } from '../../../types/index'
 
 type StakeState = 'active' | 'activating' | 'deactivating' | 'inactive'
@@ -12,7 +12,8 @@ type StakeState = 'active' | 'activating' | 'deactivating' | 'inactive'
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
 const TRAMPLIN_PROGRAM_ID = '3NJyzGWjSHP4hZvsqakodi7jAtbufwd52vn1ek6EzQ35'
-const TRAMPLIN_VALIDATOR_VOTE_KEY = 'TRAMp1Z9EXyWQQNwNjjoNvVksMUHKioVU7ky61yNsEq'
+const TRAMPLIN_VALIDATOR_VOTE_KEY =
+  'TRAMp1Z9EXyWQQNwNjjoNvVksMUHKioVU7ky61yNsEq'
 const STAKE_PROGRAM_ID = 'Stake11111111111111111111111111111111111111'
 const SOL_MINT = 'So11111111111111111111111111111111111111112'
 const SOL_DECIMALS = 9
@@ -40,7 +41,10 @@ function readPubkey(data: Uint8Array, offset: number): string | null {
   return new PublicKey(buf.subarray(offset, offset + 32)).toBase58()
 }
 
-function getStakeState(activationEpoch: bigint, deactivationEpoch: bigint): StakeState {
+function getStakeState(
+  activationEpoch: bigint,
+  deactivationEpoch: bigint,
+): StakeState {
   if (deactivationEpoch !== U64_MAX) return 'deactivating'
   if (activationEpoch === U64_MAX) return 'inactive'
   return 'active'
@@ -51,7 +55,7 @@ export const tramplinIntegration: SolanaIntegration = {
 
   getUserPositions: async function* (
     address: string,
-    { tokens }: SolanaPlugins
+    { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
     const stakeAccounts = yield {
       kind: 'getProgramAccounts' as const,
@@ -62,17 +66,17 @@ export const tramplinIntegration: SolanaIntegration = {
           memcmp: {
             offset: AUTHORIZED_WITHDRAWER_OFFSET,
             bytes: address,
-            encoding: 'base58'
-          }
+            encoding: 'base58',
+          },
         },
         {
           memcmp: {
             offset: STAKE_DELEGATION_VOTER_OFFSET,
             bytes: TRAMPLIN_VALIDATOR_VOTE_KEY,
-            encoding: 'base58'
-          }
-        }
-      ]
+            encoding: 'base58',
+          },
+        },
+      ],
     }
 
     const positions: UserDefiPosition[] = []
@@ -82,9 +86,18 @@ export const tramplinIntegration: SolanaIntegration = {
       if (!account.exists) continue
       if (account.programAddress !== STAKE_PROGRAM_ID) continue
 
-      const delegatedStake = readU64(account.data, STAKE_DELEGATION_STAKE_OFFSET)
-      const activationEpoch = readU64(account.data, STAKE_ACTIVATION_EPOCH_OFFSET)
-      const deactivationEpoch = readU64(account.data, STAKE_DEACTIVATION_EPOCH_OFFSET)
+      const delegatedStake = readU64(
+        account.data,
+        STAKE_DELEGATION_STAKE_OFFSET,
+      )
+      const activationEpoch = readU64(
+        account.data,
+        STAKE_ACTIVATION_EPOCH_OFFSET,
+      )
+      const deactivationEpoch = readU64(
+        account.data,
+        STAKE_DEACTIVATION_EPOCH_OFFSET,
+      )
       const withdrawer = readPubkey(account.data, AUTHORIZED_WITHDRAWER_OFFSET)
       const voter = readPubkey(account.data, STAKE_DELEGATION_VOTER_OFFSET)
 
@@ -102,24 +115,28 @@ export const tramplinIntegration: SolanaIntegration = {
       const state = getStakeState(activationEpoch, deactivationEpoch)
       const amountUi = Number(delegatedStake) / 10 ** SOL_DECIMALS
       const usdValue =
-        solToken?.priceUsd === undefined ? undefined : (amountUi * solToken.priceUsd).toString()
+        solToken?.priceUsd === undefined
+          ? undefined
+          : (amountUi * solToken.priceUsd).toString()
 
       const value = {
         amount: {
           token: SOL_MINT,
           amount: delegatedStake.toString(),
-          decimals: SOL_DECIMALS.toString()
+          decimals: SOL_DECIMALS.toString(),
         },
         ...(solToken?.priceUsd !== undefined && {
-          priceUsd: solToken.priceUsd.toString()
+          priceUsd: solToken.priceUsd.toString(),
         }),
-        ...(usdValue !== undefined && { usdValue })
+        ...(usdValue !== undefined && { usdValue }),
       }
 
       const position: StakingDefiPosition = {
         platformId: 'tramplin',
         positionKind: 'staking',
-        ...(state === 'deactivating' ? { unbonding: [value] } : { staked: [value] }),
+        ...(state === 'deactivating'
+          ? { unbonding: [value] }
+          : { staked: [value] }),
         ...(usdValue !== undefined && { usdValue }),
         meta: {
           tramplin: {
@@ -128,16 +145,16 @@ export const tramplinIntegration: SolanaIntegration = {
             withdrawer,
             voter,
             activationEpoch: activationEpoch.toString(),
-            deactivationEpoch: deactivationEpoch.toString()
-          }
-        }
+            deactivationEpoch: deactivationEpoch.toString(),
+          },
+        },
       }
 
       positions.push(position)
     }
 
     return positions
-  }
+  },
 }
 
 export default tramplinIntegration

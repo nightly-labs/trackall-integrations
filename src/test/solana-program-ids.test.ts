@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'bun:test'
-import { readFile, readdir } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 
 const integrationsDir = new URL('../integrations/solana/', import.meta.url)
 
-const integrationDirs = (await readdir(integrationsDir, { withFileTypes: true }))
+const integrationDirs = (
+  await readdir(integrationsDir, { withFileTypes: true })
+)
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name)
   .sort()
@@ -11,11 +13,16 @@ const integrationDirs = (await readdir(integrationsDir, { withFileTypes: true })
 describe('solana integration PROGRAM_IDS contract', () => {
   for (const dir of integrationDirs) {
     it(`${dir} exports a non-empty PROGRAM_IDS array`, async () => {
-      const source = await readFile(new URL(`${dir}/index.ts`, integrationsDir), 'utf8')
+      const source = await readFile(
+        new URL(`${dir}/index.ts`, integrationsDir),
+        'utf8',
+      )
 
       expect(source.includes('export const PROGRAM_IDS')).toBe(true)
       expect(
-        /export const PROGRAM_IDS\s*=\s*(\[[\s\S]*?\]|[A-Za-z0-9_]+)/.test(source),
+        /export const PROGRAM_IDS\s*=\s*(\[[\s\S]*?\]|[A-Za-z0-9_]+)/.test(
+          source,
+        ),
       ).toBe(true)
     })
   }

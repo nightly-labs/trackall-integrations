@@ -1,10 +1,10 @@
 import { BorshAccountsCoder } from '@coral-xyz/anchor'
 import { unpackMint } from '@solana/spl-token'
-import { PublicKey } from '@solana/web3.js'
 import type { AccountInfo } from '@solana/web3.js'
+import { PublicKey } from '@solana/web3.js'
 import type {
-  ProgramRequest,
   PositionValue,
+  ProgramRequest,
   SolanaAccount,
   SolanaIntegration,
   SolanaPlugins,
@@ -51,12 +51,14 @@ const wasabiCoder = new BorshAccountsCoder(wasabiIdl as never)
 const WASABI_PROGRAM_ID = wasabiIdl.address
 const POSITION_OWNER_OFFSET = 8
 const BASE_POOL_COLLATERAL_VAULT_OFFSET = 40
-const WASABI_POOLS_TTL_MS = 5 * 60 * 1000
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 export const PROGRAM_IDS = [WASABI_PROGRAM_ID] as const
 
-function accountDiscriminatorBase64(idl: WasabiIdl, accountName: string): string {
+function accountDiscriminatorBase64(
+  idl: WasabiIdl,
+  accountName: string,
+): string {
   const discriminator = idl.accounts?.find(
     (account) => account.name === accountName,
   )?.discriminator
@@ -247,21 +249,24 @@ export const wasabiIntegration: SolanaIntegration = {
 
     const poolRequests: ProgramRequest[] = [...collateralVaultSet].map(
       (collateralVault) => ({
-      kind: 'getProgramAccounts' as const,
-      programId: WASABI_PROGRAM_ID,
-      cacheTtlMs: WASABI_POOLS_TTL_MS,
-      filters: [
-        {
-          memcmp: { offset: 0, bytes: BASE_POOL_DISC_B64, encoding: 'base64' },
-        },
-        {
-          memcmp: {
-            offset: BASE_POOL_COLLATERAL_VAULT_OFFSET,
-            bytes: collateralVault,
-            encoding: 'base58',
+        kind: 'getProgramAccounts' as const,
+        programId: WASABI_PROGRAM_ID,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: BASE_POOL_DISC_B64,
+              encoding: 'base64',
+            },
           },
-        },
-      ],
+          {
+            memcmp: {
+              offset: BASE_POOL_COLLATERAL_VAULT_OFFSET,
+              bytes: collateralVault,
+              encoding: 'base58',
+            },
+          },
+        ],
       }),
     )
 
@@ -361,8 +366,13 @@ export const wasabiIntegration: SolanaIntegration = {
         const proceeds = position.collateralAmount - position.downPayment
         if (proceeds > 0n) {
           const proceedsNum = Number(proceeds) / 10 ** collateralDecimals
-          const principalNum = Number(position.principal) / 10 ** currencyDecimals
-          if (Number.isFinite(proceedsNum) && Number.isFinite(principalNum) && principalNum > 0) {
+          const principalNum =
+            Number(position.principal) / 10 ** currencyDecimals
+          if (
+            Number.isFinite(proceedsNum) &&
+            Number.isFinite(principalNum) &&
+            principalNum > 0
+          ) {
             entryPrice = toFixedDecimal(proceedsNum / principalNum, 6)
           }
         }
@@ -383,7 +393,9 @@ export const wasabiIntegration: SolanaIntegration = {
         marketType: 'perp',
         marginEnabled: true,
         positions: [marketPosition],
-        ...(sideAwareCollateral.usdValue && { usdValue: sideAwareCollateral.usdValue }),
+        ...(sideAwareCollateral.usdValue && {
+          usdValue: sideAwareCollateral.usdValue,
+        }),
         meta: {
           position: {
             address: position.accountAddress,

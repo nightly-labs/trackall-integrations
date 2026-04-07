@@ -55,7 +55,8 @@ export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
 export const PROGRAM_IDS = [LAUNCHPAD_V7_PROGRAM_ID] as const
 
-const FUNDING_RECORD_DISCRIMINATOR_B64 = accountDiscriminatorBase64('FundingRecord')
+const FUNDING_RECORD_DISCRIMINATOR_B64 =
+  accountDiscriminatorBase64('FundingRecord')
 
 function accountDiscriminatorBase64(accountName: string): string {
   return createHash('sha256')
@@ -147,10 +148,7 @@ function readOptionI64WithCursor(
   return readI64WithCursor(data, cursor)
 }
 
-function skipOptionPubkeyWithCursor(
-  data: Uint8Array,
-  cursor: Cursor,
-): boolean {
+function skipOptionPubkeyWithCursor(data: Uint8Array, cursor: Cursor): boolean {
   const tag = readU8WithCursor(data, cursor)
   if (tag === null) return false
   if (tag === 0) return true
@@ -292,9 +290,11 @@ export const metadaoIntegration: SolanaIntegration = {
     }
 
     const fundingRecords = Object.values(fundingRecordsMap)
-      .filter((account): account is Exclude<typeof account, { exists: false }> => {
-        return account.exists
-      })
+      .filter(
+        (account): account is Exclude<typeof account, { exists: false }> => {
+          return account.exists
+        },
+      )
       .map((account) => decodeFundingRecord(account.address, account.data))
       .filter((record): record is FundingRecord => record !== null)
 
@@ -330,7 +330,10 @@ export const metadaoIntegration: SolanaIntegration = {
 
     const mintDecimals = new Map<string, number>()
     for (const mintAddress of mintAddresses) {
-      const decimals = decodeMintDecimals(mintAddress, mintAccountsMap[mintAddress])
+      const decimals = decodeMintDecimals(
+        mintAddress,
+        mintAccountsMap[mintAddress],
+      )
       if (decimals !== null) mintDecimals.set(mintAddress, decimals)
     }
 
@@ -344,7 +347,8 @@ export const metadaoIntegration: SolanaIntegration = {
       const baseToken = tokens.get(launch.baseMint)
       const quoteDecimals =
         mintDecimals.get(launch.quoteMint) ?? quoteToken?.decimals ?? 0
-      const baseDecimals = mintDecimals.get(launch.baseMint) ?? baseToken?.decimals ?? 0
+      const baseDecimals =
+        mintDecimals.get(launch.baseMint) ?? baseToken?.decimals ?? 0
 
       const stakedQuoteUsd =
         quoteToken?.priceUsd !== undefined
@@ -475,10 +479,15 @@ export const metadaoIntegration: SolanaIntegration = {
         .filter((value) => Number.isFinite(value))
 
       if (usdParts.length > 0) {
-        position.usdValue = usdParts.reduce((sum, value) => sum + value, 0).toString()
+        position.usdValue = usdParts
+          .reduce((sum, value) => sum + value, 0)
+          .toString()
       }
 
-      if ((position.staked?.length ?? 0) > 0 || (position.rewards?.length ?? 0) > 0) {
+      if (
+        (position.staked?.length ?? 0) > 0 ||
+        (position.rewards?.length ?? 0) > 0
+      ) {
         positions.push(position)
       }
     }

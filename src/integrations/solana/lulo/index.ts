@@ -43,7 +43,6 @@ const JUPITER_LENDING_DISCRIMINATOR_B64 = accountDiscriminatorBase64(
 )
 const JUPITER_EXCHANGE_PRECISION = 1_000_000_000_000n
 const DRIFT_USER_AUTHORITY_OFFSET = 8
-const JUPITER_LENDING_POOLS_TTL_MS = 5 * 60 * 1000
 const LULO_USER_ACCOUNT_OWNER_OFFSET = 16
 const LULO_USER_ACCOUNT_MARGINFI_OFFSET = 48
 const LULO_USER_ACCOUNT_SIZE = 336
@@ -163,7 +162,11 @@ function wrappedI80F48ToBigInt(value: WrappedI80F48): bigint {
   return decodeSignedI128LE(value.value)
 }
 
-function mulDivTrunc(numeratorA: bigint, numeratorB: bigint, denominator: bigint) {
+function mulDivTrunc(
+  numeratorA: bigint,
+  numeratorB: bigint,
+  denominator: bigint,
+) {
   if (denominator === 0n) return 0n
 
   const negative = numeratorA < 0n !== numeratorB < 0n
@@ -241,7 +244,9 @@ function buildSuppliedAsset(
       amount: amountRaw.toString(),
       decimals: decimals.toString(),
     },
-    ...(token?.priceUsd !== undefined && { priceUsd: token.priceUsd.toString() }),
+    ...(token?.priceUsd !== undefined && {
+      priceUsd: token.priceUsd.toString(),
+    }),
     ...(usdValue !== undefined && { usdValue }),
   }
 }
@@ -261,7 +266,9 @@ function buildBorrowedAsset(
       amount: amountRaw.toString(),
       decimals: decimals.toString(),
     },
-    ...(token?.priceUsd !== undefined && { priceUsd: token.priceUsd.toString() }),
+    ...(token?.priceUsd !== undefined && {
+      priceUsd: token.priceUsd.toString(),
+    }),
     ...(usdValue !== undefined && { usdValue }),
   }
 }
@@ -283,7 +290,12 @@ function buildLuloMeta(
   }
 }
 
-function collectTokenBalancesByMint(accounts: Record<string, { exists: boolean; programAddress?: string; data?: Uint8Array }>) {
+function collectTokenBalancesByMint(
+  accounts: Record<
+    string,
+    { exists: boolean; programAddress?: string; data?: Uint8Array }
+  >,
+) {
   const balances = new Map<string, bigint>()
 
   for (const account of Object.values(accounts)) {
@@ -361,7 +373,6 @@ export const luloIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: JUPITER_LENDING_PROGRAM_ID,
-        cacheTtlMs: JUPITER_LENDING_POOLS_TTL_MS,
         filters: [
           {
             memcmp: {
@@ -449,7 +460,9 @@ export const luloIntegration: SolanaIntegration = {
       ...new Set(
         driftUsers.flatMap((user) =>
           user.spotPositions
-            .filter((position) => BigInt(position.scaledBalance.toString()) !== 0n)
+            .filter(
+              (position) => BigInt(position.scaledBalance.toString()) !== 0n,
+            )
             .map((position) =>
               getSpotMarketPublicKeySync(
                 DRIFT_PROGRAM_KEY,
@@ -529,7 +542,8 @@ export const luloIntegration: SolanaIntegration = {
     const marginfiAccountAddress = parsedLuloUser.marginfiAccount
     const marginfiAccount = phaseThreeAccounts[marginfiAccountAddress]
 
-    if (!marginfiAccount?.exists || !('data' in marginfiAccount)) return positions
+    if (!marginfiAccount?.exists || !('data' in marginfiAccount))
+      return positions
 
     let decodedMarginfiAccount: MarginfiAccountRaw
     try {
@@ -541,9 +555,10 @@ export const luloIntegration: SolanaIntegration = {
       return positions
     }
 
-    const activeMarginfiBalances = decodedMarginfiAccount.lending_account.balances.filter(
-      (balance) => balance.active === 1,
-    )
+    const activeMarginfiBalances =
+      decodedMarginfiAccount.lending_account.balances.filter(
+        (balance) => balance.active === 1,
+      )
     if (activeMarginfiBalances.length === 0) return positions
 
     const bankAddresses = activeMarginfiBalances.map((balance) =>

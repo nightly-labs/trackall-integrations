@@ -194,7 +194,11 @@ function divideRawAmount(rawAmount: string, decimals: number): number {
   return Number(rawAmount) / 10 ** decimals
 }
 
-function buildUsdValue(rawAmount: string, decimals: number, priceUsd?: number): string | undefined {
+function buildUsdValue(
+  rawAmount: string,
+  decimals: number,
+  priceUsd?: number,
+): string | undefined {
   if (priceUsd === undefined) return undefined
   return (divideRawAmount(rawAmount, decimals) * priceUsd).toString()
 }
@@ -227,11 +231,14 @@ function getMetadataTokenIds(
     lookup.asset0,
     lookup.asset1,
     lookup.market,
-    ...((metadata.rewardPools ?? []).map((pool) => pool)),
+    ...(metadata.rewardPools ?? []).map((pool) => pool),
   ].flatMap((value) => (value ? [value] : []))
 }
 
-function classifyVaultPosition(metadata: CanopyMetadataItem, lookup: MetadataLookup): 'lending' | 'liquidity' {
+function classifyVaultPosition(
+  metadata: CanopyMetadataItem,
+  lookup: MetadataLookup,
+): 'lending' | 'liquidity' {
   const investmentType = metadata.investmentType.toLowerCase()
   const destinationType = lookup.destinationType?.toLowerCase()
   const canType = lookup.type?.toLowerCase()
@@ -405,7 +412,8 @@ async function fetchUserShareBalances(
     )
   }
 
-  const json = (await response.json()) as GraphqlResponse<CurrentFungibleAssetBalancesResponse>
+  const json =
+    (await response.json()) as GraphqlResponse<CurrentFungibleAssetBalancesResponse>
   if (json.errors?.length) {
     throw new Error(
       json.errors[0]?.message || 'Movement indexer request failed',
@@ -427,7 +435,10 @@ async function fetchVaultRegistry(
       payload: {
         function: `${CANOPY_CORE_VAULTS}::vault::vaults_view`,
         typeArguments: [],
-        functionArguments: [offset.toString(), CANOPY_VAULTS_PAGE_SIZE.toString()],
+        functionArguments: [
+          offset.toString(),
+          CANOPY_VAULTS_PAGE_SIZE.toString(),
+        ],
       },
     })) as [CanopyVaultPage]
 
@@ -468,13 +479,12 @@ async function buildTokenLookup(
   for (const token of globalTokens) {
     const address = normalizeAddress(token.address)
     if (!normalizedIds.includes(address)) continue
+    const fullName = token.fullName ?? token.displayName
 
     lookup.set(address, {
       tokenId: token.address,
       decimals: token.decimals ?? 8,
-      ...((token.fullName ?? token.displayName) && {
-        name: token.fullName ?? token.displayName!,
-      }),
+      ...(fullName && { name: fullName }),
       ...(token.symbol && { symbol: token.symbol }),
       ...(token.price !== undefined &&
         token.price !== null && {
@@ -529,7 +539,8 @@ function getVaultRewardValues(
   const rewards: PositionValue[] = []
 
   for (const position of rewardPositions) {
-    if (normalizeAddress(position.pool_staking_token.inner) !== shareAddress) continue
+    if (normalizeAddress(position.pool_staking_token.inner) !== shareAddress)
+      continue
 
     for (const reward of position.rewards) {
       if (reward.earned_amount === '0') continue
@@ -691,10 +702,14 @@ async function getUserPositions(
   ])
 
   const vaultByShareAddress = new Map<string, CanopyVaultView>(
-    vaultRegistry.map((vault) => [normalizeAddress(vault.shares_address), vault] as const),
+    vaultRegistry.map(
+      (vault) => [normalizeAddress(vault.shares_address), vault] as const,
+    ),
   )
   const metadataByVaultAddress = new Map<string, CanopyMetadataItem>(
-    canopyMetadata.map((item) => [normalizeAddress(item.networkAddress), item] as const),
+    canopyMetadata.map(
+      (item) => [normalizeAddress(item.networkAddress), item] as const,
+    ),
   )
 
   const canopyShareBalances = shareBalances.filter((balance) => {
@@ -706,19 +721,22 @@ async function getUserPositions(
   if (canopyShareBalances.length === 0) return []
 
   const tokenIds = [
-    ...vaultRegistry.flatMap((vault) => [
-      vault.asset_address,
-      vault.shares_address,
-      ...((metadataByVaultAddress.get(normalizeAddress(vault.vault_address))
-        ? getMetadataTokenIds(
-            metadataByVaultAddress.get(normalizeAddress(vault.vault_address))!,
-            mapAdditionalMetadata(
-              metadataByVaultAddress.get(normalizeAddress(vault.vault_address))!
-                ?.additionalMetadata,
-            ),
-          )
-        : []) as string[]),
-    ]),
+    ...vaultRegistry.flatMap((vault) => {
+      const metadata = metadataByVaultAddress.get(
+        normalizeAddress(vault.vault_address),
+      )
+
+      return [
+        vault.asset_address,
+        vault.shares_address,
+        ...((metadata
+          ? getMetadataTokenIds(
+              metadata,
+              mapAdditionalMetadata(metadata.additionalMetadata),
+            )
+          : []) as string[]),
+      ]
+    }),
     ...canopyShareBalances.flatMap((balance) =>
       balance.asset_type_v2 ? [balance.asset_type_v2] : [],
     ),
@@ -736,7 +754,9 @@ async function getUserPositions(
       const vault = vaultByShareAddress.get(shareAddress)
       if (!vault) return undefined
 
-      const metadata = metadataByVaultAddress.get(normalizeAddress(vault.vault_address))
+      const metadata = metadataByVaultAddress.get(
+        normalizeAddress(vault.vault_address),
+      )
       return buildVaultPosition(
         shareBalance,
         vault,

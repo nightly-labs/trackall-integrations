@@ -179,11 +179,10 @@ async function getUserPositions(
   const balanceResults = await Promise.allSettled(
     markets.map(async (market) => {
       const [coinsResult, liabilityResult] = await Promise.all([
-        view<string>(
-          plugins,
-          `${ECHELON_CONTRACT}::lending::account_coins`,
-          [address, market],
-        ),
+        view<string>(plugins, `${ECHELON_CONTRACT}::lending::account_coins`, [
+          address,
+          market,
+        ]),
         view<string>(
           plugins,
           `${ECHELON_CONTRACT}::lending::account_liability`,

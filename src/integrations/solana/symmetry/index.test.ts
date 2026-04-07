@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 import { Connection } from '@solana/web3.js'
 import type {
-  RewardDefiPosition,
-  StakingDefiPosition,
+  ConstantProductLiquidityDefiPosition,
+  UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
 import { runIntegrations, TokenPlugin } from '../../../types/index'
@@ -10,7 +10,7 @@ import {
   fetchAccountsBatch,
   fetchProgramAccountsBatch,
 } from '../../../utils/solana'
-import { jupiterDaoIntegration, testAddress } from './index'
+import { symmetryIntegration, testAddress } from '.'
 
 const solanaRpcUrl = process.env.SOLANA_RPC_URL
 if (!solanaRpcUrl) {
@@ -19,19 +19,25 @@ if (!solanaRpcUrl) {
   )
 }
 
-const wallets = [
-  testAddress,
-  'AveF9QMdkx3aj8abTfBVZhugrNQQqEJnZsWWenAjTUUY',
-  '71kG5LnbjVFp3Grj7VZ8WCqTNU6XRihoPuHRTMvmZGKb',
-]
+const LEGACY_YSOL_MINT = '3htQDAvEx53jyMJ2FVHeztM5BRjfmNuBqceXu1fJRqWx'
+const V3_JUPSOL_POOL = 'C2SpNsmPB91ne4JdQRYZZdTJXkMLWyHfMSaZCS9nB33J'
 
-const cooldownWallet = 'AveF9QMdkx3aj8abTfBVZhugrNQQqEJnZsWWenAjTUUY'
+const wallets = [testAddress, '5G8GY87rWJ9GGfV22T87jxWprHP4fXvvaA7fEE8pqWWy']
 
-const { getUserPositions } = jupiterDaoIntegration
-if (!getUserPositions) throw new Error('getUserPositions not implemented')
+function isConstantProductLiquidity(
+  position: UserDefiPosition,
+): position is ConstantProductLiquidityDefiPosition {
+  return (
+    position.positionKind === 'liquidity' &&
+    position.liquidityModel === 'constant-product'
+  )
+}
 
-describe('jupiter-dao integration', () => {
-  it('fetches staking and ASR reward positions for the primary wallet', async () => {
+describe('symmetry integration', () => {
+  const getUserPositions = symmetryIntegration.getUserPositions
+  if (!getUserPositions) throw new Error('getUserPositions not implemented')
+
+  it('fetches V3 and legacy ySOL positions', async () => {
     const connection = new Connection(solanaRpcUrl, 'confirmed')
     const tokens = new TokenPlugin()
     const plugins = { endpoint: solanaRpcUrl, tokens }
@@ -53,27 +59,24 @@ describe('jupiter-dao integration', () => {
     )
 
     if (!positions) throw new Error('No results returned')
+    const liquidityPositions = positions.filter(isConstantProductLiquidity)
 
-    const stakingPositions = positions.filter(
-      (position): position is StakingDefiPosition =>
-        position.positionKind === 'staking',
+    const v3Position = liquidityPositions.find(
+      (position) => position.poolAddress === V3_JUPSOL_POOL,
     )
-    const rewardPositions = positions.filter(
-      (position): position is RewardDefiPosition =>
-        position.positionKind === 'reward',
+    const legacyPosition = liquidityPositions.find(
+      (position) => position.poolAddress === LEGACY_YSOL_MINT,
     )
 
-    console.log(`\nFound ${positions.length} Jupiter DAO positions`)
+    console.log(`\nFound ${positions.length} symmetry positions`)
     console.log(
       `RPC batches: ${totalBatches}, total accounts fetched: ${totalAccounts}`,
     )
     console.log('Positions:', JSON.stringify(positions, null, 2))
 
-    expect(stakingPositions.length).toBeGreaterThan(0)
-    expect(rewardPositions.length).toBeGreaterThan(0)
-    expect(
-      rewardPositions.some((position) => position.sourceId === 'asr-q4'),
-    ).toBe(true)
+    expect(v3Position).toBeDefined()
+    expect(legacyPosition).toBeDefined()
+    expect((legacyPosition?.poolTokens.length ?? 0) > 1).toBe(true)
   }, 60000)
 
   it('fetches positions for multiple wallets in batched RPC calls', async () => {
@@ -118,43 +121,20 @@ describe('jupiter-dao integration', () => {
     const savedPct = naiveTotal > 0 ? Math.round((saved / naiveTotal) * 100) : 0
 
     console.log(
-      `\n${wallets.length} wallets → ${totalPositions} total positions`,
+      `\n${wallets.length} wallets -> ${totalPositions} total positions`,
     )
     console.log(
       `RPC batches: ${totalBatches}, actual accounts fetched: ${totalAccounts}`,
     )
     console.log(
-      `Sequential would have fetched: ${naiveTotal} — saved ${saved} (${savedPct}%)`,
+      `Sequential would have fetched: ${naiveTotal} - saved ${saved} (${savedPct}%)`,
     )
-    wallets.forEach((wallet, index) => {
-      console.log(
-        `  ${wallet.slice(0, 8)}…  ${results[index]?.length ?? 0} positions`,
-      )
-    })
 
     expect(results).toHaveLength(wallets.length)
     expect(
-      results.some((positions) =>
-        positions.some(
-          (position) =>
-            position.positionKind === 'reward' &&
-            position.platformId === 'jupiter-dao',
-        ),
-      ),
-    ).toBe(true)
-
-    const cooldownWalletPositions =
-      results[wallets.indexOf(cooldownWallet)] ?? []
-    const cooldownStakingPositions = cooldownWalletPositions.filter(
-      (position): position is StakingDefiPosition =>
-        position.positionKind === 'staking',
-    )
-    expect(
-      cooldownStakingPositions.some(
-        (position) =>
-          (position.unbonding?.length ?? 0) > 0 &&
-          position.lockDuration === '604800',
-      ),
+      results[0]
+        ?.filter(isConstantProductLiquidity)
+        .some((position) => position.poolAddress === LEGACY_YSOL_MINT),
     ).toBe(true)
   }, 60000)
 })

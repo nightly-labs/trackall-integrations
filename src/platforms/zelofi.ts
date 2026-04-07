@@ -4,7 +4,7 @@ const zelofiPlatform = {
   id: 'zelofi' as const,
   networks: ['solana'],
   name: 'Zelo Finance',
-  image: 'https://www.zelofi.io/images/logo.svg',
+  image: 'https://www.zelofi.io/favicon.ico',
   description: 'Solana lossless lottery savings protocol',
   tags: ['staking', 'defi'],
   links: {

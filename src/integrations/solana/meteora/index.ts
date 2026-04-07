@@ -11,7 +11,11 @@ import {
 
 const BIN_ARRAY_SIZE = 70 // SDK MAX_BIN_ARRAY_SIZE constant
 
-import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, unpackMint } from '@solana/spl-token'
+import {
+  TOKEN_2022_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
+  unpackMint,
+} from '@solana/spl-token'
 import type { AccountInfo } from '@solana/web3.js'
 import { Connection, PublicKey, SYSVAR_CLOCK_PUBKEY } from '@solana/web3.js'
 import BN from 'bn.js'

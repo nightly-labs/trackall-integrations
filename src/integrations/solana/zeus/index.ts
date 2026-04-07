@@ -1,15 +1,15 @@
 import {
+  createAssociatedTokenAccountInstruction,
+  getAssociatedTokenAddressSync,
+  TOKEN_PROGRAM_ID,
+} from '@solana/spl-token'
+import {
   Connection,
   PublicKey,
   TransactionInstruction,
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js'
-import {
-  createAssociatedTokenAccountInstruction,
-  getAssociatedTokenAddressSync,
-  TOKEN_PROGRAM_ID,
-} from '@solana/spl-token'
 import type {
   PositionValue,
   SolanaIntegration,
@@ -82,7 +82,10 @@ export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
 export const PROGRAM_IDS = [ZEUS_PROGRAM_ID] as const
 
-function hasDiscriminator(data: Uint8Array, discriminator: Uint8Array): boolean {
+function hasDiscriminator(
+  data: Uint8Array,
+  discriminator: Uint8Array,
+): boolean {
   if (data.length < discriminator.length) return false
   for (let i = 0; i < discriminator.length; i++) {
     if (data[i] !== discriminator[i]) return false
@@ -165,7 +168,8 @@ type StrategyConversion = {
 
 function decodeStrategyConversion(data: Uint8Array): StrategyConversion | null {
   for (let index = 0; index < 3; index++) {
-    const base = STRATEGY_UNDERLYING_START_OFFSET + index * STRATEGY_UNDERLYING_ENTRY_SIZE
+    const base =
+      STRATEGY_UNDERLYING_START_OFFSET + index * STRATEGY_UNDERLYING_ENTRY_SIZE
     const mint = readPubkey(data, base + STRATEGY_UNDERLYING_MINT_REL_OFFSET)
     const epochStartRatio = readU128(
       data,
@@ -202,7 +206,9 @@ function deriveUserPositionAddress(
   )[0]
 }
 
-function deriveTreasuryDistributionAddress(strategyGroup: PublicKey): PublicKey {
+function deriveTreasuryDistributionAddress(
+  strategyGroup: PublicKey,
+): PublicKey {
   return PublicKey.findProgramAddressSync(
     [
       TREASURY_DISTRIBUTION_SEED,
@@ -311,7 +317,8 @@ async function fetchTreasuryRewardsByStrategy(
     true,
     TOKEN_PROGRAM_ID,
   )
-  const zbtcAtaExists = (await connection.getAccountInfo(zbtcAta, 'confirmed')) !== null
+  const zbtcAtaExists =
+    (await connection.getAccountInfo(zbtcAta, 'confirmed')) !== null
 
   const rewards = await Promise.all(
     strategyGroups.map(async (strategyGroupAddress) => {
@@ -351,9 +358,8 @@ async function fetchTreasuryRewardsByStrategy(
 
   return new Map(
     rewards.filter(
-      (
-        item,
-      ): item is readonly [string, bigint] => item !== undefined && item[1] > 0n,
+      (item): item is readonly [string, bigint] =>
+        item !== undefined && item[1] > 0n,
     ),
   )
 }
@@ -412,13 +418,19 @@ export const zeusIntegration: SolanaIntegration = {
     ]
 
     for (const account of Object.values(accounts)) {
-      if (!account.exists || account.programAddress !== ZEUS_PROGRAM_ID) continue
+      if (!account.exists || account.programAddress !== ZEUS_PROGRAM_ID)
+        continue
       if (!hasDiscriminator(account.data, USER_POSITION_DISCRIMINATOR)) continue
 
       const owner = readPubkey(account.data, OWNER_OFFSET_IN_USER_POSITION)
       const strategyGroup = readPubkey(account.data, STRATEGY_GROUP_OFFSET)
       const syntheticAmount = readU64(account.data, SYNTHETIC_AMOUNT_OFFSET)
-      if (!owner || !strategyGroup || syntheticAmount === null || owner !== address)
+      if (
+        !owner ||
+        !strategyGroup ||
+        syntheticAmount === null ||
+        owner !== address
+      )
         continue
       if (syntheticAmount <= 0n) continue
 
@@ -451,12 +463,17 @@ export const zeusIntegration: SolanaIntegration = {
 
       state.assetMint = conversion.mint
       state.assetDecimals = conversion.decimals
-      state.staked = convertSyntheticToUnderlying(state.syntheticStaked, conversion)
+      state.staked = convertSyntheticToUnderlying(
+        state.syntheticStaked,
+        conversion,
+      )
     }
 
     for (const account of Object.values(accounts)) {
-      if (!account.exists || account.programAddress !== ZEUS_PROGRAM_ID) continue
-      if (!hasDiscriminator(account.data, REDEEM_REQUEST_DISCRIMINATOR)) continue
+      if (!account.exists || account.programAddress !== ZEUS_PROGRAM_ID)
+        continue
+      if (!hasDiscriminator(account.data, REDEEM_REQUEST_DISCRIMINATOR))
+        continue
 
       const user = readPubkey(account.data, USER_OFFSET_IN_REDEEM_REQUEST)
       const strategyGroup = readPubkey(account.data, STRATEGY_GROUP_OFFSET)
@@ -470,7 +487,8 @@ export const zeusIntegration: SolanaIntegration = {
         UNDERLYING_AMOUNT_TO_REDEEM_OFFSET,
       )
       const refundableAfter = readI64(account.data, REFUNDABLE_AFTER_TS_OFFSET)
-      if (!user || !strategyGroup || requested === null || user !== address) continue
+      if (!user || !strategyGroup || requested === null || user !== address)
+        continue
       if (requested <= 0n) continue
 
       const state = strategyState.get(strategyGroup) ?? {
@@ -499,7 +517,8 @@ export const zeusIntegration: SolanaIntegration = {
       if (
         refundableAfter !== null &&
         refundableAfter > nowUnix &&
-        (state.latestUnlockAt === undefined || refundableAfter > state.latestUnlockAt)
+        (state.latestUnlockAt === undefined ||
+          refundableAfter > state.latestUnlockAt)
       ) {
         state.latestUnlockAt = refundableAfter
       }

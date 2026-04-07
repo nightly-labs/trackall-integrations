@@ -66,8 +66,9 @@ const USER_POSITION_DISCRIMINATOR_B64 = accountDiscriminatorBase64(
 )
 
 function accountDiscriminatorBase64(idl: OmnipairIdl, accountName: string) {
-  const discriminator = idl.accounts?.find((item) => item.name === accountName)
-    ?.discriminator
+  const discriminator = idl.accounts?.find(
+    (item) => item.name === accountName,
+  )?.discriminator
   if (!discriminator) {
     throw new Error(`Missing discriminator for account "${accountName}"`)
   }
@@ -319,10 +320,14 @@ export const omnipairIntegration: SolanaIntegration = {
         )
       }
       if (debt0 > 0n) {
-        borrowed.push(buildBorrowedAsset(token0, debt0, decimals0, token0PriceUsd))
+        borrowed.push(
+          buildBorrowedAsset(token0, debt0, decimals0, token0PriceUsd),
+        )
       }
       if (debt1 > 0n) {
-        borrowed.push(buildBorrowedAsset(token1, debt1, decimals1, token1PriceUsd))
+        borrowed.push(
+          buildBorrowedAsset(token1, debt1, decimals1, token1PriceUsd),
+        )
       }
       if (supplied.length === 0 && borrowed.length === 0) continue
 

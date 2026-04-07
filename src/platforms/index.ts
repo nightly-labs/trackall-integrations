@@ -5,8 +5,9 @@ import byrealPlatform from './byreal'
 import canopyPlatform from './canopy'
 import carrotPlatform from './carrot'
 import defitunaPlatform from './defituna'
-import diversifiPlatform from './diversifi'
 import dflowPlatform from './dflow'
+import diversifiPlatform from './diversifi'
+import divvyPlatform from './divvy'
 import driftPlatform from './drift'
 import echelonPlatform from './echelon'
 import flashtradePlatform from './flashtrade'
@@ -40,6 +41,7 @@ import sandglassPlatform from './sandglass'
 import savePlatform from './save'
 import snsPlatform from './sns'
 import stabblePlatform from './stabble'
+import symmetryPlatform from './symmetry'
 import titanPlatform from './titan'
 import tramplinPlatform from './tramplin'
 import wasabiPlatform from './wasabi'
@@ -54,6 +56,7 @@ export const platforms = [
   carrotPlatform,
   defitunaPlatform,
   diversifiPlatform,
+  divvyPlatform,
   dflowPlatform,
   driftPlatform,
   glowPlatform,
@@ -88,13 +91,14 @@ export const platforms = [
   stabblePlatform,
   sandglassPlatform,
   savePlatform,
+  symmetryPlatform,
   wasabiPlatform,
   titanPlatform,
   yuzuPlatform,
   zelofiPlatform,
   zeusPlatform,
   canopyPlatform,
-  echelonPlatform
+  echelonPlatform,
 ] as const satisfies readonly Platform[]
 
 export type PlatformId = (typeof platforms)[number]['id']

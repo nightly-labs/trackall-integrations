@@ -93,12 +93,13 @@ interface LoopscaleVaultData {
   cumulativePrincipalDeposited: bigint
 }
 
-export const PROGRAM_IDS = [
-  LOOPSCALE_IDL_SOURCE_PROGRAM_ID,
-] as const
+export const PROGRAM_IDS = [LOOPSCALE_IDL_SOURCE_PROGRAM_ID] as const
 
 const loopscaleCoder = new BorshCoder(loopscaleIdl as never)
-const LOAN_DISCRIMINATOR = accountDiscriminator(loopscaleIdl as LoopscaleIdl, 'Loan')
+const LOAN_DISCRIMINATOR = accountDiscriminator(
+  loopscaleIdl as LoopscaleIdl,
+  'Loan',
+)
 const VAULT_STAKE_DISCRIMINATOR = accountDiscriminator(
   loopscaleIdl as LoopscaleIdl,
   'VaultStake',
@@ -112,9 +113,8 @@ const USER_REWARDS_INFO_DISCRIMINATOR = accountDiscriminator(
   'UserRewardsInfo',
 )
 const LOAN_DISCRIMINATOR_B64 = LOAN_DISCRIMINATOR.toString('base64')
-const VAULT_STAKE_DISCRIMINATOR_B64 = VAULT_STAKE_DISCRIMINATOR.toString(
-  'base64',
-)
+const VAULT_STAKE_DISCRIMINATOR_B64 =
+  VAULT_STAKE_DISCRIMINATOR.toString('base64')
 const STRATEGY_DISCRIMINATOR_B64 = STRATEGY_DISCRIMINATOR.toString('base64')
 const USER_REWARDS_INFO_DISCRIMINATOR_B64 =
   USER_REWARDS_INFO_DISCRIMINATOR.toString('base64')
@@ -269,7 +269,9 @@ function buildSuppliedAsset(
       amount: amountRaw.toString(),
       decimals: decimals.toString(),
     },
-    ...(token?.priceUsd !== undefined && { priceUsd: token.priceUsd.toString() }),
+    ...(token?.priceUsd !== undefined && {
+      priceUsd: token.priceUsd.toString(),
+    }),
     ...(usdValue !== undefined && { usdValue }),
   }
 }
@@ -289,7 +291,9 @@ function buildBorrowedAsset(
       amount: amountRaw.toString(),
       decimals: decimals.toString(),
     },
-    ...(token?.priceUsd !== undefined && { priceUsd: token.priceUsd.toString() }),
+    ...(token?.priceUsd !== undefined && {
+      priceUsd: token.priceUsd.toString(),
+    }),
     ...(usdValue !== undefined && { usdValue }),
   }
 }
@@ -351,7 +355,9 @@ function decodeDiscoveredAccounts(discoveryMap: LoopscaleAccountMap): {
   return { loans, strategies, stakes, rewardsInfo }
 }
 
-function decodeVaultAccounts(vaultAccounts: LoopscaleAccountMap): Map<string, LoopscaleVaultData> {
+function decodeVaultAccounts(
+  vaultAccounts: LoopscaleAccountMap,
+): Map<string, LoopscaleVaultData> {
   const map = new Map<string, LoopscaleVaultData>()
 
   for (const [address, account] of Object.entries(vaultAccounts)) {
@@ -388,9 +394,17 @@ function computeStrategyNav(strategy: LoopscaleStrategyAccount): bigint {
   const tokenBalance = toBigInt(strategy.decoded.token_balance)
   const externalYield = toBigInt(strategy.decoded.external_yield_amount)
   const currentDeployed = toBigInt(strategy.decoded.current_deployed_amount)
-  const outstandingInterest = toBigInt(strategy.decoded.outstanding_interest_amount)
+  const outstandingInterest = toBigInt(
+    strategy.decoded.outstanding_interest_amount,
+  )
   const feeClaimable = toBigInt(strategy.decoded.fee_claimable)
-  return tokenBalance + externalYield + currentDeployed + outstandingInterest - feeClaimable
+  return (
+    tokenBalance +
+    externalYield +
+    currentDeployed +
+    outstandingInterest -
+    feeClaimable
+  )
 }
 
 function computeVaultPrincipalAmount(
@@ -398,7 +412,11 @@ function computeVaultPrincipalAmount(
   vault: LoopscaleVaultData,
   vaultTotalNav: bigint | undefined,
 ): { amount: bigint; source: 'strategy-nav' | 'lp-raw-fallback' } {
-  if (vaultTotalNav !== undefined && vaultTotalNav > 0n && vault.lpSupply > 0n) {
+  if (
+    vaultTotalNav !== undefined &&
+    vaultTotalNav > 0n &&
+    vault.lpSupply > 0n
+  ) {
     return {
       amount: (lpAmount * vaultTotalNav) / vault.lpSupply,
       source: 'strategy-nav',
@@ -479,9 +497,8 @@ export const loopscaleIntegration: SolanaIntegration = {
     ]
     const discoveryMap = yield discoveryRequests
 
-    const { loans, strategies, stakes, rewardsInfo } = decodeDiscoveredAccounts(
-      discoveryMap,
-    )
+    const { loans, strategies, stakes, rewardsInfo } =
+      decodeDiscoveredAccounts(discoveryMap)
 
     const vaultAddresses = [
       ...new Set([
@@ -510,7 +527,8 @@ export const loopscaleIntegration: SolanaIntegration = {
           ],
         }),
       )
-      const vaultStrategyAccounts: LoopscaleAccountMap = yield vaultStrategyRequests
+      const vaultStrategyAccounts: LoopscaleAccountMap =
+        yield vaultStrategyRequests
       for (const account of Object.values(vaultStrategyAccounts)) {
         if (!account.exists || !account.data) continue
         if (!hasDiscriminator(account.data, STRATEGY_DISCRIMINATOR)) continue
@@ -526,7 +544,10 @@ export const loopscaleIntegration: SolanaIntegration = {
           }
           const nav = computeStrategyNav(strategy)
           if (nav > 0n) {
-            vaultTotalNav.set(vaultAddr, (vaultTotalNav.get(vaultAddr) ?? 0n) + nav)
+            vaultTotalNav.set(
+              vaultAddr,
+              (vaultTotalNav.get(vaultAddr) ?? 0n) + nav,
+            )
           }
         } catch {
           // Skip malformed strategy accounts.
@@ -639,7 +660,11 @@ export const loopscaleIntegration: SolanaIntegration = {
       if (isDefaultKey(principalMint)) continue
 
       const { amount: principalAmount, source: valuationSource } =
-        computeVaultPrincipalAmount(lpAmount, vault, vaultTotalNav.get(vaultAddress))
+        computeVaultPrincipalAmount(
+          lpAmount,
+          vault,
+          vaultTotalNav.get(vaultAddress),
+        )
       if (principalAmount <= 0n) continue
 
       const suppliedAsset = buildSuppliedAsset(
@@ -653,7 +678,9 @@ export const loopscaleIntegration: SolanaIntegration = {
         platformId: 'loopscale',
         positionKind: 'lending',
         supplied: [suppliedAsset],
-        ...(suppliedAsset.usdValue !== undefined && { usdValue: suppliedAsset.usdValue }),
+        ...(suppliedAsset.usdValue !== undefined && {
+          usdValue: suppliedAsset.usdValue,
+        }),
         meta: {
           loopscale: {
             source: 'vault-stake',
@@ -690,7 +717,11 @@ export const loopscaleIntegration: SolanaIntegration = {
       if (isDefaultKey(principalMint)) continue
 
       const { amount: principalAmount, source: valuationSource } =
-        computeVaultPrincipalAmount(lpAmount, vault, vaultTotalNav.get(vaultAddress))
+        computeVaultPrincipalAmount(
+          lpAmount,
+          vault,
+          vaultTotalNav.get(vaultAddress),
+        )
       if (principalAmount <= 0n) continue
 
       const suppliedAsset = buildSuppliedAsset(
@@ -704,7 +735,9 @@ export const loopscaleIntegration: SolanaIntegration = {
         platformId: 'loopscale',
         positionKind: 'lending',
         supplied: [suppliedAsset],
-        ...(suppliedAsset.usdValue !== undefined && { usdValue: suppliedAsset.usdValue }),
+        ...(suppliedAsset.usdValue !== undefined && {
+          usdValue: suppliedAsset.usdValue,
+        }),
         meta: {
           loopscale: {
             source: 'vault-deposit',
@@ -737,7 +770,9 @@ export const loopscaleIntegration: SolanaIntegration = {
         platformId: 'loopscale',
         positionKind: 'lending',
         supplied: [suppliedAsset],
-        ...(suppliedAsset.usdValue !== undefined && { usdValue: suppliedAsset.usdValue }),
+        ...(suppliedAsset.usdValue !== undefined && {
+          usdValue: suppliedAsset.usdValue,
+        }),
         meta: {
           loopscale: {
             source: 'strategy',

@@ -1,9 +1,9 @@
 import { CategoryOffer, NAME_OFFERS_ID, Offer, Tag } from '@bonfida/name-offers'
 import {
-  NAME_PROGRAM_ID,
-  ROOT_DOMAIN_ACCOUNT,
   deserializeReverse,
   getReverseKeyFromDomainKey,
+  NAME_PROGRAM_ID,
+  ROOT_DOMAIN_ACCOUNT,
 } from '@bonfida/spl-name-service'
 import { PublicKey } from '@solana/web3.js'
 import type {
@@ -72,9 +72,10 @@ type CategoryOfferSource = {
   createdAt: bigint
 }
 
-function decodeActiveOffer(
-  account: { address: string; data: Uint8Array },
-): ActiveOfferSource | null {
+function decodeActiveOffer(account: {
+  address: string
+  data: Uint8Array
+}): ActiveOfferSource | null {
   try {
     const decoded = Offer.deserialize(Buffer.from(account.data))
     return {
@@ -89,9 +90,10 @@ function decodeActiveOffer(
   }
 }
 
-function decodeCategoryOffer(
-  account: { address: string; data: Uint8Array },
-): CategoryOfferSource | null {
+function decodeCategoryOffer(account: {
+  address: string
+  data: Uint8Array
+}): CategoryOfferSource | null {
   try {
     const decoded = CategoryOffer.deserialize(Buffer.from(account.data))
     return {
@@ -172,14 +174,17 @@ export const snsIntegration: SolanaIntegration = {
       }
     }
 
-    const nameAccounts = [...new Set(activeOffers.map((offer) => offer.nameAccount))]
+    const nameAccounts = [
+      ...new Set(activeOffers.map((offer) => offer.nameAccount)),
+    ]
     const reverseByNameAccount = new Map<string, string>()
     const reverseLookupKeysByNameAccount = new Map<string, string[]>()
 
     if (nameAccounts.length > 0) {
       for (const nameAccount of nameAccounts) {
         const domainKey = new PublicKey(nameAccount)
-        const reverseKeyDefault = getReverseKeyFromDomainKey(domainKey).toBase58()
+        const reverseKeyDefault =
+          getReverseKeyFromDomainKey(domainKey).toBase58()
         const reverseKeyRoot = getReverseKeyFromDomainKey(
           domainKey,
           ROOT_DOMAIN_ACCOUNT,
@@ -194,20 +199,25 @@ export const snsIntegration: SolanaIntegration = {
       }
 
       const reverseLookupKeys = [
-        ...new Set(
-          [...reverseLookupKeysByNameAccount.values()].flatMap((value) => value),
-        ),
+        ...new Set([...reverseLookupKeysByNameAccount.values()].flat()),
       ]
       const reverseAccounts = yield reverseLookupKeys
 
-      for (const [nameAccount, reverseLookupKeysForName] of reverseLookupKeysByNameAccount) {
+      for (const [
+        nameAccount,
+        reverseLookupKeysForName,
+      ] of reverseLookupKeysByNameAccount) {
         for (const reverseLookupKey of reverseLookupKeysForName) {
           const reverseAccount = reverseAccounts[reverseLookupKey]
           if (!reverseAccount?.exists) continue
-          if (reverseAccount.programAddress !== NAME_PROGRAM_ID.toBase58()) continue
+          if (reverseAccount.programAddress !== NAME_PROGRAM_ID.toBase58())
+            continue
 
           try {
-            const value = deserializeReverse(Buffer.from(reverseAccount.data), true)
+            const value = deserializeReverse(
+              Buffer.from(reverseAccount.data),
+              true,
+            )
             if (value.length === 0) continue
             reverseByNameAccount.set(nameAccount, normalizeSolName(value))
             break
@@ -244,7 +254,9 @@ export const snsIntegration: SolanaIntegration = {
 
     for (const offer of categoryOffers) {
       const amount = offer.solPrice * offer.nbDomains
-      const deposited = [buildValue(WRAPPED_SOL_MINT, amount, SOL_DECIMALS, plugins)]
+      const deposited = [
+        buildValue(WRAPPED_SOL_MINT, amount, SOL_DECIMALS, plugins),
+      ]
 
       positions.push({
         platformId: 'sns',

@@ -41,7 +41,6 @@ const INSURANCE_FUND_STAKE_DISCRIMINATOR_B64 = Buffer.from(
     .subarray(0, 8),
 ).toString('base64')
 const USER_AUTHORITY_OFFSET = 8
-const DRIFT_USERS_TTL_MS = 60 * 1000
 const RATE_PRECISION = 1_000_000n
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
 const TOKEN_ACCOUNT_AMOUNT_BYTES = 8
@@ -296,7 +295,6 @@ export const driftIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: DRIFT_PROGRAM_ID,
-        cacheTtlMs: DRIFT_USERS_TTL_MS,
         filters: [
           {
             memcmp: {
@@ -316,7 +314,6 @@ export const driftIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: DRIFT_PROGRAM_ID,
-        cacheTtlMs: DRIFT_USERS_TTL_MS,
         filters: [
           {
             memcmp: {

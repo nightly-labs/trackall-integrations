@@ -5,7 +5,8 @@ const canopyPlatform = {
   networks: ['movement'],
   name: 'Canopy',
   image: 'https://app.canopyhub.xyz/canopy_512x512_light.svg',
-  description: 'Movement DeFi yield aggregation platform with lending and liquidity vaults',
+  description:
+    'Movement DeFi yield aggregation platform with lending and liquidity vaults',
   tags: ['defi', 'lending', 'dex'],
   links: {
     website: 'https://app.canopyhub.xyz/',

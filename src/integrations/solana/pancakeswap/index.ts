@@ -7,11 +7,12 @@ import type {
   SolanaIntegration,
   SolanaPlugins,
   UserDefiPosition,
-  UserPositionsPlan
+  UserPositionsPlan,
 } from '../../../types/index'
 import clmmIdl from '../raydium/idls/amm_v3.json'
 
-const PANCAKESWAP_CLMM_PROGRAM_ID = 'HpNfyc2Saw7RKkQd8nEL4khUcuPhQ7WwY1B2qjx8jxFq'
+const PANCAKESWAP_CLMM_PROGRAM_ID =
+  'HpNfyc2Saw7RKkQd8nEL4khUcuPhQ7WwY1B2qjx8jxFq'
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
@@ -20,20 +21,20 @@ const CLMM_PROGRAM = new PublicKey(PANCAKESWAP_CLMM_PROGRAM_ID)
 export const PROGRAM_IDS = [
   CLMM_PROGRAM.toBase58(),
   TOKEN_PROGRAM_ID.toBase58(),
-  TOKEN_2022_PROGRAM_ID.toBase58()
+  TOKEN_2022_PROGRAM_ID.toBase58(),
 ] as const
 
 function idlDiscriminator(
   idl: { accounts?: Array<{ name: string; discriminator?: number[] }> },
-  accountName: string
+  accountName: string,
 ): number[] {
-  const disc = idl.accounts?.find(a => a.name === accountName)?.discriminator
+  const disc = idl.accounts?.find((a) => a.name === accountName)?.discriminator
   if (!disc) throw new Error(`Missing discriminator for "${accountName}"`)
   return disc
 }
 
 const PERSONAL_POSITION_DISC = Buffer.from(
-  idlDiscriminator(clmmIdl, 'PersonalPositionState')
+  idlDiscriminator(clmmIdl, 'PersonalPositionState'),
 )
 
 const clmmCoder = new BorshCoder(clmmIdl as never)
@@ -77,7 +78,7 @@ function decodeClmmPool(buf: Buffer) {
     tickSpacing: readU16LE(buf, 235),
     liquidity: readU128LE(buf, 237),
     sqrtPriceX64: readU128LE(buf, 253),
-    tickCurrent: readI32LE(buf, 269)
+    tickCurrent: readI32LE(buf, 269),
   }
 }
 
@@ -93,7 +94,7 @@ function computeClmmAmounts(
   tickCurrent: number,
   tickLower: number,
   tickUpper: number,
-  sqrtPriceX64: bigint
+  sqrtPriceX64: bigint,
 ): { amount0: bigint; amount1: bigint } {
   const sqrtPriceLowerX64 = tickToSqrtPriceX64(tickLower)
   const sqrtPriceUpperX64 = tickToSqrtPriceX64(tickUpper)
@@ -120,13 +121,17 @@ function computeClmmAmounts(
 function sqrtPriceX64ToPrice(
   sqrtPriceX64: bigint,
   decimals0: number,
-  decimals1: number
+  decimals1: number,
 ): number {
   const sqrtPrice = Number(sqrtPriceX64) / Number(Q64)
   return sqrtPrice * sqrtPrice * 10 ** (decimals0 - decimals1)
 }
 
-function tickToPrice(tick: number, decimals0: number, decimals1: number): number {
+function tickToPrice(
+  tick: number,
+  decimals0: number,
+  decimals1: number,
+): number {
   return 1.0001 ** tick * 10 ** (decimals0 - decimals1)
 }
 
@@ -149,7 +154,10 @@ function i32ToLeBuffer(value: number): Buffer {
   return buf
 }
 
-function getTickArrayStartIndex(tickIndex: number, tickSpacing: number): number {
+function getTickArrayStartIndex(
+  tickIndex: number,
+  tickSpacing: number,
+): number {
   const ticksInArray = tickSpacing * TICK_ARRAY_SIZE
   return Math.floor(tickIndex / ticksInArray) * ticksInArray
 }
@@ -159,9 +167,9 @@ function getTickArrayAddress(poolId: string, startIndex: number): string {
     [
       Buffer.from('tick_array'),
       new PublicKey(poolId).toBuffer(),
-      i32ToLeBuffer(startIndex)
+      i32ToLeBuffer(startIndex),
     ],
-    CLMM_PROGRAM
+    CLMM_PROGRAM,
   )
   return pda.toBase58()
 }
@@ -169,14 +177,14 @@ function getTickArrayAddress(poolId: string, startIndex: number): string {
 function parseTickStateForTick(
   accountData: Uint8Array | undefined,
   tickIndex: number,
-  tickSpacing: number
+  tickSpacing: number,
 ): TickStateQuote | null {
   if (!accountData) return null
 
   try {
     const decoded = clmmCoder.accounts.decode(
       'TickArrayState',
-      Buffer.from(accountData)
+      Buffer.from(accountData),
     ) as {
       start_tick_index: number
       ticks: Array<{
@@ -197,7 +205,7 @@ function parseTickStateForTick(
 
     return {
       feeGrowthOutside0X64: toBigInt(tick.fee_growth_outside_0_x64),
-      feeGrowthOutside1X64: toBigInt(tick.fee_growth_outside_1_x64)
+      feeGrowthOutside1X64: toBigInt(tick.fee_growth_outside_1_x64),
     }
   } catch {
     return null
@@ -232,7 +240,7 @@ function quoteUncollectedFees(params: {
     tokenFeesOwed0,
     tokenFeesOwed1,
     lowerTickState,
-    upperTickState
+    upperTickState,
   } = params
 
   const lowerOutside0 = lowerTickState?.feeGrowthOutside0X64 ?? 0n
@@ -260,29 +268,29 @@ function quoteUncollectedFees(params: {
 
   const feeGrowthInside0 = subU128(
     subU128(feeGrowthGlobal0X64, feeGrowthBelow0),
-    feeGrowthAbove0
+    feeGrowthAbove0,
   )
   const feeGrowthInside1 = subU128(
     subU128(feeGrowthGlobal1X64, feeGrowthBelow1),
-    feeGrowthAbove1
+    feeGrowthAbove1,
   )
 
   const feeDelta0 = mulDivFloor(
     liquidity,
     subU128(feeGrowthInside0, feeGrowthInside0LastX64),
-    Q64
+    Q64,
   )
   const feeDelta1 = mulDivFloor(
     liquidity,
     subU128(feeGrowthInside1, feeGrowthInside1LastX64),
-    Q64
+    Q64,
   )
   const feeDelta0Net = mulDivFloor(feeDelta0, lpFeeRate, FEE_RATE_DENOMINATOR)
   const feeDelta1Net = mulDivFloor(feeDelta1, lpFeeRate, FEE_RATE_DENOMINATOR)
 
   return {
     fee0: tokenFeesOwed0 + feeDelta0Net,
-    fee1: tokenFeesOwed1 + feeDelta1Net
+    fee1: tokenFeesOwed1 + feeDelta1Net,
   }
 }
 
@@ -310,7 +318,7 @@ function buildPositionValue(
   token: string,
   amountRaw: bigint,
   decimals: number,
-  priceUsd?: number
+  priceUsd?: number,
 ): PositionValue {
   const amountUi = Number(amountRaw) / 10 ** decimals
   const usdValue =
@@ -320,10 +328,10 @@ function buildPositionValue(
     amount: {
       token,
       amount: amountRaw.toString(),
-      decimals: decimals.toString()
+      decimals: decimals.toString(),
     },
     ...(priceUsd !== undefined && { priceUsd: priceUsd.toString() }),
-    ...(usdValue !== undefined && { usdValue })
+    ...(usdValue !== undefined && { usdValue }),
   }
 }
 
@@ -344,19 +352,19 @@ export const pancakeswapIntegration: SolanaIntegration = {
 
   getUserPositions: async function* (
     address: string,
-    { tokens }: SolanaPlugins
+    { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
     const phase0Map = yield [
       {
         kind: 'getTokenAccountsByOwner' as const,
         owner: address,
-        programId: TOKEN_PROGRAM_ID.toBase58()
+        programId: TOKEN_PROGRAM_ID.toBase58(),
       },
       {
         kind: 'getTokenAccountsByOwner' as const,
         owner: address,
-        programId: TOKEN_2022_PROGRAM_ID.toBase58()
-      }
+        programId: TOKEN_2022_PROGRAM_ID.toBase58(),
+      },
     ]
 
     const userTokenMints = new Set<string>()
@@ -383,17 +391,15 @@ export const pancakeswapIntegration: SolanaIntegration = {
         const mintPubkey = new PublicKey(mint)
         const [pda] = PublicKey.findProgramAddressSync(
           [Buffer.from('position'), mintPubkey.toBuffer()],
-          CLMM_PROGRAM
+          CLMM_PROGRAM,
         )
         clmmPdaEntries.push({ mint, pda: pda.toBase58() })
-      } catch {
-        continue
-      }
+      } catch {}
     }
 
     if (clmmPdaEntries.length === 0) return []
 
-    const phase1Map = yield clmmPdaEntries.map(entry => entry.pda)
+    const phase1Map = yield clmmPdaEntries.map((entry) => entry.pda)
 
     const clmmPositions: ClmmPosition[] = []
     const uniquePoolIds = new Set<string>()
@@ -404,10 +410,14 @@ export const pancakeswapIntegration: SolanaIntegration = {
       if (acc.programAddress !== CLMM_PROGRAM.toBase58()) continue
 
       const buf = Buffer.from(acc.data)
-      if (buf.length < 8 || !buf.slice(0, 8).equals(PERSONAL_POSITION_DISC)) continue
+      if (buf.length < 8 || !buf.slice(0, 8).equals(PERSONAL_POSITION_DISC))
+        continue
 
       try {
-        const decoded = clmmCoder.accounts.decode('PersonalPositionState', buf) as {
+        const decoded = clmmCoder.accounts.decode(
+          'PersonalPositionState',
+          buf,
+        ) as {
           pool_id: PublicKey
           tick_lower_index: number
           tick_upper_index: number
@@ -427,18 +437,16 @@ export const pancakeswapIntegration: SolanaIntegration = {
           tickUpper: decoded.tick_upper_index,
           liquidity,
           feeGrowthInside0LastX64: BigInt(
-            decoded.fee_growth_inside_0_last_x64.toString()
+            decoded.fee_growth_inside_0_last_x64.toString(),
           ),
           feeGrowthInside1LastX64: BigInt(
-            decoded.fee_growth_inside_1_last_x64.toString()
+            decoded.fee_growth_inside_1_last_x64.toString(),
           ),
           tokenFeesOwed0: BigInt(decoded.token_fees_owed_0.toString()),
-          tokenFeesOwed1: BigInt(decoded.token_fees_owed_1.toString())
+          tokenFeesOwed1: BigInt(decoded.token_fees_owed_1.toString()),
         })
         uniquePoolIds.add(poolId)
-      } catch {
-        continue
-      }
+      } catch {}
     }
 
     if (clmmPositions.length === 0) return []
@@ -465,7 +473,7 @@ export const pancakeswapIntegration: SolanaIntegration = {
 
       const poolState = clmmCoder.accounts.decode(
         'PoolState',
-        Buffer.from(poolAcc.data)
+        Buffer.from(poolAcc.data),
       ) as {
         amm_config: PublicKey
         fee_growth_global_0_x64: { toString(): string }
@@ -474,29 +482,40 @@ export const pancakeswapIntegration: SolanaIntegration = {
       poolStateByPoolId.set(position.poolId, {
         ammConfig: poolState.amm_config.toBase58(),
         feeGrowthGlobal0X64: toBigInt(poolState.fee_growth_global_0_x64),
-        feeGrowthGlobal1X64: toBigInt(poolState.fee_growth_global_1_x64)
+        feeGrowthGlobal1X64: toBigInt(poolState.fee_growth_global_1_x64),
       })
       ammConfigAddresses.add(poolState.amm_config.toBase58())
 
       const pool = decodeClmmPool(Buffer.from(poolAcc.data))
-      const lowerStart = getTickArrayStartIndex(position.tickLower, pool.tickSpacing)
-      const upperStart = getTickArrayStartIndex(position.tickUpper, pool.tickSpacing)
+      const lowerStart = getTickArrayStartIndex(
+        position.tickLower,
+        pool.tickSpacing,
+      )
+      const upperStart = getTickArrayStartIndex(
+        position.tickUpper,
+        pool.tickSpacing,
+      )
 
-      const lowerTickArrayAddress = getTickArrayAddress(position.poolId, lowerStart)
-      const upperTickArrayAddress = getTickArrayAddress(position.poolId, upperStart)
+      const lowerTickArrayAddress = getTickArrayAddress(
+        position.poolId,
+        lowerStart,
+      )
+      const upperTickArrayAddress = getTickArrayAddress(
+        position.poolId,
+        upperStart,
+      )
 
       tickArraysByPosition.set(index, {
         lowerTickArrayAddress,
-        upperTickArrayAddress
+        upperTickArrayAddress,
       })
       tickArrayAddresses.add(lowerTickArrayAddress)
       tickArrayAddresses.add(upperTickArrayAddress)
     }
 
-    const phase3Addresses = [...new Set([
-      ...tickArrayAddresses,
-      ...ammConfigAddresses
-    ])]
+    const phase3Addresses = [
+      ...new Set([...tickArrayAddresses, ...ammConfigAddresses]),
+    ]
     const phase3Map = phase3Addresses.length > 0 ? yield phase3Addresses : {}
 
     const lpFeeRateByConfigAddress = new Map<string, bigint>()
@@ -508,7 +527,7 @@ export const pancakeswapIntegration: SolanaIntegration = {
       try {
         const config = clmmCoder.accounts.decode(
           'AmmConfig',
-          Buffer.from(configAccount.data)
+          Buffer.from(configAccount.data),
         ) as {
           protocol_fee_rate: number
           fund_fee_rate: number
@@ -518,11 +537,9 @@ export const pancakeswapIntegration: SolanaIntegration = {
         const lpFeeRate = FEE_RATE_DENOMINATOR - protocolFeeRate - fundFeeRate
         lpFeeRateByConfigAddress.set(
           configAddress,
-          lpFeeRate > 0n ? lpFeeRate : 0n
+          lpFeeRate > 0n ? lpFeeRate : 0n,
         )
-      } catch {
-        continue
-      }
+      } catch {}
     }
 
     const positions: UserDefiPosition[] = []
@@ -550,16 +567,20 @@ export const pancakeswapIntegration: SolanaIntegration = {
         : undefined
       const lowerTickState = tickArrayAddressesForPosition
         ? parseTickStateForTick(
-            lowerTickArrayAccount?.exists ? lowerTickArrayAccount.data : undefined,
+            lowerTickArrayAccount?.exists
+              ? lowerTickArrayAccount.data
+              : undefined,
             position.tickLower,
-            pool.tickSpacing
+            pool.tickSpacing,
           )
         : null
       const upperTickState = tickArrayAddressesForPosition
         ? parseTickStateForTick(
-            upperTickArrayAccount?.exists ? upperTickArrayAccount.data : undefined,
+            upperTickArrayAccount?.exists
+              ? upperTickArrayAccount.data
+              : undefined,
             position.tickUpper,
-            pool.tickSpacing
+            pool.tickSpacing,
           )
         : null
 
@@ -568,23 +589,23 @@ export const pancakeswapIntegration: SolanaIntegration = {
         pool.tickCurrent,
         position.tickLower,
         position.tickUpper,
-        pool.sqrtPriceX64
+        pool.sqrtPriceX64,
       )
 
       const currentPrice = sqrtPriceX64ToPrice(
         pool.sqrtPriceX64,
         pool.mintDecimals0,
-        pool.mintDecimals1
+        pool.mintDecimals1,
       )
       const lowerPrice = tickToPrice(
         position.tickLower,
         pool.mintDecimals0,
-        pool.mintDecimals1
+        pool.mintDecimals1,
       )
       const upperPrice = tickToPrice(
         position.tickUpper,
         pool.mintDecimals0,
-        pool.mintDecimals1
+        pool.mintDecimals1,
       )
 
       const token0Info = tokens.get(pool.tokenMint0)
@@ -602,7 +623,7 @@ export const pancakeswapIntegration: SolanaIntegration = {
         tokenFeesOwed0: position.tokenFeesOwed0,
         tokenFeesOwed1: position.tokenFeesOwed1,
         lowerTickState,
-        upperTickState
+        upperTickState,
       })
 
       const poolTokens = [
@@ -610,14 +631,14 @@ export const pancakeswapIntegration: SolanaIntegration = {
           pool.tokenMint0,
           amount0,
           pool.mintDecimals0,
-          token0Info?.priceUsd
+          token0Info?.priceUsd,
         ),
         buildPositionValue(
           pool.tokenMint1,
           amount1,
           pool.mintDecimals1,
-          token1Info?.priceUsd
-        )
+          token1Info?.priceUsd,
+        ),
       ]
 
       const fees = [
@@ -626,7 +647,7 @@ export const pancakeswapIntegration: SolanaIntegration = {
               pool.tokenMint0,
               quotedFees.fee0,
               pool.mintDecimals0,
-              token0Info?.priceUsd
+              token0Info?.priceUsd,
             )
           : null,
         quotedFees.fee1 > 0n
@@ -634,9 +655,9 @@ export const pancakeswapIntegration: SolanaIntegration = {
               pool.tokenMint1,
               quotedFees.fee1,
               pool.mintDecimals1,
-              token1Info?.priceUsd
+              token1Info?.priceUsd,
             )
-          : null
+          : null,
       ].filter((item): item is PositionValue => item !== null)
 
       const usdValue = sumUsdValues([...poolTokens, ...fees])
@@ -654,12 +675,12 @@ export const pancakeswapIntegration: SolanaIntegration = {
         ...(usdValue !== undefined && { usdValue }),
         poolTokens,
         ...(fees.length > 0 && { fees }),
-        poolAddress: position.poolId
+        poolAddress: position.poolId,
       } satisfies ConcentratedRangeLiquidityDefiPosition)
     }
 
     return positions
-  }
+  },
 }
 
 export default pancakeswapIntegration
