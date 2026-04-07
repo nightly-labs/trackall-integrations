@@ -11,6 +11,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
 export const testAddress = '93PSyNrS7zBhrXaHHfU1ZtfegcKq5SaCYc35ZwPVrK3K'
 
@@ -343,6 +344,15 @@ export const kaminoIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const userTokenAccounts = yield [
       {
         kind: 'getTokenAccountsByOwner' as const,
@@ -827,7 +837,13 @@ export const kaminoIntegration: SolanaIntegration = {
       })
     }
 
-    return [...lendingPositions, ...kvaultSharePositions, ...farmsPositions]
+    const positions = [
+      ...lendingPositions,
+      ...kvaultSharePositions,
+      ...farmsPositions,
+    ]
+    applyPositionsPctUsdValueChange24(tokenSource, positions)
+    return positions
   },
 }
 

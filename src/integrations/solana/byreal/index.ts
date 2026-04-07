@@ -8,6 +8,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
 const BYREAL_PROGRAM_ID = 'REALQqNEomY6cQGZJUGwywTBD2UmDT32rZcNnfxQ5N2'
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
@@ -336,6 +337,15 @@ export const byrealIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const wallet = new PublicKey(address)
     const byrealProgramKey = new PublicKey(BYREAL_PROGRAM_ID)
 
@@ -521,6 +531,7 @@ export const byrealIntegration: SolanaIntegration = {
       } satisfies ConcentratedRangeLiquidityDefiPosition)
     }
 
+    applyPositionsPctUsdValueChange24(tokenSource, result)
     return result
   },
 }
