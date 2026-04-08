@@ -577,7 +577,7 @@ export const orcaIntegration: SolanaIntegration = {
           if (!PoolUtil.isRewardInitialized(rewardInfo)) return null
 
           const amount = rewardsQuote.rewardOwed[index]
-          if (!amount || !amount.gt(new BN(0))) return null
+          if (!amount?.gt(new BN(0))) return null
 
           const mint = mintMap.get(rewardInfo.mint.toBase58())
           if (!mint) return null

@@ -170,11 +170,19 @@ describe('positionChange', () => {
           amount: { token: 'VEST_MAIN', amount: '1', decimals: '6' },
           usdValue: '100',
           claimable: {
-            amount: { token: 'VEST_CLAIMABLE_NESTED', amount: '1', decimals: '6' },
+            amount: {
+              token: 'VEST_CLAIMABLE_NESTED',
+              amount: '1',
+              decimals: '6',
+            },
             usdValue: '20',
           },
           claimed: {
-            amount: { token: 'VEST_CLAIMED_NESTED', amount: '1', decimals: '6' },
+            amount: {
+              token: 'VEST_CLAIMED_NESTED',
+              amount: '1',
+              decimals: '6',
+            },
             usdValue: '5',
           },
         },
@@ -302,7 +310,10 @@ describe('positionChange', () => {
     applyPositionPctUsdValueChange24(tokenSource, firstPosition)
     expect(firstPosition.pctUsdValueChange24).toBe('10')
 
-    applyPositionsPctUsdValueChange24(tokenSource, [firstPosition, secondPosition])
+    applyPositionsPctUsdValueChange24(tokenSource, [
+      firstPosition,
+      secondPosition,
+    ])
     expect(firstPosition.pctUsdValueChange24).toBe('10')
     expect(secondPosition.pctUsdValueChange24).toBe('5')
   })
@@ -329,12 +340,19 @@ describe('positionChange', () => {
       REWARD: 0,
     })
 
-    const withoutFilter = computePositionPctUsdValueChange24(tokenSource, position)
+    const withoutFilter = computePositionPctUsdValueChange24(
+      tokenSource,
+      position,
+    )
     expect(Number(withoutFilter)).toBeCloseTo(5, 12)
 
-    const withFilter = computePositionPctUsdValueChange24(tokenSource, position, {
-      ignoredKeys: ['rewards'],
-    })
+    const withFilter = computePositionPctUsdValueChange24(
+      tokenSource,
+      position,
+      {
+        ignoredKeys: ['rewards'],
+      },
+    )
     expect(withFilter).toBe('10')
   })
 })

@@ -69,7 +69,7 @@ export const zelofiIntegration: SolanaIntegration = {
     const accounts = yield [userRecordPda.toBase58()]
     const account = accounts[userRecordPda.toBase58()]
 
-    if (!account || !account.exists) return []
+    if (!account?.exists) return []
     if (account.programAddress !== ZELOFI_PROGRAM_ID) return []
     if (account.data.length < USER_RECORD_ACCOUNT_SIZE) return []
 
