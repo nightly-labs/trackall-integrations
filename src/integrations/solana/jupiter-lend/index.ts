@@ -43,7 +43,6 @@ const INTERNAL_VAULT_DECIMALS = 9
 
 const lendingCoder = new BorshCoder(lendingIdl as never)
 const vaultsCoder = new BorshCoder(vaultsIdl as never)
-const JUPITER_LENDING_POOLS_TTL_MS = 5 * 60 * 1000
 const POSITION_QUERY_CHUNK_SIZE = 64
 
 function accountDiscriminatorBase64(
