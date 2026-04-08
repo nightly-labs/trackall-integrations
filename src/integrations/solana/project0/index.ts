@@ -17,6 +17,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import marginfiIdl from './idls/marginfi_0.1.7.json'
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
@@ -365,6 +366,15 @@ export const project0Integration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const marginfiAccountsMap = yield {
       kind: 'getProgramAccounts' as const,
       programId: MARGINFI_PROGRAM_ID,
@@ -622,6 +632,8 @@ export const project0Integration: SolanaIntegration = {
         } satisfies LendingDefiPosition)
       }
     }
+
+    applyPositionsPctUsdValueChange24(tokenSource, positions)
 
     return positions
   },

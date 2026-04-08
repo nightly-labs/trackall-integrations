@@ -9,6 +9,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionPctUsdValueChange24 } from '../../../utils/positionChange'
 
 const ALLBRIDGE_BRIDGE_PROGRAM_ID =
   'BrdgN2RPzEMWF96ZbnnJaUtQDQx7VRXYaHHbYCBvceWB'
@@ -185,6 +186,15 @@ export const allbridgeIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const combinedMap = yield [
       {
         kind: 'getProgramAccounts' as const,
@@ -302,6 +312,7 @@ export const allbridgeIntegration: SolanaIntegration = {
         },
       }
 
+      applyPositionPctUsdValueChange24(tokenSource, position)
       positions.push(position)
     }
 

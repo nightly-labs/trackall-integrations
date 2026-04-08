@@ -9,6 +9,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
 const TITAN_LIMIT_ORDERS_PROGRAM_ID =
   'TitanLozLMhczcwrioEguG2aAmiATAPXdYpBg3DbeKK'
@@ -219,6 +220,15 @@ export const titanIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const discoveredAccounts = yield {
       kind: 'getProgramAccounts' as const,
       programId: TITAN_LIMIT_ORDERS_PROGRAM_ID,
@@ -385,6 +395,8 @@ export const titanIntegration: SolanaIntegration = {
 
       positions.push(position)
     }
+
+    applyPositionsPctUsdValueChange24(tokenSource, positions)
 
     return positions
   },

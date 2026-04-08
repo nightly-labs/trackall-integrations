@@ -13,6 +13,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import wasabiIdl from './idls/wasabi.json'
 
 type WasabiIdl = {
@@ -164,6 +165,15 @@ export const wasabiIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const discovered = yield {
       kind: 'getProgramAccounts' as const,
       programId: WASABI_PROGRAM_ID,
@@ -414,6 +424,8 @@ export const wasabiIntegration: SolanaIntegration = {
 
       result.push(tradingPosition)
     }
+
+    applyPositionsPctUsdValueChange24(tokenSource, result)
 
     return result
   },

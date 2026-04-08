@@ -123,6 +123,7 @@ Key rules:
 - Position types available: `ConcentratedRangeLiquidityDefiPosition`, `ConstantProductLiquidityDefiPosition`, `LendingDefiPosition`, `StakingDefiPosition`, `VestingDefiPosition`, `RewardDefiPosition` — all in `src/types/`
 - Use nested `rewards` only when rewards belong to a primary position; use top-level `RewardDefiPosition` for standalone claimables like airdrops
 - `BaseDefiPosition` supports optional `meta?: PositionMetadata`, where `PositionMetadata = Record<string, Record<string, unknown>>`; use it only for structured protocol-specific details that do not fit shared fields, for example `meta.subaccount.name`
+- After building user position for integration attach to each position percentage change using the `src/utils/positionChange.ts` 
 
 ---
 

@@ -28,6 +28,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
 type DecodedLbPair = {
   tokenXMint: PublicKey
@@ -55,6 +56,15 @@ export const meteoraIntegration: SolanaIntegration = {
     address: string,
     { endpoint, tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const programId = new PublicKey(LBCLMM_PROGRAM_IDS['mainnet-beta'])
     const connection = new Connection(endpoint)
     const program = createProgram(connection)
@@ -294,6 +304,8 @@ export const meteoraIntegration: SolanaIntegration = {
         poolAddress: lbPairKey,
       } satisfies ConcentratedRangeLiquidityDefiPosition)
     }
+
+    applyPositionsPctUsdValueChange24(tokenSource, result)
 
     return result
   },

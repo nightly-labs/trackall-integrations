@@ -16,6 +16,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
 const FLASH_PROGRAM_ID = 'FLASH6Lo6h3iasJKWDs2F8TkW2UKf3s15C8PMGuVfgBn'
 const POSITION_OWNER_OFFSET = 8
@@ -450,6 +451,15 @@ export const flashtradeIntegration: SolanaIntegration = {
     address: string,
     _plugins: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = _plugins.tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const requests = PROGRAM_IDS.flatMap((programId) => [
       {
         kind: 'getProgramAccounts' as const,
@@ -1026,6 +1036,7 @@ export const flashtradeIntegration: SolanaIntegration = {
       }
     }
 
+    applyPositionsPctUsdValueChange24(tokenSource, result)
     return result
   },
 }

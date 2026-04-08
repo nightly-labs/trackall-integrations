@@ -10,6 +10,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
 const PREDICTION_MARKETS_PROGRAM_ID =
   'pReDicTmksnPfkfiz33ndSdbe2dY43KYPg4U2dbvHvb'
@@ -138,6 +139,15 @@ export const dflowIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const phase0Map = yield {
       kind: 'getTokenAccountsByOwner' as const,
       owner: address,
@@ -289,6 +299,7 @@ export const dflowIntegration: SolanaIntegration = {
       return leftLedger.localeCompare(rightLedger)
     })
 
+    applyPositionsPctUsdValueChange24(tokenSource, positions)
     return positions
   },
 }

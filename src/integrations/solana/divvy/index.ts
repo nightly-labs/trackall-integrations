@@ -12,6 +12,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
 const DIVVY_HOUSE_PROGRAM_ID = 'dvyFwAPniptQNb1ey4eM12L8iLHrzdiDsPPDndd6xAR'
 const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
@@ -171,6 +172,15 @@ export const divvyIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const houseRequests: GetProgramAccountsRequest[] = HOUSE_ACCOUNT_SIZES.map(
       (dataSize) => ({
         kind: 'getProgramAccounts' as const,
@@ -444,6 +454,7 @@ export const divvyIntegration: SolanaIntegration = {
       return leftHouse.localeCompare(rightHouse)
     })
 
+    applyPositionsPctUsdValueChange24(tokenSource, positions)
     return positions
   },
 }

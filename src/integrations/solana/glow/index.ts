@@ -10,6 +10,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
@@ -342,6 +343,15 @@ export const glowIntegration: SolanaIntegration = {
     address: string,
     plugins: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = plugins.tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const marginAccountsMap = yield {
       kind: 'getProgramAccounts' as const,
       programId: MARGIN_PROGRAM_ID,
@@ -608,6 +618,7 @@ export const glowIntegration: SolanaIntegration = {
       } satisfies LendingDefiPosition)
     }
 
+    applyPositionsPctUsdValueChange24(tokenSource, positions)
     return positions
   },
 }

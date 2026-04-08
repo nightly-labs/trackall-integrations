@@ -9,6 +9,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
 const NIRVANA_PROGRAM_ID = 'NirvHuZvrm2zSxjkBvSbaF2tHfP5j7cvMj9QmdoHVwb'
 const TENANT_ADDRESS = 'BcAoCEdkzV2J21gAjCCEokBw5iMnAe96SbYo9F6QmKWV'
@@ -96,6 +97,15 @@ export const nirvanaIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const personalAccountMap = yield {
       kind: 'getProgramAccounts' as const,
       programId: NIRVANA_PROGRAM_ID,
@@ -212,6 +222,8 @@ export const nirvanaIntegration: SolanaIntegration = {
         result.push(lendingPosition)
       }
     }
+
+    applyPositionsPctUsdValueChange24(tokenSource, result)
 
     return result
   },

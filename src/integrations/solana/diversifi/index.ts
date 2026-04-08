@@ -8,6 +8,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
 const DIVERSIFI_BASKET_PROGRAM_ID =
   '3vyr9DRfMZb2KvUQdnps7YG3PY38XdguLBQaJ2DFkSxk'
@@ -123,6 +124,15 @@ export const diversifiIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const phase0Map = yield [
       {
         kind: 'getProgramAccounts' as const,
@@ -229,6 +239,7 @@ export const diversifiIntegration: SolanaIntegration = {
       return leftPool.localeCompare(rightPool)
     })
 
+    applyPositionsPctUsdValueChange24(tokenSource, positions)
     return positions as UserDefiPosition[]
   },
 }
