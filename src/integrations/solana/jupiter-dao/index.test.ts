@@ -92,7 +92,10 @@ describe('jupiter-dao integration', () => {
     let naiveTotal = 0
     const programRequestsByWallet = new Map<string, number>()
 
-    function trackYields(wallet: string, plan: UserPositionsPlan): UserPositionsPlan {
+    function trackYields(
+      wallet: string,
+      plan: UserPositionsPlan,
+    ): UserPositionsPlan {
       return (async function* (): UserPositionsPlan {
         let step = await plan.next()
         while (!step.done) {
