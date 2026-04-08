@@ -18,19 +18,20 @@ export const testAddress = '93PSyNrS7zBhrXaHHfU1ZtfegcKq5SaCYc35ZwPVrK3K'
 const KLEND_PROGRAM_ID = 'KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD'
 const KVAULT_PROGRAM_ID = 'KvauGMspG5k6rtzrqqn7WNn3oZdyKqLKwK2XWQ8FLjd'
 const FARMS_PROGRAM_ID = 'FarmsPZpWu9i7Kky8tPN37rs2TpmMrAZrC7S7vJa91Hr'
+const TOKEN_PROGRAM_ID_B58 = TOKEN_PROGRAM_ID.toBase58()
+const TOKEN_2022_PROGRAM_ID_B58 = TOKEN_2022_PROGRAM_ID.toBase58()
 
 export const PROGRAM_IDS = [
   KLEND_PROGRAM_ID,
   KVAULT_PROGRAM_ID,
   FARMS_PROGRAM_ID,
-  TOKEN_PROGRAM_ID.toBase58(),
-  TOKEN_2022_PROGRAM_ID.toBase58(),
+  TOKEN_PROGRAM_ID_B58,
+  TOKEN_2022_PROGRAM_ID_B58,
 ] as const
 
 const DEFAULT_PUBKEY = '11111111111111111111111111111111'
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
-const KVAULT_SHARES_MINT_OFFSET = 184
 const SF_DENOMINATOR = 1n << 60n
 const FARMS_WAD = 10n ** 18n
 
@@ -353,50 +354,17 @@ export const kaminoIntegration: SolanaIntegration = {
       },
     }
 
-    const userTokenAccounts = yield [
+    const phase0Map = yield [
       {
         kind: 'getTokenAccountsByOwner' as const,
         owner: address,
-        programId: TOKEN_PROGRAM_ID.toBase58(),
+        programId: TOKEN_PROGRAM_ID_B58,
       },
       {
         kind: 'getTokenAccountsByOwner' as const,
         owner: address,
-        programId: TOKEN_2022_PROGRAM_ID.toBase58(),
+        programId: TOKEN_2022_PROGRAM_ID_B58,
       },
-    ]
-
-    const userMintBalances = new Map<string, bigint>()
-    for (const account of Object.values(userTokenAccounts)) {
-      if (!account.exists) continue
-      const mint = readTokenAccountMint(account.data)
-      const amount = readTokenAccountAmount(account.data)
-      if (!mint || amount === null || amount <= 0n) continue
-
-      userMintBalances.set(mint, (userMintBalances.get(mint) ?? 0n) + amount)
-    }
-
-    const kvaultRequests = [...userMintBalances.keys()].map((mint) => ({
-      kind: 'getProgramAccounts' as const,
-      programId: KVAULT_PROGRAM_ID,
-      filters: [
-        {
-          memcmp: {
-            offset: 0,
-            bytes: KVAULT_STATE_DISC_B64,
-            encoding: 'base64' as const,
-          },
-        },
-        {
-          memcmp: {
-            offset: KVAULT_SHARES_MINT_OFFSET,
-            bytes: mint,
-          },
-        },
-      ],
-    }))
-
-    const phase1Requests = [
       {
         kind: 'getProgramAccounts' as const,
         programId: KLEND_PROGRAM_ID,
@@ -451,9 +419,23 @@ export const kaminoIntegration: SolanaIntegration = {
           },
         ],
       },
-      ...kvaultRequests,
     ]
-    const phase1Map = yield phase1Requests
+
+    const userMintBalances = new Map<string, bigint>()
+    for (const account of Object.values(phase0Map)) {
+      if (!account.exists) continue
+      if (
+        account.programAddress !== TOKEN_PROGRAM_ID_B58 &&
+        account.programAddress !== TOKEN_2022_PROGRAM_ID_B58
+      ) {
+        continue
+      }
+      const mint = readTokenAccountMint(account.data)
+      const amount = readTokenAccountAmount(account.data)
+      if (!mint || amount === null || amount <= 0n) continue
+
+      userMintBalances.set(mint, (userMintBalances.get(mint) ?? 0n) + amount)
+    }
 
     const obligations: KlendObligationDecoded[] = []
     const reserveAddressSet = new Set<string>()
@@ -465,7 +447,7 @@ export const kaminoIntegration: SolanaIntegration = {
     const kvaultSharePositions: UserDefiPosition[] = []
     const seenSharesMints = new Set<string>()
 
-    for (const account of Object.values(phase1Map)) {
+    for (const account of Object.values(phase0Map)) {
       if (!account.exists) continue
 
       if (account.programAddress === KLEND_PROGRAM_ID) {
@@ -499,7 +481,58 @@ export const kaminoIntegration: SolanaIntegration = {
         }
       }
 
-      if (account.programAddress === KVAULT_PROGRAM_ID) {
+      if (account.programAddress === FARMS_PROGRAM_ID) {
+        try {
+          const userState = UserState.decode(
+            Buffer.from(account.data),
+          ) as FarmsUserStateWire
+          const farmAddress = userState.farmState.toString()
+          if (farmAddress === DEFAULT_PUBKEY) continue
+
+          farmAddressSet.add(farmAddress)
+          const aggregate = farmsUserStates.get(farmAddress) ?? {
+            activeStakeScaled: 0n,
+            pendingWithdrawalUnstakeScaled: 0n,
+            rewardsIssuedUnclaimed: [],
+          }
+          aggregate.activeStakeScaled += toBigInt(userState.activeStakeScaled)
+          aggregate.pendingWithdrawalUnstakeScaled += toBigInt(
+            userState.pendingWithdrawalUnstakeScaled,
+          )
+          for (const [
+            index,
+            reward,
+          ] of userState.rewardsIssuedUnclaimed.entries()) {
+            const previous = aggregate.rewardsIssuedUnclaimed[index] ?? 0n
+            aggregate.rewardsIssuedUnclaimed[index] =
+              previous + toBigInt(reward)
+          }
+          farmsUserStates.set(farmAddress, aggregate)
+        } catch {
+          // Ignore decode failures from incompatible farms accounts.
+        }
+      }
+    }
+
+    if (userMintBalances.size > 0) {
+      const kvaultMap = yield {
+        kind: 'getProgramAccounts' as const,
+        programId: KVAULT_PROGRAM_ID,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: KVAULT_STATE_DISC_B64,
+              encoding: 'base64' as const,
+            },
+          },
+        ],
+      }
+
+      for (const account of Object.values(kvaultMap)) {
+        if (!account.exists) continue
+        if (account.programAddress !== KVAULT_PROGRAM_ID) continue
+
         try {
           const vault = decodeKVaultSharesMintAndDecimals(account.data)
           if (!vault || seenSharesMints.has(vault.sharesMint)) continue
@@ -537,38 +570,6 @@ export const kaminoIntegration: SolanaIntegration = {
           })
         } catch {
           // Ignore decode failures from non-vault or incompatible accounts.
-        }
-      }
-
-      if (account.programAddress === FARMS_PROGRAM_ID) {
-        try {
-          const userState = UserState.decode(
-            Buffer.from(account.data),
-          ) as FarmsUserStateWire
-          const farmAddress = userState.farmState.toString()
-          if (farmAddress === DEFAULT_PUBKEY) continue
-
-          farmAddressSet.add(farmAddress)
-          const aggregate = farmsUserStates.get(farmAddress) ?? {
-            activeStakeScaled: 0n,
-            pendingWithdrawalUnstakeScaled: 0n,
-            rewardsIssuedUnclaimed: [],
-          }
-          aggregate.activeStakeScaled += toBigInt(userState.activeStakeScaled)
-          aggregate.pendingWithdrawalUnstakeScaled += toBigInt(
-            userState.pendingWithdrawalUnstakeScaled,
-          )
-          for (const [
-            index,
-            reward,
-          ] of userState.rewardsIssuedUnclaimed.entries()) {
-            const previous = aggregate.rewardsIssuedUnclaimed[index] ?? 0n
-            aggregate.rewardsIssuedUnclaimed[index] =
-              previous + toBigInt(reward)
-          }
-          farmsUserStates.set(farmAddress, aggregate)
-        } catch {
-          // Ignore decode failures from incompatible farms accounts.
         }
       }
     }
