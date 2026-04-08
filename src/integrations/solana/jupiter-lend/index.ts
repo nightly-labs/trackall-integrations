@@ -9,9 +9,11 @@ import {
 import { PublicKey } from '@solana/web3.js'
 import BN from 'bn.js'
 import type {
+  AccountsMap,
   LendingBorrowedAsset,
   LendingDefiPosition,
   LendingSuppliedAsset,
+  ProgramRequest,
   SolanaIntegration,
   SolanaPlugins,
   UserDefiPosition,
@@ -41,6 +43,8 @@ const INTERNAL_VAULT_DECIMALS = 9
 
 const lendingCoder = new BorshCoder(lendingIdl as never)
 const vaultsCoder = new BorshCoder(vaultsIdl as never)
+const JUPITER_LENDING_POOLS_TTL_MS = 5 * 60 * 1000
+const POSITION_QUERY_CHUNK_SIZE = 64
 
 function accountDiscriminatorBase64(
   idl: { accounts?: Array<{ name: string; discriminator?: number[] }> },
@@ -83,6 +87,15 @@ function readTokenAccountMint(data: Uint8Array): string | null {
   const buf = Buffer.from(data)
   if (buf.length < TOKEN_ACCOUNT_MINT_OFFSET + 32) return null
   return readPubkey(buf, TOKEN_ACCOUNT_MINT_OFFSET)
+}
+
+export function chunkItems<T>(items: T[], chunkSize: number): T[][] {
+  if (chunkSize <= 0) return [items]
+  const chunks: T[][] = []
+  for (let i = 0; i < items.length; i += chunkSize) {
+    chunks.push(items.slice(i, i + chunkSize))
+  }
+  return chunks
 }
 
 /**
@@ -206,17 +219,35 @@ export const jupiterLendIntegration: SolanaIntegration = {
     }[] = []
     const uniqueVaultIds = new Set<number>()
     const seenPositionMints = new Set<string>()
-
-    for (const positionMint of userPositionMints) {
-      const positionsByMint = yield {
-        kind: 'getProgramAccounts' as const,
+    const positionMintSet = new Set(userPositionMints)
+    const positionQueries: ProgramRequest[] = userPositionMints.map(
+      (positionMint): ProgramRequest => ({
+        kind: 'getProgramAccounts',
         programId: VAULTS_PROGRAM_ID,
         filters: [
           {
-            memcmp: { offset: 0, bytes: POSITION_DISC_B64, encoding: 'base64' },
+            memcmp: {
+              offset: 0,
+              bytes: POSITION_DISC_B64,
+              encoding: 'base64',
+            },
           },
           { memcmp: { offset: POSITION_MINT_OFFSET, bytes: positionMint } },
         ],
+      }),
+    )
+
+    for (const queryChunk of chunkItems(
+      positionQueries,
+      POSITION_QUERY_CHUNK_SIZE,
+    )) {
+      let positionsByMint: AccountsMap
+      if (queryChunk.length === 1) {
+        const singleQuery = queryChunk[0]
+        if (singleQuery == null) continue
+        positionsByMint = yield singleQuery
+      } else {
+        positionsByMint = yield queryChunk
       }
 
       for (const acc of Object.values(positionsByMint)) {
@@ -231,7 +262,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
 
           const decodedPositionMint = (d.position_mint as PublicKey).toBase58()
           if (seenPositionMints.has(decodedPositionMint)) continue
-          if (decodedPositionMint !== positionMint) continue
+          if (!positionMintSet.has(decodedPositionMint)) continue
           seenPositionMints.add(decodedPositionMint)
           const vaultId = d.vault_id as number
           ownedPositions.push({
