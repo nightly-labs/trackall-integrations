@@ -14,6 +14,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
 const WRAPPED_SOL_MINT = 'So11111111111111111111111111111111111111112'
 const SOL_DECIMALS = 9
@@ -115,6 +116,15 @@ export const snsIntegration: SolanaIntegration = {
     address: string,
     plugins: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = plugins.tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     try {
       new PublicKey(address)
     } catch {
@@ -285,6 +295,8 @@ export const snsIntegration: SolanaIntegration = {
       }
       return leftAddress.localeCompare(rightAddress)
     })
+
+    applyPositionsPctUsdValueChange24(tokenSource, positions)
 
     return positions
   },

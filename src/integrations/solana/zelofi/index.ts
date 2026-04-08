@@ -6,6 +6,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
 const ZELOFI_PROGRAM_ID = '3weDTR2PBop8SoYXpQEhdRCA9Wr2JK7gj3CxuUbMo2VJ'
 const USER_RECORD_SEED = 'user-v2'
@@ -50,6 +51,15 @@ export const zelofiIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const user = new PublicKey(address)
     const [userRecordPda] = PublicKey.findProgramAddressSync(
       [Buffer.from(USER_RECORD_SEED), user.toBuffer()],
@@ -98,7 +108,10 @@ export const zelofiIntegration: SolanaIntegration = {
       },
     }
 
-    return [position] satisfies UserDefiPosition[]
+    const positions = [position] satisfies UserDefiPosition[]
+    applyPositionsPctUsdValueChange24(tokenSource, positions)
+
+    return positions
   },
 }
 

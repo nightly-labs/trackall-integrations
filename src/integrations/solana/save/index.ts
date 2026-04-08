@@ -9,6 +9,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
 const SAVE_PROGRAM_ID = 'So1endDq2YkqhipRh3WViPa8hdiSpxWy6z3Z6tMCpAo'
 const DEFAULT_PUBLIC_KEY = '11111111111111111111111111111111'
@@ -284,6 +285,15 @@ export const saveIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const phase0 = yield [
       {
         kind: 'getProgramAccounts' as const,
@@ -470,6 +480,8 @@ export const saveIntegration: SolanaIntegration = {
         },
       })
     }
+
+    applyPositionsPctUsdValueChange24(tokenSource, positions)
 
     return positions
   },

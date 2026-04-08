@@ -10,6 +10,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
 type SandglassAccountSnapshot = {
   accountAddress: string
@@ -224,6 +225,15 @@ export const sandglassIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const sandglassAccountMap = yield {
       kind: 'getProgramAccounts' as const,
       programId: SANDGLASS_PROGRAM_ID,
@@ -334,6 +344,8 @@ export const sandglassIntegration: SolanaIntegration = {
         tokenPriceUsd: lpToken?.priceUsd,
       })
     }
+
+    applyPositionsPctUsdValueChange24(tokenSource, result)
 
     return result
   },

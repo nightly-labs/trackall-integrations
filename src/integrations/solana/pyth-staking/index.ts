@@ -7,6 +7,7 @@ import type {
   StakingDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
 const STAKING_PROGRAM_ID = new PublicKey(
   'pytS9TjG1qyAZypk7n8rw8gfW9sUaqqYyMhJQ4E7JCQ',
@@ -228,6 +229,15 @@ export const pythStakingIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const [configPda] = PublicKey.findProgramAddressSync(
       [Buffer.from(CONFIG_SEED)],
       STAKING_PROGRAM_ID,
@@ -400,7 +410,10 @@ export const pythStakingIntegration: SolanaIntegration = {
         .toString()
     }
 
-    return [result]
+    const positions = [result]
+    applyPositionsPctUsdValueChange24(tokenSource, positions)
+
+    return positions
   },
 }
 

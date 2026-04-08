@@ -9,6 +9,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import clmmIdl from '../raydium/idls/amm_v3.json'
 
 const PANCAKESWAP_CLMM_PROGRAM_ID =
@@ -354,6 +355,15 @@ export const pancakeswapIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const phase0Map = yield [
       {
         kind: 'getTokenAccountsByOwner' as const,
@@ -678,6 +688,8 @@ export const pancakeswapIntegration: SolanaIntegration = {
         poolAddress: position.poolId,
       } satisfies ConcentratedRangeLiquidityDefiPosition)
     }
+
+    applyPositionsPctUsdValueChange24(tokenSource, positions)
 
     return positions
   },

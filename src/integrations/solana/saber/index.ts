@@ -9,6 +9,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
 const SABER_SWAP_PROGRAM_ID = 'SSwpkEEcbUqx4vtoEByFjSkhKdCT862DNVb52nZg1UZ'
 
@@ -141,6 +142,15 @@ export const saberIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const wallet = new PublicKey(address)
     const phase0Map = yield [
       {
@@ -273,6 +283,8 @@ export const saberIntegration: SolanaIntegration = {
       const bPool = b.positionKind === 'liquidity' ? (b.poolAddress ?? '') : ''
       return aPool.localeCompare(bPool)
     })
+
+    applyPositionsPctUsdValueChange24(tokenSource, positions)
 
     return positions
   },

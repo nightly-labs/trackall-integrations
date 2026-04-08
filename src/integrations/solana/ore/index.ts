@@ -6,6 +6,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
 const ORE_PROGRAM_ID = new PublicKey(
   'oreV3EG1i9BEgiAJ8b177Z2S2rMarzak4NMv1kULvWv',
@@ -89,6 +90,15 @@ export const oreIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const authority = new PublicKey(address)
 
     const [minerPda] = PublicKey.findProgramAddressSync(
@@ -353,6 +363,8 @@ export const oreIntegration: SolanaIntegration = {
         result.push(position)
       }
     }
+
+    applyPositionsPctUsdValueChange24(tokenSource, result)
 
     return result
   },
