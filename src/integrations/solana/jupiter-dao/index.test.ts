@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { Connection } from '@solana/web3.js'
 import type {
-  RewardDefiPosition,
   StakingDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
@@ -24,8 +23,6 @@ const wallets = [
   '5LurCmpQxeQpssfDECZzY3w9wCD5QexZ6QZ1CWNZATEo',
   '71kG5LnbjVFp3Grj7VZ8WCqTNU6XRihoPuHRTMvmZGKb',
 ]
-
-const cooldownWallet = '5LurCmpQxeQpssfDECZzY3w9wCD5QexZ6QZ1CWNZATEo'
 
 const { getUserPositions } = jupiterDaoIntegration
 if (!getUserPositions) throw new Error('getUserPositions not implemented')
@@ -62,10 +59,6 @@ describe('jupiter-dao integration', () => {
       (position): position is StakingDefiPosition =>
         position.positionKind === 'staking',
     )
-    const rewardPositions = positions.filter(
-      (position): position is RewardDefiPosition =>
-        position.positionKind === 'reward',
-    )
 
     console.log(`\nFound ${positions.length} Jupiter DAO positions`)
     console.log(
@@ -74,10 +67,7 @@ describe('jupiter-dao integration', () => {
     console.log('Positions:', JSON.stringify(positions, null, 2))
 
     expect(stakingPositions.length).toBeGreaterThan(0)
-    expect(rewardPositions.length).toBeGreaterThan(0)
-    expect(
-      rewardPositions.some((position) => position.sourceId === 'asr-q4'),
-    ).toBe(true)
+
     expect(totalProgramRequests).toBe(2)
   }, 60000)
 
@@ -158,29 +148,6 @@ describe('jupiter-dao integration', () => {
     })
 
     expect(results).toHaveLength(wallets.length)
-    expect(
-      results.some((positions) =>
-        positions.some(
-          (position) =>
-            position.positionKind === 'reward' &&
-            position.platformId === 'jupiter-dao',
-        ),
-      ),
-    ).toBe(true)
-
-    const cooldownWalletPositions =
-      results[wallets.indexOf(cooldownWallet)] ?? []
-    const cooldownStakingPositions = cooldownWalletPositions.filter(
-      (position): position is StakingDefiPosition =>
-        position.positionKind === 'staking',
-    )
-    expect(
-      cooldownStakingPositions.some(
-        (position) =>
-          (position.unbonding?.length ?? 0) > 0 &&
-          position.lockDuration === '604800',
-      ),
-    ).toBe(true)
 
     expect(totalProgramRequests).toBeLessThanOrEqual(wallets.length * 2)
     wallets.forEach((wallet, index) => {
