@@ -17,7 +17,6 @@ const SYMMETRY_LEGACY_FUNDS_PROGRAM_ID =
   '2KehYt3KsEQR53jYcxjbQp2d2kCp4AkuQW68atufRwSr'
 
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
-const TOKEN_ACCOUNT_OWNER_OFFSET = 32
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
 
 const MINT_ACCOUNT_DECIMALS_OFFSET = 44
@@ -446,18 +445,9 @@ export const symmetryIntegration: SolanaIntegration = {
 
     const phase0Map = yield [
       {
-        kind: 'getProgramAccounts' as const,
+        kind: 'getTokenAccountsByOwner' as const,
+        owner: wallet.toBase58(),
         programId: TOKEN_PROGRAM_ID.toBase58(),
-        filters: [
-          { dataSize: 165 },
-          {
-            memcmp: {
-              offset: TOKEN_ACCOUNT_OWNER_OFFSET,
-              bytes: wallet.toBase58(),
-              encoding: 'base58' as const,
-            },
-          },
-        ],
       },
     ]
 

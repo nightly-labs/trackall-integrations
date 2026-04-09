@@ -66,7 +66,6 @@ const VAULT_METADATA_DISC_B64 = accountDiscriminatorBase64(
 
 // SPL token account: amount at offset 64, mint at offset 0, owner at offset 32
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
-const TOKEN_ACCOUNT_OWNER_OFFSET = 32
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
 
 // Position struct (Anchor bytemuck): discriminator (8) + fields (packed)
@@ -172,7 +171,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
     const walletPubkey = new PublicKey(address)
     const walletAddress = walletPubkey.toBase58()
 
-    // ── Phase 0: Discover all required datasets in parallel via GPA ──────────
+    // ── Phase 0: Discover all required datasets in parallel ──────────────────
     const discoveryRequests: ProgramRequest[] = [
       {
         kind: 'getProgramAccounts',
@@ -188,17 +187,9 @@ export const jupiterLendIntegration: SolanaIntegration = {
         ],
       },
       {
-        kind: 'getProgramAccounts',
+        kind: 'getTokenAccountsByOwner',
+        owner: walletAddress,
         programId: TOKEN_PROGRAM_ID.toBase58(),
-        filters: [
-          { dataSize: 165 },
-          {
-            memcmp: {
-              offset: TOKEN_ACCOUNT_OWNER_OFFSET,
-              bytes: walletAddress,
-            },
-          },
-        ],
       },
       {
         kind: 'getProgramAccounts',
@@ -401,24 +392,15 @@ export const jupiterLendIntegration: SolanaIntegration = {
       ownedPositions.push(position)
     }
 
-    // ── Phase 1: Token-2022 fallback checks (mint + owner GPA) ──────────────
-    const token22Requests: ProgramRequest[] = needsToken22Check.map(
-      (fTokenMint): ProgramRequest => ({
-        kind: 'getProgramAccounts',
-        programId: TOKEN_2022_PROGRAM_ID.toBase58(),
-        filters: [
-          { memcmp: { offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: fTokenMint } },
-          {
-            memcmp: {
-              offset: TOKEN_ACCOUNT_OWNER_OFFSET,
-              bytes: walletAddress,
-            },
-          },
-        ],
-      }),
-    )
-
-    const token22Map = token22Requests.length > 0 ? yield token22Requests : {}
+    // ── Phase 1: Token-2022 fallback check by owner ──────────────────────────
+    const token22Map =
+      needsToken22Check.length > 0
+        ? yield ({
+            kind: 'getTokenAccountsByOwner',
+            owner: walletAddress,
+            programId: TOKEN_2022_PROGRAM_ID.toBase58(),
+          } satisfies ProgramRequest)
+        : {}
 
     const token22MintsToCheck = new Set(needsToken22Check)
     const token22EarnBalances = new Map<string, bigint>()

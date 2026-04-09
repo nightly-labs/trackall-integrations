@@ -40,7 +40,6 @@ const RESERVE_ACCUMULATED_PROTOCOL_FEES_WADS_OFFSET = 373
 
 const TOKEN_ACCOUNT_SIZE = 165
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
-const TOKEN_ACCOUNT_OWNER_OFFSET = 32
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
 
 const WAD = 10n ** 18n
@@ -285,6 +284,8 @@ export const saveIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const walletAddress = new PublicKey(address).toBase58()
+
     const tokenSource = {
       get(token: string): { pctPriceChange24h?: number } | undefined {
         const tokenData = tokens.get(token)
@@ -300,16 +301,13 @@ export const saveIntegration: SolanaIntegration = {
         programId: SAVE_PROGRAM_ID,
         filters: [
           { dataSize: OBLIGATION_ACCOUNT_SIZE },
-          { memcmp: { offset: OBLIGATION_OWNER_OFFSET, bytes: address } },
+          { memcmp: { offset: OBLIGATION_OWNER_OFFSET, bytes: walletAddress } },
         ],
       },
       {
-        kind: 'getProgramAccounts' as const,
+        kind: 'getTokenAccountsByOwner' as const,
+        owner: walletAddress,
         programId: TOKEN_PROGRAM_ID.toBase58(),
-        filters: [
-          { dataSize: TOKEN_ACCOUNT_SIZE },
-          { memcmp: { offset: TOKEN_ACCOUNT_OWNER_OFFSET, bytes: address } },
-        ],
       },
     ]
 

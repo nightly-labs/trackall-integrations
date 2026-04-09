@@ -17,10 +17,8 @@ const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
 const DIVERSIFI_BASKET_ACCOUNT_SIZE = 246
 const DIVERSIFI_BASKET_INDEX_MINT_OFFSET = 33
 
-const TOKEN_ACCOUNT_SIZE = 165
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
-const TOKEN_ACCOUNT_OWNER_OFFSET = 32
 
 const MINT_ACCOUNT_DECIMALS_OFFSET = 44
 const MINT_ACCOUNT_MINT_AUTHORITY_OPTION_OFFSET = 0
@@ -133,6 +131,8 @@ export const diversifiIntegration: SolanaIntegration = {
       },
     }
 
+    const wallet = new PublicKey(address)
+
     const phase0Map = yield [
       {
         kind: 'getProgramAccounts' as const,
@@ -140,18 +140,9 @@ export const diversifiIntegration: SolanaIntegration = {
         filters: [{ dataSize: DIVERSIFI_BASKET_ACCOUNT_SIZE }],
       },
       {
-        kind: 'getProgramAccounts' as const,
+        kind: 'getTokenAccountsByOwner' as const,
+        owner: wallet.toBase58(),
         programId: TOKEN_PROGRAM_ID,
-        filters: [
-          { dataSize: TOKEN_ACCOUNT_SIZE },
-          {
-            memcmp: {
-              offset: TOKEN_ACCOUNT_OWNER_OFFSET,
-              bytes: address,
-              encoding: 'base58',
-            },
-          },
-        ],
       },
     ]
 
