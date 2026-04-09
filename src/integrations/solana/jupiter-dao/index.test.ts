@@ -21,11 +21,11 @@ if (!solanaRpcUrl) {
 
 const wallets = [
   testAddress,
-  'AveF9QMdkx3aj8abTfBVZhugrNQQqEJnZsWWenAjTUUY',
+  '5LurCmpQxeQpssfDECZzY3w9wCD5QexZ6QZ1CWNZATEo',
   '71kG5LnbjVFp3Grj7VZ8WCqTNU6XRihoPuHRTMvmZGKb',
 ]
 
-const cooldownWallet = 'AveF9QMdkx3aj8abTfBVZhugrNQQqEJnZsWWenAjTUUY'
+const cooldownWallet = '5LurCmpQxeQpssfDECZzY3w9wCD5QexZ6QZ1CWNZATEo'
 
 const { getUserPositions } = jupiterDaoIntegration
 if (!getUserPositions) throw new Error('getUserPositions not implemented')
@@ -38,6 +38,7 @@ describe('jupiter-dao integration', () => {
 
     let totalBatches = 0
     let totalAccounts = 0
+    let totalProgramRequests = 0
 
     const [positions] = await runIntegrations(
       [getUserPositions(testAddress, plugins)],
@@ -49,7 +50,10 @@ describe('jupiter-dao integration', () => {
         )
         return fetchAccountsBatch(connection, addresses)
       },
-      (req) => fetchProgramAccountsBatch(connection, req),
+      (req) => {
+        totalProgramRequests++
+        return fetchProgramAccountsBatch(connection, req)
+      },
     )
 
     if (!positions) throw new Error('No results returned')
@@ -74,6 +78,7 @@ describe('jupiter-dao integration', () => {
     expect(
       rewardPositions.some((position) => position.sourceId === 'asr-q4'),
     ).toBe(true)
+    expect(totalProgramRequests).toBe(2)
   }, 60000)
 
   it('fetches positions for multiple wallets in batched RPC calls', async () => {
@@ -83,13 +88,25 @@ describe('jupiter-dao integration', () => {
 
     let totalBatches = 0
     let totalAccounts = 0
+    let totalProgramRequests = 0
     let naiveTotal = 0
+    const programRequestsByWallet = new Map<string, number>()
 
-    function trackYields(plan: UserPositionsPlan): UserPositionsPlan {
+    function trackYields(wallet: string, plan: UserPositionsPlan): UserPositionsPlan {
       return (async function* (): UserPositionsPlan {
         let step = await plan.next()
         while (!step.done) {
-          if (Array.isArray(step.value)) naiveTotal += step.value.length
+          if (Array.isArray(step.value)) {
+            if (step.value.length > 0 && typeof step.value[0] === 'string') {
+              naiveTotal += step.value.length
+            } else {
+              const current = programRequestsByWallet.get(wallet) ?? 0
+              programRequestsByWallet.set(wallet, current + step.value.length)
+            }
+          } else {
+            const current = programRequestsByWallet.get(wallet) ?? 0
+            programRequestsByWallet.set(wallet, current + 1)
+          }
           const accounts = yield step.value
           step = await plan.next(accounts)
         }
@@ -98,7 +115,9 @@ describe('jupiter-dao integration', () => {
     }
 
     const results = await runIntegrations(
-      wallets.map((wallet) => trackYields(getUserPositions(wallet, plugins))),
+      wallets.map((wallet) =>
+        trackYields(wallet, getUserPositions(wallet, plugins)),
+      ),
       async (addresses) => {
         totalBatches++
         totalAccounts += addresses.length
@@ -107,7 +126,10 @@ describe('jupiter-dao integration', () => {
         )
         return fetchAccountsBatch(connection, addresses)
       },
-      (req) => fetchProgramAccountsBatch(connection, req),
+      (req) => {
+        totalProgramRequests++
+        return fetchProgramAccountsBatch(connection, req)
+      },
     )
 
     const totalPositions = results.reduce(
@@ -156,5 +178,17 @@ describe('jupiter-dao integration', () => {
           position.lockDuration === '604800',
       ),
     ).toBe(true)
+
+    expect(totalProgramRequests).toBeLessThanOrEqual(wallets.length * 2)
+    wallets.forEach((wallet, index) => {
+      const walletProgramRequests = programRequestsByWallet.get(wallet) ?? 0
+      const hasStakingPosition = (results[index] ?? []).some(
+        (position) => position.positionKind === 'staking',
+      )
+      expect(walletProgramRequests).toBeLessThanOrEqual(2)
+      if (hasStakingPosition) {
+        expect(walletProgramRequests).toBe(2)
+      }
+    })
   }, 60000)
 })

@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto'
 import { PublicKey } from '@solana/web3.js'
 import type {
   PositionValue,
-  ProgramRequest,
   RewardDefiPosition,
   SolanaIntegration,
   SolanaPlugins,
@@ -12,7 +11,7 @@ import type {
   UserPositionsPlan,
 } from '../../../types/index'
 
-export const testAddress = '2gCnryXFV2B7SdZwyGVHK3jA88FQcf5UPiqjzqvePvhv'
+export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
 const JUPITER_REALM = new PublicKey(
   'bJ1TRoFo2P6UHVwqdiipp6Qhp2HaaHpLowZ5LHet8Gm',
@@ -277,6 +276,13 @@ export const jupiterDaoIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const jupToken = tokens.get(JUP_MINT)
+    const jupPriceUsd = jupToken?.priceUsd
+    const jupDecimals = jupToken?.decimals ?? JUP_DECIMALS
+    const asrRewardsPromise = fetchAsrRewards(address, jupToken).catch(
+      () => [] as RewardDefiPosition[],
+    )
+
     const escrowAccounts = yield {
       kind: 'getProgramAccounts' as const,
       programId: LOCKED_VOTER_PROGRAM_ID.toBase58(),
@@ -302,42 +308,38 @@ export const jupiterDaoIntegration: SolanaIntegration = {
       .map((account) => decodeEscrow(account.address, account.data))
       .filter((escrow): escrow is JupiterEscrow => escrow !== null)
 
-    const partialUnstakingRequests: ProgramRequest[] = escrows.map(
-      (escrow) => ({
-        kind: 'getProgramAccounts',
-        programId: LOCKED_VOTER_PROGRAM_ID.toBase58(),
-        filters: [
-          {
-            memcmp: {
-              offset: 0,
-              bytes: PARTIAL_UNSTAKING_DISCRIMINATOR_B64,
-              encoding: 'base64',
-            },
-          },
-          {
-            memcmp: {
-              offset: PARTIAL_UNSTAKING_ESCROW_OFFSET,
-              bytes: escrow.address,
-            },
-          },
-        ],
-      }),
-    )
-
     const partialUnstakingAccounts =
-      partialUnstakingRequests.length > 0 ? yield partialUnstakingRequests : {}
+      escrows.length > 0
+        ? yield {
+            kind: 'getProgramAccounts',
+            programId: LOCKED_VOTER_PROGRAM_ID.toBase58(),
+            filters: [
+              {
+                memcmp: {
+                  offset: 0,
+                  bytes: PARTIAL_UNSTAKING_DISCRIMINATOR_B64,
+                  encoding: 'base64',
+                },
+              },
+            ],
+          }
+        : {}
 
     const positions: UserDefiPosition[] = []
     const now = BigInt(Math.floor(Date.now() / 1000))
-    const jupToken = tokens.get(JUP_MINT)
-    const jupPriceUsd = jupToken?.priceUsd
-    const jupDecimals = jupToken?.decimals ?? JUP_DECIMALS
+    const escrowAddressSet = new Set(escrows.map((escrow) => escrow.address))
 
     const partialsByEscrow = new Map<string, PartialUnstaking[]>()
     for (const account of Object.values(partialUnstakingAccounts)) {
       if (!account.exists) continue
       const partial = decodePartialUnstaking(account.data)
-      if (!partial || partial.expiration <= now) continue
+      if (
+        !partial ||
+        !escrowAddressSet.has(partial.escrow) ||
+        partial.expiration <= now
+      ) {
+        continue
+      }
 
       const current = partialsByEscrow.get(partial.escrow) ?? []
       current.push(partial)
@@ -435,11 +437,7 @@ export const jupiterDaoIntegration: SolanaIntegration = {
       positions.push(position)
     }
 
-    try {
-      positions.push(...(await fetchAsrRewards(address, jupToken)))
-    } catch {
-      // Fail soft on ASR fetch issues so staking positions still resolve.
-    }
+    positions.push(...(await asrRewardsPromise))
 
     return positions
   },
