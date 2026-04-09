@@ -1,15 +1,9 @@
 import { BorshCoder } from '@coral-xyz/anchor'
-import { borrowPda } from '@jup-ag/lend'
 import { getRatioAtTick, INIT_TICK, MIN_TICK } from '@jup-ag/lend/borrow'
-import {
-  getAssociatedTokenAddressSync,
-  TOKEN_2022_PROGRAM_ID,
-  TOKEN_PROGRAM_ID,
-} from '@solana/spl-token'
+import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { PublicKey } from '@solana/web3.js'
 import BN from 'bn.js'
 import type {
-  AccountsMap,
   LendingBorrowedAsset,
   LendingDefiPosition,
   LendingSuppliedAsset,
@@ -43,7 +37,6 @@ const INTERNAL_VAULT_DECIMALS = 9
 
 const lendingCoder = new BorshCoder(lendingIdl as never)
 const vaultsCoder = new BorshCoder(vaultsIdl as never)
-const POSITION_QUERY_CHUNK_SIZE = 64
 
 function accountDiscriminatorBase64(
   idl: { accounts?: Array<{ name: string; discriminator?: number[] }> },
@@ -61,15 +54,48 @@ function accountDiscriminatorBase64(
 // Discriminator bytes for getProgramAccounts memcmp filters
 const LENDING_DISC_B64 = accountDiscriminatorBase64(lendingIdl, 'Lending')
 const POSITION_DISC_B64 = accountDiscriminatorBase64(vaultsIdl, 'Position')
+const VAULT_CONFIG_DISC_B64 = accountDiscriminatorBase64(
+  vaultsIdl,
+  'VaultConfig',
+)
+const VAULT_STATE_DISC_B64 = accountDiscriminatorBase64(vaultsIdl, 'VaultState')
+const VAULT_METADATA_DISC_B64 = accountDiscriminatorBase64(
+  vaultsIdl,
+  'VaultMetadata',
+)
 
-// SPL token account: amount at offset 64, mint at offset 0
-const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
+// SPL token account: amount at offset 64, mint at offset 0, owner at offset 32
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
-// Position struct (Anchor bytemuck): discriminator (8) + vault_id (u16) + nft_id (u32)
+const TOKEN_ACCOUNT_OWNER_OFFSET = 32
+const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
+
+// Position struct (Anchor bytemuck): discriminator (8) + fields (packed)
+const POSITION_VAULT_ID_OFFSET = 8
 const POSITION_MINT_OFFSET = 14
+const POSITION_IS_SUPPLY_ONLY_OFFSET = 46
+const POSITION_TICK_OFFSET = 47
+const POSITION_SUPPLY_AMOUNT_OFFSET = 55
+const POSITION_DUST_DEBT_AMOUNT_OFFSET = 63
+
+type DecodedPosition = {
+  vaultId: number
+  positionMint: string
+  isSupplyOnly: boolean
+  tick: number
+  supplyAmount: bigint
+  dustDebtAmount: bigint
+}
 
 function readPubkey(buf: Buffer, offset: number): string {
   return new PublicKey(buf.slice(offset, offset + 32)).toBase58()
+}
+
+function readU16LE(buf: Buffer, offset: number): number {
+  return buf.readUInt16LE(offset)
+}
+
+function readI32LE(buf: Buffer, offset: number): number {
+  return buf.readInt32LE(offset)
 }
 
 function readU64LE(buf: Buffer, offset: number): bigint {
@@ -88,13 +114,23 @@ function readTokenAccountMint(data: Uint8Array): string | null {
   return readPubkey(buf, TOKEN_ACCOUNT_MINT_OFFSET)
 }
 
-export function chunkItems<T>(items: T[], chunkSize: number): T[][] {
-  if (chunkSize <= 0) return [items]
-  const chunks: T[][] = []
-  for (let i = 0; i < items.length; i += chunkSize) {
-    chunks.push(items.slice(i, i + chunkSize))
+function readDiscriminatorBase64(data: Uint8Array): string | null {
+  if (data.length < 8) return null
+  return Buffer.from(data.subarray(0, 8)).toString('base64')
+}
+
+function parsePositionAccount(data: Uint8Array): DecodedPosition | null {
+  const buf = Buffer.from(data)
+  if (buf.length < POSITION_DUST_DEBT_AMOUNT_OFFSET + 8) return null
+
+  return {
+    vaultId: readU16LE(buf, POSITION_VAULT_ID_OFFSET),
+    positionMint: readPubkey(buf, POSITION_MINT_OFFSET),
+    isSupplyOnly: buf[POSITION_IS_SUPPLY_ONLY_OFFSET] !== 0,
+    tick: readI32LE(buf, POSITION_TICK_OFFSET),
+    supplyAmount: readU64LE(buf, POSITION_SUPPLY_AMOUNT_OFFSET),
+    dustDebtAmount: readU64LE(buf, POSITION_DUST_DEBT_AMOUNT_OFFSET),
   }
-  return chunks
 }
 
 /**
@@ -134,93 +170,37 @@ export const jupiterLendIntegration: SolanaIntegration = {
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
     const walletPubkey = new PublicKey(address)
+    const walletAddress = walletPubkey.toBase58()
 
-    // ── Phase 0a: Earn — discover all lending pool accounts ──────────────────
-    const lendingMap = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: LENDING_PROGRAM_ID,
-      filters: [
-        {
-          memcmp: {
-            offset: 0,
-            bytes: LENDING_DISC_B64,
-            encoding: 'base64',
+    // ── Phase 0: Discover all required datasets in parallel via GPA ──────────
+    const discoveryRequests: ProgramRequest[] = [
+      {
+        kind: 'getProgramAccounts',
+        programId: LENDING_PROGRAM_ID,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: LENDING_DISC_B64,
+              encoding: 'base64',
+            },
           },
-        },
-      ],
-    }
-    const earnPools: Array<{
-      mint: string
-      fTokenMint: string
-      decimals: number
-      tokenExchangePrice: bigint
-    }> = []
-
-    for (const acc of Object.values(lendingMap)) {
-      if (!acc.exists) continue
-      try {
-        const d = lendingCoder.accounts.decode('Lending', Buffer.from(acc.data))
-        earnPools.push({
-          mint: (d.mint as PublicKey).toBase58(),
-          fTokenMint: (d.f_token_mint as PublicKey).toBase58(),
-          decimals: d.decimals as number,
-          tokenExchangePrice: BigInt((d.token_exchange_price as BN).toString()),
-        })
-      } catch {
-        // skip accounts that fail to decode
-      }
-    }
-
-    // ── Phase 0b: Get all of the user's SPL token accounts ───────────────────
-    const userSplMap = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: TOKEN_PROGRAM_ID.toBase58(),
-      filters: [
-        { dataSize: 165 },
-        { memcmp: { offset: 32, bytes: walletPubkey.toBase58() } },
-      ],
-    }
-    // Build mint → amount map for all the user's SPL token accounts
-    const userMintBalances = new Map<string, bigint>() // mint → amount
-    for (const acc of Object.values(userSplMap)) {
-      if (!acc.exists) continue
-      const mint = readTokenAccountMint(acc.data)
-      const amount = readTokenAccountAmount(acc.data)
-      if (mint && amount !== null && amount > 0n) {
-        userMintBalances.set(mint, amount)
-      }
-    }
-
-    // Earn: which fTokenMints does the user hold via SPL?
-    const splEarnBalances = new Map<string, bigint>() // fTokenMint → shares
-    const needsToken22Check: string[] = [] // fTokenMint addresses not found in SPL
-
-    for (const pool of earnPools) {
-      const balance = userMintBalances.get(pool.fTokenMint)
-      if (balance !== undefined && balance > 0n) {
-        splEarnBalances.set(pool.fTokenMint, balance)
-      } else {
-        needsToken22Check.push(pool.fTokenMint)
-      }
-    }
-
-    // ── Phase 0c: Vault positions — user-owned positions via position mint ──
-    const userPositionMints = [...userMintBalances.entries()]
-      .filter(([, amount]) => amount === 1n)
-      .map(([mint]) => mint)
-    const ownedPositions: {
-      vaultId: number
-      positionMint: string
-      isSupplyOnly: boolean
-      tick: number
-      supplyAmount: bigint
-      dustDebtAmount: bigint
-    }[] = []
-    const uniqueVaultIds = new Set<number>()
-    const seenPositionMints = new Set<string>()
-    const positionMintSet = new Set(userPositionMints)
-    const positionQueries: ProgramRequest[] = userPositionMints.map(
-      (positionMint): ProgramRequest => ({
+        ],
+      },
+      {
+        kind: 'getProgramAccounts',
+        programId: TOKEN_PROGRAM_ID.toBase58(),
+        filters: [
+          { dataSize: 165 },
+          {
+            memcmp: {
+              offset: TOKEN_ACCOUNT_OWNER_OFFSET,
+              bytes: walletAddress,
+            },
+          },
+        ],
+      },
+      {
         kind: 'getProgramAccounts',
         programId: VAULTS_PROGRAM_ID,
         filters: [
@@ -231,93 +211,243 @@ export const jupiterLendIntegration: SolanaIntegration = {
               encoding: 'base64',
             },
           },
-          { memcmp: { offset: POSITION_MINT_OFFSET, bytes: positionMint } },
         ],
-      }),
-    )
+      },
+      {
+        kind: 'getProgramAccounts',
+        programId: VAULTS_PROGRAM_ID,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: VAULT_CONFIG_DISC_B64,
+              encoding: 'base64',
+            },
+          },
+        ],
+      },
+      {
+        kind: 'getProgramAccounts',
+        programId: VAULTS_PROGRAM_ID,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: VAULT_STATE_DISC_B64,
+              encoding: 'base64',
+            },
+          },
+        ],
+      },
+      {
+        kind: 'getProgramAccounts',
+        programId: VAULTS_PROGRAM_ID,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: VAULT_METADATA_DISC_B64,
+              encoding: 'base64',
+            },
+          },
+        ],
+      },
+    ]
+    const discoveryMap = yield discoveryRequests
 
-    for (const queryChunk of chunkItems(
-      positionQueries,
-      POSITION_QUERY_CHUNK_SIZE,
-    )) {
-      let positionsByMint: AccountsMap
-      if (queryChunk.length === 1) {
-        const singleQuery = queryChunk[0]
-        if (singleQuery == null) continue
-        positionsByMint = yield singleQuery
-      } else {
-        positionsByMint = yield queryChunk
-      }
+    const earnPools: Array<{
+      mint: string
+      fTokenMint: string
+      decimals: number
+      tokenExchangePrice: bigint
+    }> = []
 
-      for (const acc of Object.values(positionsByMint)) {
-        if (!acc.exists) continue
+    // Build mint → amount map for all user SPL token accounts.
+    const userMintBalances = new Map<string, bigint>()
+
+    const positionsByMint = new Map<string, DecodedPosition>()
+
+    const vaultConfigMap = new Map<
+      number,
+      { supplyToken: string; borrowToken: string }
+    >()
+    const vaultStateMap = new Map<
+      number,
+      { vaultSupplyExchangePrice: bigint; vaultBorrowExchangePrice: bigint }
+    >()
+    const vaultMetaMap = new Map<
+      number,
+      { supplyDecimals: number; borrowDecimals: number }
+    >()
+
+    for (const acc of Object.values(discoveryMap)) {
+      if (!acc.exists) continue
+
+      if (acc.programAddress === LENDING_PROGRAM_ID) {
         try {
-          const d = vaultsCoder.accounts.decode(
-            'Position',
+          const d = lendingCoder.accounts.decode(
+            'Lending',
             Buffer.from(acc.data),
           )
-          const supplyAmount = BigInt((d.supply_amount as BN).toString())
-          if (supplyAmount === 0n) continue
-
-          const decodedPositionMint = (d.position_mint as PublicKey).toBase58()
-          if (seenPositionMints.has(decodedPositionMint)) continue
-          if (!positionMintSet.has(decodedPositionMint)) continue
-          seenPositionMints.add(decodedPositionMint)
-          const vaultId = d.vault_id as number
-          ownedPositions.push({
-            vaultId,
-            positionMint: decodedPositionMint,
-            isSupplyOnly: (d.is_supply_only_position as number) !== 0,
-            tick: d.tick as number,
-            supplyAmount,
-            dustDebtAmount: BigInt((d.dust_debt_amount as BN).toString()),
+          earnPools.push({
+            mint: (d.mint as PublicKey).toBase58(),
+            fTokenMint: (d.f_token_mint as PublicKey).toBase58(),
+            decimals: d.decimals as number,
+            tokenExchangePrice: BigInt(
+              (d.token_exchange_price as BN).toString(),
+            ),
           })
-          uniqueVaultIds.add(vaultId)
+        } catch {
+          // skip accounts that fail to decode
+        }
+        continue
+      }
+
+      if (acc.programAddress === TOKEN_PROGRAM_ID.toBase58()) {
+        const mint = readTokenAccountMint(acc.data)
+        const amount = readTokenAccountAmount(acc.data)
+        if (mint && amount !== null && amount > 0n) {
+          userMintBalances.set(mint, amount)
+        }
+        continue
+      }
+
+      if (acc.programAddress !== VAULTS_PROGRAM_ID) continue
+
+      const discriminator = readDiscriminatorBase64(acc.data)
+      if (discriminator === POSITION_DISC_B64) {
+        const parsed = parsePositionAccount(acc.data)
+        if (!parsed || parsed.supplyAmount === 0n) continue
+        if (!positionsByMint.has(parsed.positionMint)) {
+          positionsByMint.set(parsed.positionMint, parsed)
+        }
+        continue
+      }
+
+      if (discriminator === VAULT_CONFIG_DISC_B64) {
+        try {
+          const d = vaultsCoder.accounts.decode(
+            'VaultConfig',
+            Buffer.from(acc.data),
+          )
+          vaultConfigMap.set(d.vault_id as number, {
+            supplyToken: (d.supply_token as PublicKey).toBase58(),
+            borrowToken: (d.borrow_token as PublicKey).toBase58(),
+          })
+        } catch {
+          // skip accounts that fail to decode
+        }
+        continue
+      }
+
+      if (discriminator === VAULT_STATE_DISC_B64) {
+        try {
+          const d = vaultsCoder.accounts.decode(
+            'VaultState',
+            Buffer.from(acc.data),
+          )
+          vaultStateMap.set(d.vault_id as number, {
+            vaultSupplyExchangePrice: BigInt(
+              (d.vault_supply_exchange_price as BN).toString(),
+            ),
+            vaultBorrowExchangePrice: BigInt(
+              (d.vault_borrow_exchange_price as BN).toString(),
+            ),
+          })
+        } catch {
+          // skip accounts that fail to decode
+        }
+        continue
+      }
+
+      if (discriminator === VAULT_METADATA_DISC_B64) {
+        try {
+          const d = vaultsCoder.accounts.decode(
+            'VaultMetadata',
+            Buffer.from(acc.data),
+          )
+          vaultMetaMap.set(d.vault_id as number, {
+            supplyDecimals: d.supply_mint_decimals as number,
+            borrowDecimals: d.borrow_mint_decimals as number,
+          })
         } catch {
           // skip accounts that fail to decode
         }
       }
     }
 
-    // ── Phase 1: Small targeted fetch ────────────────────────────────────────
-    const t22ATAByMint = new Map(
-      needsToken22Check.map((fTokenMint) => [
-        fTokenMint,
-        getAssociatedTokenAddressSync(
-          new PublicKey(fTokenMint),
-          walletPubkey,
-          true,
-          TOKEN_2022_PROGRAM_ID,
-        ).toBase58(),
-      ]),
+    // Earn: which fTokenMints does the user hold via SPL?
+    const splEarnBalances = new Map<string, bigint>()
+    const needsToken22Check: string[] = []
+
+    for (const pool of earnPools) {
+      const balance = userMintBalances.get(pool.fTokenMint)
+      if (balance !== undefined && balance > 0n) {
+        splEarnBalances.set(pool.fTokenMint, balance)
+      } else {
+        needsToken22Check.push(pool.fTokenMint)
+      }
+    }
+
+    // Wallet position mints are NFT-like token balances with amount=1.
+    const userPositionMints = [...userMintBalances.entries()]
+      .filter(([, amount]) => amount === 1n)
+      .map(([mint]) => mint)
+
+    const ownedPositions: DecodedPosition[] = []
+    for (const positionMint of userPositionMints) {
+      const position = positionsByMint.get(positionMint)
+      if (!position) continue
+      ownedPositions.push(position)
+    }
+
+    // ── Phase 1: Token-2022 fallback checks (mint + owner GPA) ──────────────
+    const token22Requests: ProgramRequest[] = needsToken22Check.map(
+      (fTokenMint): ProgramRequest => ({
+        kind: 'getProgramAccounts',
+        programId: TOKEN_2022_PROGRAM_ID.toBase58(),
+        filters: [
+          { memcmp: { offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: fTokenMint } },
+          {
+            memcmp: {
+              offset: TOKEN_ACCOUNT_OWNER_OFFSET,
+              bytes: walletAddress,
+            },
+          },
+        ],
+      }),
     )
 
-    const vaults = [...uniqueVaultIds].map((id) => ({
-      id,
-      configAddr: borrowPda.getVaultConfig(id).toBase58(),
-      stateAddr: borrowPda.getVaultState(id).toBase58(),
-      metaAddr: borrowPda.getVaultMetadata(id).toBase58(),
-    }))
+    const token22Map = token22Requests.length > 0 ? yield token22Requests : {}
 
-    const phase1Map = yield [
-      ...t22ATAByMint.values(),
-      ...vaults.map((v) => v.configAddr),
-      ...vaults.map((v) => v.stateAddr),
-      ...vaults.map((v) => v.metaAddr),
-    ]
+    const token22MintsToCheck = new Set(needsToken22Check)
+    const token22EarnBalances = new Map<string, bigint>()
+
+    for (const acc of Object.values(token22Map)) {
+      if (!acc.exists) continue
+      if (acc.programAddress !== TOKEN_2022_PROGRAM_ID.toBase58()) continue
+
+      const mint = readTokenAccountMint(acc.data)
+      const amount = readTokenAccountAmount(acc.data)
+      if (!mint || amount === null || amount <= 0n) continue
+      if (!token22MintsToCheck.has(mint)) continue
+
+      token22EarnBalances.set(
+        mint,
+        (token22EarnBalances.get(mint) ?? 0n) + amount,
+      )
+    }
+
     const result: UserDefiPosition[] = []
 
     // ── Decode Earn positions ─────────────────────────────────────────────────
     for (const pool of earnPools) {
-      let shares = splEarnBalances.get(pool.fTokenMint)
-      if (shares === undefined) {
-        const ata = t22ATAByMint.get(pool.fTokenMint)
-        if (ata !== undefined) {
-          const ataAcc = phase1Map[ata]
-          if (ataAcc?.exists) shares = readTokenAccountAmount(ataAcc.data) ?? 0n
-        }
-      }
-      if (!shares || shares === 0n) continue
+      const shares =
+        splEarnBalances.get(pool.fTokenMint) ??
+        token22EarnBalances.get(pool.fTokenMint) ??
+        0n
+
+      if (shares === 0n) continue
 
       const underlying = (shares * pool.tokenExchangePrice) / EXCHANGE_PRECISION
       if (underlying === 0n) continue
@@ -348,67 +478,6 @@ export const jupiterLendIntegration: SolanaIntegration = {
     }
 
     // ── Decode CDP vault positions ────────────────────────────────────────────
-    const vaultConfigMap = new Map<
-      number,
-      { supplyToken: string; borrowToken: string }
-    >()
-    const vaultStateMap = new Map<
-      number,
-      { vaultSupplyExchangePrice: bigint; vaultBorrowExchangePrice: bigint }
-    >()
-    const vaultMetaMap = new Map<
-      number,
-      { supplyDecimals: number; borrowDecimals: number }
-    >()
-
-    for (const vault of vaults) {
-      const { id, configAddr, stateAddr, metaAddr } = vault
-      const cfgAcc = phase1Map[configAddr]
-      const stateAcc = phase1Map[stateAddr]
-      const metaAcc = phase1Map[metaAddr]
-
-      if (cfgAcc?.exists) {
-        try {
-          const d = vaultsCoder.accounts.decode(
-            'VaultConfig',
-            Buffer.from(cfgAcc.data),
-          )
-          vaultConfigMap.set(id, {
-            supplyToken: (d.supply_token as PublicKey).toBase58(),
-            borrowToken: (d.borrow_token as PublicKey).toBase58(),
-          })
-        } catch {}
-      }
-      if (stateAcc?.exists) {
-        try {
-          const d = vaultsCoder.accounts.decode(
-            'VaultState',
-            Buffer.from(stateAcc.data),
-          )
-          vaultStateMap.set(id, {
-            vaultSupplyExchangePrice: BigInt(
-              (d.vault_supply_exchange_price as BN).toString(),
-            ),
-            vaultBorrowExchangePrice: BigInt(
-              (d.vault_borrow_exchange_price as BN).toString(),
-            ),
-          })
-        } catch {}
-      }
-      if (metaAcc?.exists) {
-        try {
-          const d = vaultsCoder.accounts.decode(
-            'VaultMetadata',
-            Buffer.from(metaAcc.data),
-          )
-          vaultMetaMap.set(id, {
-            supplyDecimals: d.supply_mint_decimals as number,
-            borrowDecimals: d.borrow_mint_decimals as number,
-          })
-        } catch {}
-      }
-    }
-
     for (const pos of ownedPositions) {
       const cfg = vaultConfigMap.get(pos.vaultId)
       const state = vaultStateMap.get(pos.vaultId)
