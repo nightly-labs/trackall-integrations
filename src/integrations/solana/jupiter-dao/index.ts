@@ -2,17 +2,14 @@ import { createHash } from 'node:crypto'
 import { PublicKey } from '@solana/web3.js'
 import type {
   PositionValue,
-  ProgramRequest,
-  RewardDefiPosition,
   SolanaIntegration,
   SolanaPlugins,
   StakingDefiPosition,
-  TokenData,
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
 
-export const testAddress = '2gCnryXFV2B7SdZwyGVHK3jA88FQcf5UPiqjzqvePvhv'
+export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
 const JUPITER_REALM = new PublicKey(
   'bJ1TRoFo2P6UHVwqdiipp6Qhp2HaaHpLowZ5LHet8Gm',
@@ -25,7 +22,6 @@ const LOCKED_VOTER_PROGRAM_ID = new PublicKey(
 )
 const JUP_MINT = 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN'
 const JUP_DECIMALS = 6
-const JUPITER_ASR_CAMPAIGNS_URL = 'https://datapi.jup.ag/rewards/v1/campaigns'
 const SEVEN_DAY_UNSTAKE_SECONDS = 7 * 24 * 60 * 60
 
 const [GOVERNOR_PDA] = PublicKey.findProgramAddressSync(
@@ -57,30 +53,6 @@ const ESCROW_IS_MAX_LOCK_OFFSET = 161
 const PARTIAL_UNSTAKING_ESCROW_OFFSET = 8
 const PARTIAL_UNSTAKING_AMOUNT_OFFSET = 40
 const PARTIAL_UNSTAKING_EXPIRATION_OFFSET = 48
-
-type JupiterRewardsCampaign = {
-  id: string
-  slug: string
-  address: string
-  title: string
-  claimStartsAt?: string
-  claimEndsAt?: string
-  reward?: {
-    type?: string
-    assetId?: string
-  }
-}
-
-type JupiterRewardsCampaignsResponse = {
-  campaigns?: JupiterRewardsCampaign[]
-}
-
-type JupiterRewardsStats = {
-  rewardType?: string
-  unclaimedAmount?: number
-  claimedAmount?: number
-  updatedAt?: string
-}
 
 type JupiterEscrow = {
   address: string
@@ -164,112 +136,6 @@ function decodePartialUnstaking(data: Uint8Array): PartialUnstaking | null {
   }
 }
 
-function toRawTokenAmount(amount: number, decimals: number): bigint {
-  const value = amount.toFixed(decimals)
-  const [whole, fraction = ''] = value.split('.')
-  const paddedFraction = fraction.padEnd(decimals, '0').slice(0, decimals)
-  return BigInt(`${whole}${paddedFraction}`)
-}
-
-async function fetchAsrRewards(
-  address: string,
-  jupToken: TokenData | undefined,
-): Promise<RewardDefiPosition[]> {
-  const campaignsRes = await fetch(JUPITER_ASR_CAMPAIGNS_URL)
-  if (!campaignsRes.ok) {
-    throw new Error(
-      `Failed to fetch Jupiter ASR campaigns: ${campaignsRes.status}`,
-    )
-  }
-
-  const { campaigns = [] } =
-    (await campaignsRes.json()) as JupiterRewardsCampaignsResponse
-
-  const asrCampaigns = campaigns.filter((campaign) => {
-    return (
-      campaign.slug.startsWith('asr-') &&
-      campaign.reward?.type === 'retroactive' &&
-      campaign.reward?.assetId === JUP_MINT &&
-      campaign.title.includes('Active Staking Rewards')
-    )
-  })
-
-  const rewardPositions = await Promise.all(
-    asrCampaigns.map(async (campaign) => {
-      const statsRes = await fetch(
-        `${JUPITER_ASR_CAMPAIGNS_URL}/${campaign.slug}/stats/${address}`,
-      )
-      if (!statsRes.ok) return null
-
-      const stats = (await statsRes.json()) as JupiterRewardsStats
-      const unclaimedAmount = stats.unclaimedAmount ?? 0
-      const claimedAmount = stats.claimedAmount ?? 0
-
-      if (unclaimedAmount <= 0 && claimedAmount <= 0) {
-        return null
-      }
-
-      const decimals = jupToken?.decimals ?? JUP_DECIMALS
-      const priceUsd = jupToken?.priceUsd
-
-      const position: RewardDefiPosition = {
-        platformId: 'jupiter-dao',
-        positionKind: 'reward',
-        ...(unclaimedAmount > 0 && {
-          claimable: [
-            buildPositionValue(
-              JUP_MINT,
-              toRawTokenAmount(unclaimedAmount, decimals),
-              decimals,
-              priceUsd,
-            ),
-          ],
-        }),
-        ...(claimedAmount > 0 && {
-          claimed: [
-            buildPositionValue(
-              JUP_MINT,
-              toRawTokenAmount(claimedAmount, decimals),
-              decimals,
-              priceUsd,
-            ),
-          ],
-        }),
-        sourceId: campaign.slug,
-        ...(campaign.claimStartsAt && {
-          claimableFrom: campaign.claimStartsAt,
-        }),
-        ...(campaign.claimEndsAt && { expiresAt: campaign.claimEndsAt }),
-        meta: {
-          campaign: {
-            id: campaign.id,
-            slug: campaign.slug,
-            title: campaign.title,
-            address: campaign.address,
-            updatedAt: stats.updatedAt,
-          },
-        },
-      }
-
-      const usdValue =
-        [...(position.claimable ?? []), ...(position.claimed ?? [])]
-          .map((entry) => entry.usdValue)
-          .filter((value): value is string => value !== undefined)
-          .reduce((sum, value) => sum + Number(value), 0) || undefined
-
-      if (usdValue !== undefined) {
-        position.usdValue = usdValue.toString()
-      }
-
-      return position
-    }),
-  )
-
-  return rewardPositions.filter(
-    (position): position is RewardDefiPosition => position !== null,
-  )
-}
-
 export const jupiterDaoIntegration: SolanaIntegration = {
   platformId: 'jupiter-dao',
 
@@ -277,6 +143,10 @@ export const jupiterDaoIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const jupToken = tokens.get(JUP_MINT)
+    const jupPriceUsd = jupToken?.priceUsd
+    const jupDecimals = jupToken?.decimals ?? JUP_DECIMALS
+
     const escrowAccounts = yield {
       kind: 'getProgramAccounts' as const,
       programId: LOCKED_VOTER_PROGRAM_ID.toBase58(),
@@ -302,42 +172,38 @@ export const jupiterDaoIntegration: SolanaIntegration = {
       .map((account) => decodeEscrow(account.address, account.data))
       .filter((escrow): escrow is JupiterEscrow => escrow !== null)
 
-    const partialUnstakingRequests: ProgramRequest[] = escrows.map(
-      (escrow) => ({
-        kind: 'getProgramAccounts',
-        programId: LOCKED_VOTER_PROGRAM_ID.toBase58(),
-        filters: [
-          {
-            memcmp: {
-              offset: 0,
-              bytes: PARTIAL_UNSTAKING_DISCRIMINATOR_B64,
-              encoding: 'base64',
-            },
-          },
-          {
-            memcmp: {
-              offset: PARTIAL_UNSTAKING_ESCROW_OFFSET,
-              bytes: escrow.address,
-            },
-          },
-        ],
-      }),
-    )
-
     const partialUnstakingAccounts =
-      partialUnstakingRequests.length > 0 ? yield partialUnstakingRequests : {}
+      escrows.length > 0
+        ? yield {
+            kind: 'getProgramAccounts',
+            programId: LOCKED_VOTER_PROGRAM_ID.toBase58(),
+            filters: [
+              {
+                memcmp: {
+                  offset: 0,
+                  bytes: PARTIAL_UNSTAKING_DISCRIMINATOR_B64,
+                  encoding: 'base64',
+                },
+              },
+            ],
+          }
+        : {}
 
     const positions: UserDefiPosition[] = []
     const now = BigInt(Math.floor(Date.now() / 1000))
-    const jupToken = tokens.get(JUP_MINT)
-    const jupPriceUsd = jupToken?.priceUsd
-    const jupDecimals = jupToken?.decimals ?? JUP_DECIMALS
+    const escrowAddressSet = new Set(escrows.map((escrow) => escrow.address))
 
     const partialsByEscrow = new Map<string, PartialUnstaking[]>()
     for (const account of Object.values(partialUnstakingAccounts)) {
       if (!account.exists) continue
       const partial = decodePartialUnstaking(account.data)
-      if (!partial || partial.expiration <= now) continue
+      if (
+        !partial ||
+        !escrowAddressSet.has(partial.escrow) ||
+        partial.expiration <= now
+      ) {
+        continue
+      }
 
       const current = partialsByEscrow.get(partial.escrow) ?? []
       current.push(partial)
@@ -433,12 +299,6 @@ export const jupiterDaoIntegration: SolanaIntegration = {
       }
 
       positions.push(position)
-    }
-
-    try {
-      positions.push(...(await fetchAsrRewards(address, jupToken)))
-    } catch {
-      // Fail soft on ASR fetch issues so staking positions still resolve.
     }
 
     return positions
