@@ -468,13 +468,6 @@ export const banxIntegration: SolanaIntegration = {
       ),
     )
 
-    const userPubkey = new PublicKey(address)
-    const banxTokenStakeAddress = PublicKey.findProgramAddressSync(
-      [Buffer.from(BANX_TOKEN_STAKE_PREFIX), userPubkey.toBuffer()],
-      new PublicKey(BONDS_PROGRAM_ID),
-    )[0].toBase58()
-    const banxTokenStakeMap = yield [banxTokenStakeAddress]
-
     const activeLoans = new Map<string, ActiveLoan>()
     for (const account of Object.values(loanAccountsMap)) {
       if (!account.exists || activeLoans.has(account.address)) continue
@@ -513,6 +506,38 @@ export const banxIntegration: SolanaIntegration = {
       })
     }
 
+    const userVaultsV2: UserVaultV2PositionSource[] = []
+    const vaultV2Addresses: string[] = []
+    for (const account of Object.values(userVaultsV2Map)) {
+      if (!account.exists) continue
+      const data = Buffer.from(account.data)
+      if (data.length < USER_VAULT_V2_LIQUIDITY_OFFSET + 16) continue
+
+      const state = data[USER_VAULT_V2_STATE_OFFSET] ?? 0
+      const userBytes = data.subarray(
+        USER_VAULT_V2_USER_OFFSET,
+        USER_VAULT_V2_USER_OFFSET + 32,
+      )
+      const vaultBytes = data.subarray(
+        USER_VAULT_V2_VAULT_OFFSET,
+        USER_VAULT_V2_VAULT_OFFSET + 32,
+      )
+      const user = new PublicKey(userBytes).toBase58()
+      if (user !== address) continue
+
+      const vault = new PublicKey(vaultBytes).toBase58()
+      const liquidityAmount =
+        readU128LE(data, USER_VAULT_V2_LIQUIDITY_OFFSET) ?? 0n
+      userVaultsV2.push({
+        address: account.address,
+        state,
+        user,
+        vault,
+        liquidityAmount,
+      })
+      vaultV2Addresses.push(vault)
+    }
+
     const relatedAddresses = [
       ...new Set(
         [...activeLoans.values()].flatMap((loan) => [
@@ -521,8 +546,39 @@ export const banxIntegration: SolanaIntegration = {
         ]),
       ),
     ]
-    const relatedAccounts =
-      relatedAddresses.length > 0 ? yield relatedAddresses : {}
+    const relatedAddressSet = new Set(relatedAddresses)
+    const vaultV2AddressSet = new Set(vaultV2Addresses)
+
+    const userPubkey = new PublicKey(address)
+    const banxTokenStakeAddress = PublicKey.findProgramAddressSync(
+      [Buffer.from(BANX_TOKEN_STAKE_PREFIX), userPubkey.toBuffer()],
+      new PublicKey(BONDS_PROGRAM_ID),
+    )[0].toBase58()
+
+    const round2Addresses = [
+      ...new Set([
+        banxTokenStakeAddress,
+        ...relatedAddresses,
+        ...vaultV2Addresses,
+      ]),
+    ]
+    const round2Accounts =
+      round2Addresses.length > 0 ? yield round2Addresses : {}
+
+    const relatedAccounts = Object.fromEntries(
+      Object.entries(round2Accounts).filter(([accountAddress]) =>
+        relatedAddressSet.has(accountAddress),
+      ),
+    )
+    const vaultV2Accounts = Object.fromEntries(
+      Object.entries(round2Accounts).filter(([accountAddress]) =>
+        vaultV2AddressSet.has(accountAddress),
+      ),
+    )
+    const banxTokenStakeMap =
+      round2Accounts[banxTokenStakeAddress] !== undefined
+        ? { [banxTokenStakeAddress]: round2Accounts[banxTokenStakeAddress] }
+        : {}
 
     const relatedOffers = new Map<string, OfferPositionSource>()
     const relatedFraktBonds = new Map<string, FraktBondSource>()
@@ -574,12 +630,21 @@ export const banxIntegration: SolanaIntegration = {
 
     const banxStakeAddresses = [
       ...new Set(
-        [...relatedFraktBonds.values()]
-          .map((fraktBond) => fraktBond.banxStake)
-          .filter(
-            (address): address is string =>
-              !!address && address !== '11111111111111111111111111111111',
-          ),
+        [...activeLoans.values()].flatMap((loan) => {
+          if (loan.user !== address) return []
+          const fraktBond = relatedFraktBonds.get(loan.fraktBond)
+          if (!fraktBond) return []
+
+          const hasSnapshotCollateral =
+            fraktBond.collateralTokenMint !== null &&
+            loan.collateralAmountSnapshot > 0n
+          if (hasSnapshotCollateral) return []
+
+          return fraktBond.banxStake &&
+            fraktBond.banxStake !== '11111111111111111111111111111111'
+            ? [fraktBond.banxStake]
+            : []
+        }),
       ),
     ]
     const banxStakeAccounts =
@@ -687,40 +752,6 @@ export const banxIntegration: SolanaIntegration = {
       })
     }
 
-    const userVaultsV2: UserVaultV2PositionSource[] = []
-    const vaultV2Addresses: string[] = []
-    for (const account of Object.values(userVaultsV2Map)) {
-      if (!account.exists) continue
-      const data = Buffer.from(account.data)
-      if (data.length < USER_VAULT_V2_LIQUIDITY_OFFSET + 16) continue
-
-      const state = data[USER_VAULT_V2_STATE_OFFSET] ?? 0
-      const userBytes = data.subarray(
-        USER_VAULT_V2_USER_OFFSET,
-        USER_VAULT_V2_USER_OFFSET + 32,
-      )
-      const vaultBytes = data.subarray(
-        USER_VAULT_V2_VAULT_OFFSET,
-        USER_VAULT_V2_VAULT_OFFSET + 32,
-      )
-      const user = new PublicKey(userBytes).toBase58()
-      if (user !== address) continue
-
-      const vault = new PublicKey(vaultBytes).toBase58()
-      const liquidityAmount =
-        readU128LE(data, USER_VAULT_V2_LIQUIDITY_OFFSET) ?? 0n
-      userVaultsV2.push({
-        address: account.address,
-        state,
-        user,
-        vault,
-        liquidityAmount,
-      })
-      vaultV2Addresses.push(vault)
-    }
-
-    const vaultV2Accounts =
-      vaultV2Addresses.length > 0 ? yield [...new Set(vaultV2Addresses)] : {}
     const vaultV2MintByAddress = new Map<string, string>()
     for (const account of Object.values(vaultV2Accounts)) {
       if (!account.exists) continue
