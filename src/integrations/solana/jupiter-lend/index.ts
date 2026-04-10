@@ -405,11 +405,11 @@ export const jupiterLendIntegration: SolanaIntegration = {
     // ── Phase 1: Token-2022 fallback check by owner ──────────────────────────
     const token22Map =
       needsToken22Check.length > 0
-        ? yield ({
+        ? yield {
             kind: 'getTokenAccountsByOwner',
             owner: walletAddress,
             programId: TOKEN_2022_PROGRAM_ID.toBase58(),
-          } satisfies ProgramRequest)
+          } satisfies ProgramRequest
         : {}
 
     const token22MintsToCheck = new Set(needsToken22Check)
