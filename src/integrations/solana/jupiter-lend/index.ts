@@ -13,6 +13,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import lendingIdl from './idls/lending.json'
 import vaultsIdl from './idls/vaults.json'
 
@@ -168,6 +169,15 @@ export const jupiterLendIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const walletPubkey = new PublicKey(address)
     const walletAddress = walletPubkey.toBase58()
 
@@ -542,6 +552,8 @@ export const jupiterLendIntegration: SolanaIntegration = {
 
       result.push(positionResult)
     }
+
+    applyPositionsPctUsdValueChange24(tokenSource, result)
 
     return result
   },
