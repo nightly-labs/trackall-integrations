@@ -6,13 +6,14 @@ import {
   fetchAccountsBatch,
   fetchProgramAccountsBatch,
 } from '../../../utils/solana'
-import { kaminoIntegration, testAddress } from './index'
+import { kaminoIntegration } from './index'
 
 const solanaRpcUrl =
   process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
 
-const wallets = [testAddress, 'Hs9ioQZ2pCUyvS18anwmBxjQJsZrMPShwTMLySD6Us3V']
-
+// const wallets = [testAddress, 'Ca44wfGzBoMDL2yUyu3zUmHQ5j4WeQaACxe2fG4TeEm7']
+const wallets = ['Ca44wfGzBoMDL2yUyu3zUmHQ5j4WeQaACxe2fG4TeEm7']
+const testAddress = wallets[0]!
 const { getUserPositions } = kaminoIntegration
 if (!getUserPositions) throw new Error('getUserPositions not implemented')
 
@@ -80,14 +81,37 @@ describe('kamino integration', () => {
       }
     }
 
+    let convertedVaultStakingEntries = 0
     for (const position of stakingPositions) {
       let hasComponentUsd = false
+      const kaminoMeta =
+        position.meta &&
+        typeof position.meta === 'object' &&
+        'kamino' in position.meta
+          ? position.meta.kamino
+          : undefined
+      const shareMint =
+        kaminoMeta && typeof kaminoMeta === 'object'
+          ? (kaminoMeta as Record<string, unknown>).shareMint
+          : undefined
+      const valuationSource =
+        kaminoMeta && typeof kaminoMeta === 'object'
+          ? (kaminoMeta as Record<string, unknown>).valuationSource
+          : undefined
+
       if (position.staked !== undefined) {
         expect(Array.isArray(position.staked)).toBe(true)
         for (const staked of position.staked) {
           expect(typeof staked.amount.token).toBe('string')
           expect(typeof staked.amount.amount).toBe('string')
           expect(typeof staked.amount.decimals).toBe('string')
+          if (
+            typeof shareMint === 'string' &&
+            valuationSource === 'vaultSnapshot'
+          ) {
+            expect(staked.amount.token).not.toBe(shareMint)
+            convertedVaultStakingEntries++
+          }
           if (staked.priceUsd !== undefined) {
             expect(staked.usdValue).toBeDefined()
           }
@@ -100,6 +124,13 @@ describe('kamino integration', () => {
           expect(typeof unbonding.amount.token).toBe('string')
           expect(typeof unbonding.amount.amount).toBe('string')
           expect(typeof unbonding.amount.decimals).toBe('string')
+          if (
+            typeof shareMint === 'string' &&
+            valuationSource === 'vaultSnapshot'
+          ) {
+            expect(unbonding.amount.token).not.toBe(shareMint)
+            convertedVaultStakingEntries++
+          }
           if (unbonding.priceUsd !== undefined) {
             expect(unbonding.usdValue).toBeDefined()
           }
@@ -122,6 +153,8 @@ describe('kamino integration', () => {
         expect(position.usdValue).toBeDefined()
       }
     }
+
+    expect(convertedVaultStakingEntries > 0).toBe(true)
   }, 90000)
 
   it('fetches positions for multiple wallets in batched RPC calls', async () => {
@@ -175,5 +208,52 @@ describe('kamino integration', () => {
     for (const positions of results) {
       expect(Array.isArray(positions)).toBe(true)
     }
+
+    const firstWalletPositions = results[0] ?? []
+    let strategyConvertedStakingCount = 0
+    let pairTokenRowsFound = false
+    for (const position of firstWalletPositions) {
+      if (position.positionKind !== 'staking') continue
+
+      const kaminoMeta =
+        position.meta &&
+        typeof position.meta === 'object' &&
+        'kamino' in position.meta
+          ? position.meta.kamino
+          : undefined
+      if (!kaminoMeta || typeof kaminoMeta !== 'object') continue
+      if (
+        (kaminoMeta as Record<string, unknown>).valuationSource !==
+        'strategySnapshot'
+      ) {
+        continue
+      }
+
+      strategyConvertedStakingCount++
+      const shareMint =
+        kaminoMeta && typeof kaminoMeta === 'object'
+          ? (kaminoMeta as Record<string, unknown>).shareMint
+          : undefined
+
+      if (position.staked && position.staked.length >= 2) {
+        pairTokenRowsFound = true
+      }
+      if (position.staked) {
+        for (const staked of position.staked) {
+          if (typeof shareMint === 'string') {
+            expect(staked.amount.token).not.toBe(shareMint)
+          }
+        }
+      }
+      if (position.unbonding) {
+        for (const unbonding of position.unbonding) {
+          if (typeof shareMint === 'string') {
+            expect(unbonding.amount.token).not.toBe(shareMint)
+          }
+        }
+      }
+    }
+    expect(strategyConvertedStakingCount > 0).toBe(true)
+    expect(pairTokenRowsFound).toBe(true)
   }, 120000)
 })
