@@ -8,6 +8,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
 } from '../../../types/index'
+import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
@@ -143,6 +144,15 @@ export const jupiterDaoIntegration: SolanaIntegration = {
     address: string,
     { tokens }: SolanaPlugins,
   ): UserPositionsPlan {
+    const tokenSource = {
+      get(token: string): { pctPriceChange24h?: number } | undefined {
+        const tokenData = tokens.get(token)
+        if (tokenData === undefined) return undefined
+        if (tokenData.pctPriceChange24h === undefined) return undefined
+        return { pctPriceChange24h: tokenData.pctPriceChange24h }
+      },
+    }
+
     const jupToken = tokens.get(JUP_MINT)
     const jupPriceUsd = jupToken?.priceUsd
     const jupDecimals = jupToken?.decimals ?? JUP_DECIMALS
@@ -300,6 +310,8 @@ export const jupiterDaoIntegration: SolanaIntegration = {
 
       positions.push(position)
     }
+
+    applyPositionsPctUsdValueChange24(tokenSource, positions)
 
     return positions
   },
