@@ -25,6 +25,7 @@
     "@jup-ag/lend": "0.1.8",
     "@kamino-finance/farms-sdk": "3.2.24",
     "@kamino-finance/klend-sdk": "7.3.20",
+    "@kamino-finance/kliquidity-sdk": "8.5.10",
     "@metaplex-foundation/mpl-token-metadata-kit": "0.0.2",
     "@meteora-ag/dlmm": "1.9.4",
     "@mrgnlabs/marginfi-client-v2": "^6.4.1",
