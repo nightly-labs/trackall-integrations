@@ -46,7 +46,7 @@ type ClockState = {
   unixTimestamp: BN
 }
 
-export const testAddress = 'FDnPSh8tkDhe1oydb4ot4GtiwVVu1iYgJcAYPwxRMHa5'
+export const testAddress = '93PSyNrS7zBhrXaHHfU1ZtfegcKq5SaCYc35ZwPVrK3K'
 
 export const PROGRAM_IDS = [
   ORCA_WHIRLPOOL_PROGRAM_ID.toBase58(),
