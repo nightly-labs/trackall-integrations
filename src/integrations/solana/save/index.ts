@@ -329,9 +329,7 @@ export const saveIntegration: SolanaIntegration = {
     for (const account of Object.values(phase0)) {
       if (!account.exists) continue
 
-      if (
-        account.programAddress === SAVE_PROGRAM_ID
-      ) {
+      if (account.programAddress === SAVE_PROGRAM_ID) {
         const obligation = parseObligation(account.address, account.data)
         if (obligation) obligations.push(obligation)
         continue
