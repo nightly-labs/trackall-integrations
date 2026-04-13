@@ -1,4 +1,6 @@
+import { BN } from '@coral-xyz/anchor'
 import { FarmState, UserState } from '@kamino-finance/farms-sdk'
+import { Obligation, Reserve, VaultState } from '@kamino-finance/klend-sdk'
 import { WhirlpoolStrategy } from '@kamino-finance/kliquidity-sdk/dist/@codegen/kliquidity/accounts'
 import {
   BinArray as MeteoraBinArray,
@@ -15,18 +17,16 @@ import {
   deriveBinArray,
   getBinFromBinArrays,
 } from '@kamino-finance/kliquidity-sdk/dist/utils/meteora'
-import { Obligation, Reserve, VaultState } from '@kamino-finance/klend-sdk'
 import type {
   PositionData as OrcaPositionData,
   WhirlpoolData as OrcaWhirlpoolData,
 } from '@orca-so/whirlpools-sdk'
 import {
-  ParsablePosition as ParsableOrcaPosition,
-  ParsableWhirlpool as ParsableOrcaWhirlpool,
   PoolUtil as OrcaPoolUtil,
   PriceMath as OrcaPriceMath,
+  ParsablePosition as ParsableOrcaPosition,
+  ParsableWhirlpool as ParsableOrcaWhirlpool,
 } from '@orca-so/whirlpools-sdk'
-import { BN } from '@coral-xyz/anchor'
 import {
   LiquidityMath as RaydiumLiquidityMath,
   SqrtPriceMath as RaydiumSqrtPriceMath,
@@ -288,7 +288,10 @@ function parseOrcaPosition(
   address: string,
   account: MaybeSolanaAccount | undefined,
 ): OrcaPositionData | null {
-  return ParsableOrcaPosition.parse(new PublicKey(address), toAccountInfo(account))
+  return ParsableOrcaPosition.parse(
+    new PublicKey(address),
+    toAccountInfo(account),
+  )
 }
 
 function decodeRaydiumPoolState(
@@ -311,7 +314,9 @@ function decodeRaydiumPersonalPositionState(
   }
 }
 
-function decodeMeteoraPositionV2(accountData: Uint8Array): MeteoraPositionV2 | null {
+function decodeMeteoraPositionV2(
+  accountData: Uint8Array,
+): MeteoraPositionV2 | null {
   try {
     return MeteoraPositionV2.decode(Buffer.from(accountData))
   } catch {
@@ -319,7 +324,9 @@ function decodeMeteoraPositionV2(accountData: Uint8Array): MeteoraPositionV2 | n
   }
 }
 
-function decodeMeteoraBinArray(accountData: Uint8Array): MeteoraBinArray | null {
+function decodeMeteoraBinArray(
+  accountData: Uint8Array,
+): MeteoraBinArray | null {
   try {
     return MeteoraBinArray.decode(Buffer.from(accountData))
   } catch {
@@ -841,7 +848,10 @@ export const kaminoIntegration: SolanaIntegration = {
           const userShares = userMintBalances.get(vault.sharesMint)
           if (!userShares || userShares <= 0n) continue
 
-          const converted = convertVaultSharesToUnderlyingAmount(userShares, vault)
+          const converted = convertVaultSharesToUnderlyingAmount(
+            userShares,
+            vault,
+          )
           const stakedTokenMint = converted?.tokenMint ?? vault.sharesMint
           const stakedTokenDecimals =
             converted?.tokenDecimals ?? vault.sharesDecimals
@@ -948,7 +958,9 @@ export const kaminoIntegration: SolanaIntegration = {
       if (!account?.exists) continue
 
       try {
-        const farm = FarmState.decode(Buffer.from(account.data)) as FarmStateWire
+        const farm = FarmState.decode(
+          Buffer.from(account.data),
+        ) as FarmStateWire
         farmsByAddress.set(farmAddress, farm)
 
         const strategyAddress = farm.strategyId.toString()
@@ -969,7 +981,9 @@ export const kaminoIntegration: SolanaIntegration = {
       (vaultAddress) => !kvaultByAddress.has(vaultAddress),
     )
     const farmVaultAccountsMap =
-      farmVaultAddressesToFetch.length > 0 ? yield farmVaultAddressesToFetch : {}
+      farmVaultAddressesToFetch.length > 0
+        ? yield farmVaultAddressesToFetch
+        : {}
 
     for (const vaultAddress of farmVaultAddressesToFetch) {
       const account = farmVaultAccountsMap[vaultAddress]
@@ -1002,7 +1016,9 @@ export const kaminoIntegration: SolanaIntegration = {
       }
     }
 
-    const strategyPoolAndPositionFetchTargets = [...strategyByAddress.entries()].filter(
+    const strategyPoolAndPositionFetchTargets = [
+      ...strategyByAddress.entries(),
+    ].filter(
       ([, strategy]) =>
         strategy.position !== DEFAULT_PUBKEY &&
         strategy.pool !== DEFAULT_PUBKEY,
@@ -1022,7 +1038,10 @@ export const kaminoIntegration: SolanaIntegration = {
 
     const meteoraPositionsByStrategy = new Map<string, MeteoraPositionV2>()
 
-    for (const [strategyAddress, strategy] of strategyPoolAndPositionFetchTargets) {
+    for (const [
+      strategyAddress,
+      strategy,
+    ] of strategyPoolAndPositionFetchTargets) {
       if (strategy.strategyDex === ORCA_DEX) {
         const whirlpool = parseOrcaWhirlpool(
           strategy.pool,
@@ -1034,7 +1053,10 @@ export const kaminoIntegration: SolanaIntegration = {
         )
         if (!whirlpool || !position) continue
 
-        const invested = getOrcaInvestedStrategyTokenAmounts(whirlpool, position)
+        const invested = getOrcaInvestedStrategyTokenAmounts(
+          whirlpool,
+          position,
+        )
         if (!invested) continue
         strategyInvestedByAddress.set(strategyAddress, invested)
         continue
@@ -1053,7 +1075,9 @@ export const kaminoIntegration: SolanaIntegration = {
         }
 
         const pool = decodeRaydiumPoolState(poolAccount.data)
-        const position = decodeRaydiumPersonalPositionState(positionAccount.data)
+        const position = decodeRaydiumPersonalPositionState(
+          positionAccount.data,
+        )
         if (!pool || !position) continue
 
         const invested = getRaydiumInvestedStrategyTokenAmounts(pool, position)
@@ -1076,14 +1100,22 @@ export const kaminoIntegration: SolanaIntegration = {
       }
     }
 
-    const meteoraBinArrayAddressesByStrategy = new Map<string, [string, string]>()
+    const meteoraBinArrayAddressesByStrategy = new Map<
+      string,
+      [string, string]
+    >()
     const meteoraBinArrayAddresses = new Set<string>()
 
-    for (const [strategyAddress, position] of meteoraPositionsByStrategy.entries()) {
+    for (const [
+      strategyAddress,
+      position,
+    ] of meteoraPositionsByStrategy.entries()) {
       const strategy = strategyByAddress.get(strategyAddress)
       if (!strategy) continue
 
-      const lowerBinArrayIndex = binIdToBinArrayIndex(new BN(position.lowerBinId))
+      const lowerBinArrayIndex = binIdToBinArrayIndex(
+        new BN(position.lowerBinId),
+      )
       const [lowerBinArrayAddress] = await deriveBinArray(
         strategy.pool as Address,
         lowerBinArrayIndex,
@@ -1103,7 +1135,9 @@ export const kaminoIntegration: SolanaIntegration = {
     }
 
     const meteoraBinArrayAccountsMap =
-      meteoraBinArrayAddresses.size > 0 ? yield [...meteoraBinArrayAddresses] : {}
+      meteoraBinArrayAddresses.size > 0
+        ? yield [...meteoraBinArrayAddresses]
+        : {}
     const meteoraBinArrayByAddress = new Map<string, MeteoraBinArray>()
 
     for (const address of meteoraBinArrayAddresses) {
@@ -1116,7 +1150,10 @@ export const kaminoIntegration: SolanaIntegration = {
       meteoraBinArrayByAddress.set(address, decoded)
     }
 
-    for (const [strategyAddress, position] of meteoraPositionsByStrategy.entries()) {
+    for (const [
+      strategyAddress,
+      position,
+    ] of meteoraPositionsByStrategy.entries()) {
       const binArrayAddresses =
         meteoraBinArrayAddressesByStrategy.get(strategyAddress)
       if (!binArrayAddresses) continue
@@ -1256,7 +1293,9 @@ export const kaminoIntegration: SolanaIntegration = {
       const farm = farmsByAddress.get(farmAddress)
       if (!farm) continue
 
-      const stakedShareAmountRaw = scaledWadsToRawAmount(aggregate.activeStakeScaled)
+      const stakedShareAmountRaw = scaledWadsToRawAmount(
+        aggregate.activeStakeScaled,
+      )
       const pendingWithdrawalShareAmountRaw = scaledWadsToRawAmount(
         aggregate.pendingWithdrawalUnstakeScaled,
       )
@@ -1280,7 +1319,10 @@ export const kaminoIntegration: SolanaIntegration = {
 
       const stakedVaultUnderlying =
         farmVault?.sharesMint === stakedShareMint
-          ? convertVaultSharesToUnderlyingAmount(stakedShareAmountRaw, farmVault)
+          ? convertVaultSharesToUnderlyingAmount(
+              stakedShareAmountRaw,
+              farmVault,
+            )
           : null
       const pendingVaultUnderlying =
         farmVault?.sharesMint === stakedShareMint
@@ -1455,7 +1497,11 @@ export const kaminoIntegration: SolanaIntegration = {
         })
         .filter((entry) => entry !== null)
 
-      if (staked.length === 0 && unbonding.length === 0 && rewards.length === 0) {
+      if (
+        staked.length === 0 &&
+        unbonding.length === 0 &&
+        rewards.length === 0
+      ) {
         continue
       }
 

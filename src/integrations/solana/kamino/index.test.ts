@@ -13,7 +13,8 @@ const solanaRpcUrl =
 
 // const wallets = [testAddress, 'Ca44wfGzBoMDL2yUyu3zUmHQ5j4WeQaACxe2fG4TeEm7']
 const wallets = ['Ca44wfGzBoMDL2yUyu3zUmHQ5j4WeQaACxe2fG4TeEm7']
-const testAddress = wallets[0]!
+const [testAddress] = wallets
+if (!testAddress) throw new Error('No wallet configured for Kamino tests')
 const { getUserPositions } = kaminoIntegration
 if (!getUserPositions) throw new Error('getUserPositions not implemented')
 
