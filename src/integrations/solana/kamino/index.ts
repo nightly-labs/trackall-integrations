@@ -1,11 +1,45 @@
+import { BN } from '@coral-xyz/anchor'
 import { FarmState, UserState } from '@kamino-finance/farms-sdk'
 import { Obligation, Reserve, VaultState } from '@kamino-finance/klend-sdk'
+import { WhirlpoolStrategy } from '@kamino-finance/kliquidity-sdk/dist/@codegen/kliquidity/accounts'
+import {
+  BinArray as MeteoraBinArray,
+  PositionV2 as MeteoraPositionV2,
+} from '@kamino-finance/kliquidity-sdk/dist/@codegen/meteora/accounts'
+import { PROGRAM_ID as METEORA_PROGRAM_ID } from '@kamino-finance/kliquidity-sdk/dist/@codegen/meteora/programId'
+import {
+  PersonalPositionState as RaydiumPersonalPositionState,
+  PoolState as RaydiumPoolState,
+} from '@kamino-finance/kliquidity-sdk/dist/@codegen/raydium/accounts'
+import { PROGRAM_ID as RAYDIUM_PROGRAM_ID } from '@kamino-finance/kliquidity-sdk/dist/@codegen/raydium/programId'
+import {
+  binIdToBinArrayIndex,
+  deriveBinArray,
+  getBinFromBinArrays,
+} from '@kamino-finance/kliquidity-sdk/dist/utils/meteora'
+import type {
+  PositionData as OrcaPositionData,
+  WhirlpoolData as OrcaWhirlpoolData,
+} from '@orca-so/whirlpools-sdk'
+import {
+  PoolUtil as OrcaPoolUtil,
+  PriceMath as OrcaPriceMath,
+  ParsablePosition as ParsableOrcaPosition,
+  ParsableWhirlpool as ParsableOrcaWhirlpool,
+} from '@orca-so/whirlpools-sdk'
+import {
+  LiquidityMath as RaydiumLiquidityMath,
+  SqrtPriceMath as RaydiumSqrtPriceMath,
+} from '@raydium-io/raydium-sdk-v2/lib'
+import type { Address } from '@solana/kit'
 import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token'
+import type { AccountInfo } from '@solana/web3.js'
 import { PublicKey } from '@solana/web3.js'
 import type {
   LendingBorrowedAsset,
   LendingDefiPosition,
   LendingSuppliedAsset,
+  MaybeSolanaAccount,
   SolanaIntegration,
   SolanaPlugins,
   UserDefiPosition,
@@ -18,6 +52,7 @@ export const testAddress = '93PSyNrS7zBhrXaHHfU1ZtfegcKq5SaCYc35ZwPVrK3K'
 const KLEND_PROGRAM_ID = 'KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD'
 const KVAULT_PROGRAM_ID = 'KvauGMspG5k6rtzrqqn7WNn3oZdyKqLKwK2XWQ8FLjd'
 const FARMS_PROGRAM_ID = 'FarmsPZpWu9i7Kky8tPN37rs2TpmMrAZrC7S7vJa91Hr'
+const KLIQUIDITY_PROGRAM_ID = '6LtLpnUFNByNXLyCoK9wA2MykKAmQNZKBdY8s47dehDc'
 
 export const PROGRAM_IDS = [
   KLEND_PROGRAM_ID,
@@ -33,6 +68,9 @@ const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
 const KVAULT_SHARES_MINT_OFFSET = 184
 const SF_DENOMINATOR = 1n << 60n
 const FARMS_WAD = 10n ** 18n
+const ORCA_DEX = 0
+const RAYDIUM_DEX = 1
+const METEORA_DEX = 2
 
 interface KlendDeposit {
   depositReserve: string
@@ -113,8 +151,13 @@ interface KlendReserveWire {
 }
 
 interface KVaultStateWire {
+  tokenMint: string
+  tokenMintDecimals: unknown
+  sharesIssued: unknown
   sharesMint: string
   sharesMintDecimals: unknown
+  prevAumSf: unknown
+  pendingFeesSf: unknown
 }
 
 interface FarmsUserStateWire {
@@ -129,12 +172,54 @@ interface FarmStateWire {
     mint: PublicKeyLike
     decimals: unknown
   }
+  strategyId: PublicKeyLike
+  vaultId: PublicKeyLike
   rewardInfos: Array<{
     token: {
       mint: PublicKeyLike
       decimals: unknown
     }
   }>
+}
+
+interface KVaultDecoded {
+  tokenMint: string
+  tokenDecimals: number
+  sharesMint: string
+  sharesDecimals: number
+  sharesIssued: bigint
+  netAumRaw: bigint
+}
+
+interface UnderlyingAmountFromShares {
+  tokenMint: string
+  tokenDecimals: number
+  amountRaw: bigint
+}
+
+interface KliquidityStrategyDecoded {
+  sharesMint: string
+  sharesDecimals: number
+  sharesIssued: bigint
+  tokenAMint: string
+  tokenBMint: string
+  tokenADecimals: number
+  tokenBDecimals: number
+  availableTokenAAmountRaw: bigint
+  availableTokenBAmountRaw: bigint
+  strategyDex: number
+  pool: string
+  position: string
+}
+
+interface StrategyUnderlyingFromShares {
+  tokenA: UnderlyingAmountFromShares
+  tokenB: UnderlyingAmountFromShares
+}
+
+interface StrategyInvestedTokenAmountsRaw {
+  tokenAAmountRaw: bigint
+  tokenBAmountRaw: bigint
 }
 
 function toBigInt(value: unknown): bigint {
@@ -173,6 +258,80 @@ function readTokenAccountAmount(data: Uint8Array): bigint | null {
   const buf = Buffer.from(data)
   if (buf.length < TOKEN_ACCOUNT_AMOUNT_OFFSET + 8) return null
   return readU64LE(buf, TOKEN_ACCOUNT_AMOUNT_OFFSET)
+}
+
+function toAccountInfo(
+  account: MaybeSolanaAccount | undefined,
+): AccountInfo<Buffer> | null {
+  if (!account?.exists) return null
+
+  return {
+    data: Buffer.from(account.data),
+    owner: new PublicKey(account.programAddress),
+    lamports: Number(account.lamports),
+    executable: false,
+    rentEpoch: 0,
+  }
+}
+
+function parseOrcaWhirlpool(
+  address: string,
+  account: MaybeSolanaAccount | undefined,
+): OrcaWhirlpoolData | null {
+  return ParsableOrcaWhirlpool.parse(
+    new PublicKey(address),
+    toAccountInfo(account),
+  )
+}
+
+function parseOrcaPosition(
+  address: string,
+  account: MaybeSolanaAccount | undefined,
+): OrcaPositionData | null {
+  return ParsableOrcaPosition.parse(
+    new PublicKey(address),
+    toAccountInfo(account),
+  )
+}
+
+function decodeRaydiumPoolState(
+  accountData: Uint8Array,
+): RaydiumPoolState | null {
+  try {
+    return RaydiumPoolState.decode(Buffer.from(accountData))
+  } catch {
+    return null
+  }
+}
+
+function decodeRaydiumPersonalPositionState(
+  accountData: Uint8Array,
+): RaydiumPersonalPositionState | null {
+  try {
+    return RaydiumPersonalPositionState.decode(Buffer.from(accountData))
+  } catch {
+    return null
+  }
+}
+
+function decodeMeteoraPositionV2(
+  accountData: Uint8Array,
+): MeteoraPositionV2 | null {
+  try {
+    return MeteoraPositionV2.decode(Buffer.from(accountData))
+  } catch {
+    return null
+  }
+}
+
+function decodeMeteoraBinArray(
+  accountData: Uint8Array,
+): MeteoraBinArray | null {
+  try {
+    return MeteoraBinArray.decode(Buffer.from(accountData))
+  } catch {
+    return null
+  }
 }
 
 function sfToLamports(valueSf: bigint): bigint {
@@ -295,13 +454,187 @@ function decodeKlendReserve(accountData: Uint8Array): KlendReserveDecoded {
 
 function decodeKVaultSharesMintAndDecimals(
   accountData: Uint8Array,
-): { sharesMint: string; sharesDecimals: number } | null {
+): KVaultDecoded | null {
   const decoded = VaultState.decode(Buffer.from(accountData)) as KVaultStateWire
   if (decoded.sharesMint === DEFAULT_PUBKEY) return null
 
+  const netAumSf = toBigInt(decoded.prevAumSf) - toBigInt(decoded.pendingFeesSf)
   return {
+    tokenMint: decoded.tokenMint,
+    tokenDecimals: toNumber(decoded.tokenMintDecimals),
     sharesMint: decoded.sharesMint,
     sharesDecimals: toNumber(decoded.sharesMintDecimals),
+    sharesIssued: toBigInt(decoded.sharesIssued),
+    netAumRaw: netAumSf > 0n ? sfToLamports(netAumSf) : 0n,
+  }
+}
+
+function decodeKliquidityStrategy(
+  accountData: Uint8Array,
+): KliquidityStrategyDecoded | null {
+  const decoded = WhirlpoolStrategy.decode(Buffer.from(accountData))
+  if (decoded.sharesMint.toString() === DEFAULT_PUBKEY) return null
+
+  return {
+    sharesMint: decoded.sharesMint.toString(),
+    sharesDecimals: toNumber(decoded.sharesMintDecimals),
+    sharesIssued: toBigInt(decoded.sharesIssued),
+    tokenAMint: decoded.tokenAMint.toString(),
+    tokenBMint: decoded.tokenBMint.toString(),
+    tokenADecimals: toNumber(decoded.tokenAMintDecimals),
+    tokenBDecimals: toNumber(decoded.tokenBMintDecimals),
+    availableTokenAAmountRaw: toBigInt(decoded.tokenAAmounts),
+    availableTokenBAmountRaw: toBigInt(decoded.tokenBAmounts),
+    strategyDex: toNumber(decoded.strategyDex),
+    pool: decoded.pool.toString(),
+    position: decoded.position.toString(),
+  }
+}
+
+function convertVaultSharesToUnderlyingAmount(
+  sharesAmountRaw: bigint,
+  vault: KVaultDecoded,
+): UnderlyingAmountFromShares | null {
+  if (
+    sharesAmountRaw <= 0n ||
+    vault.sharesIssued <= 0n ||
+    vault.netAumRaw <= 0n ||
+    vault.tokenMint === DEFAULT_PUBKEY
+  ) {
+    return null
+  }
+
+  const amountRaw = (sharesAmountRaw * vault.netAumRaw) / vault.sharesIssued
+  if (amountRaw <= 0n) return null
+
+  return {
+    tokenMint: vault.tokenMint,
+    tokenDecimals: vault.tokenDecimals,
+    amountRaw,
+  }
+}
+
+function convertStrategySharesToUnderlyingAmounts(
+  sharesAmountRaw: bigint,
+  strategy: KliquidityStrategyDecoded,
+  invested?: StrategyInvestedTokenAmountsRaw,
+): StrategyUnderlyingFromShares | null {
+  if (
+    sharesAmountRaw <= 0n ||
+    strategy.sharesIssued <= 0n ||
+    strategy.tokenAMint === DEFAULT_PUBKEY ||
+    strategy.tokenBMint === DEFAULT_PUBKEY
+  ) {
+    return null
+  }
+
+  const totalTokenAAmountRaw =
+    strategy.availableTokenAAmountRaw + (invested?.tokenAAmountRaw ?? 0n)
+  const totalTokenBAmountRaw =
+    strategy.availableTokenBAmountRaw + (invested?.tokenBAmountRaw ?? 0n)
+  if (totalTokenAAmountRaw <= 0n && totalTokenBAmountRaw <= 0n) return null
+
+  const tokenAAmountRaw =
+    (sharesAmountRaw * totalTokenAAmountRaw) / strategy.sharesIssued
+  const tokenBAmountRaw =
+    (sharesAmountRaw * totalTokenBAmountRaw) / strategy.sharesIssued
+  if (tokenAAmountRaw <= 0n && tokenBAmountRaw <= 0n) return null
+
+  return {
+    tokenA: {
+      tokenMint: strategy.tokenAMint,
+      tokenDecimals: strategy.tokenADecimals,
+      amountRaw: tokenAAmountRaw,
+    },
+    tokenB: {
+      tokenMint: strategy.tokenBMint,
+      tokenDecimals: strategy.tokenBDecimals,
+      amountRaw: tokenBAmountRaw,
+    },
+  }
+}
+
+function getOrcaInvestedStrategyTokenAmounts(
+  whirlpool: OrcaWhirlpoolData,
+  position: OrcaPositionData,
+): StrategyInvestedTokenAmountsRaw | null {
+  try {
+    const quote = OrcaPoolUtil.getTokenAmountsFromLiquidity(
+      position.liquidity,
+      whirlpool.sqrtPrice,
+      OrcaPriceMath.tickIndexToSqrtPriceX64(position.tickLowerIndex),
+      OrcaPriceMath.tickIndexToSqrtPriceX64(position.tickUpperIndex),
+      false,
+    )
+    return {
+      tokenAAmountRaw: BigInt(quote.tokenA.toString()),
+      tokenBAmountRaw: BigInt(quote.tokenB.toString()),
+    }
+  } catch {
+    return null
+  }
+}
+
+function getRaydiumInvestedStrategyTokenAmounts(
+  pool: RaydiumPoolState,
+  position: RaydiumPersonalPositionState,
+): StrategyInvestedTokenAmountsRaw | null {
+  try {
+    const lowerSqrtPriceX64 = RaydiumSqrtPriceMath.getSqrtPriceX64FromTick(
+      position.tickLowerIndex,
+    )
+    const upperSqrtPriceX64 = RaydiumSqrtPriceMath.getSqrtPriceX64FromTick(
+      position.tickUpperIndex,
+    )
+
+    const quote = RaydiumLiquidityMath.getAmountsFromLiquidity(
+      pool.sqrtPriceX64,
+      new BN(lowerSqrtPriceX64),
+      new BN(upperSqrtPriceX64),
+      position.liquidity,
+      false,
+    )
+
+    return {
+      tokenAAmountRaw: BigInt(quote.amountA.toString()),
+      tokenBAmountRaw: BigInt(quote.amountB.toString()),
+    }
+  } catch {
+    return null
+  }
+}
+
+function getMeteoraInvestedStrategyTokenAmounts(
+  position: MeteoraPositionV2,
+  binArrays: MeteoraBinArray[],
+): StrategyInvestedTokenAmountsRaw | null {
+  let totalTokenAAmountRaw = 0n
+  let totalTokenBAmountRaw = 0n
+
+  for (let binId = position.lowerBinId; binId <= position.upperBinId; binId++) {
+    const bin = getBinFromBinArrays(binId, binArrays)
+    if (!bin) continue
+
+    const binTokenAAmountRaw = toBigInt(bin.amountX)
+    const binTokenBAmountRaw = toBigInt(bin.amountY)
+    const binLiquidityRaw = toBigInt(bin.liquiditySupply)
+    if (binLiquidityRaw <= 0n) continue
+
+    const positionLiquidityShareRaw =
+      position.liquidityShares[binId - position.lowerBinId]
+    const positionLiquidityRaw = toBigInt(positionLiquidityShareRaw)
+    if (positionLiquidityRaw <= 0n) continue
+
+    totalTokenAAmountRaw +=
+      (binTokenAAmountRaw * positionLiquidityRaw) / binLiquidityRaw
+    totalTokenBAmountRaw +=
+      (binTokenBAmountRaw * positionLiquidityRaw) / binLiquidityRaw
+  }
+
+  if (totalTokenAAmountRaw <= 0n && totalTokenBAmountRaw <= 0n) return null
+  return {
+    tokenAAmountRaw: totalTokenAAmountRaw,
+    tokenBAmountRaw: totalTokenBAmountRaw,
   }
 }
 
@@ -460,7 +793,14 @@ export const kaminoIntegration: SolanaIntegration = {
     const reserveByAddress = new Map<string, KlendReserveDecoded>()
     const obligationDepositReserveSet = new Set<string>()
     const farmAddressSet = new Set<string>()
+    const farmStrategyAddressSet = new Set<string>()
     const farmsUserStates = new Map<string, FarmsUserStateAggregate>()
+    const kvaultByAddress = new Map<string, KVaultDecoded>()
+    const strategyByAddress = new Map<string, KliquidityStrategyDecoded>()
+    const strategyInvestedByAddress = new Map<
+      string,
+      StrategyInvestedTokenAmountsRaw
+    >()
 
     const kvaultSharePositions: UserDefiPosition[] = []
     const seenSharesMints = new Set<string>()
@@ -502,15 +842,24 @@ export const kaminoIntegration: SolanaIntegration = {
       if (account.programAddress === KVAULT_PROGRAM_ID) {
         try {
           const vault = decodeKVaultSharesMintAndDecimals(account.data)
+          if (vault) kvaultByAddress.set(account.address, vault)
           if (!vault || seenSharesMints.has(vault.sharesMint)) continue
 
           const userShares = userMintBalances.get(vault.sharesMint)
           if (!userShares || userShares <= 0n) continue
 
-          const token = tokens.get(vault.sharesMint)
-          const stakedUsdValue = buildUsdValue(
+          const converted = convertVaultSharesToUnderlyingAmount(
             userShares,
-            vault.sharesDecimals,
+            vault,
+          )
+          const stakedTokenMint = converted?.tokenMint ?? vault.sharesMint
+          const stakedTokenDecimals =
+            converted?.tokenDecimals ?? vault.sharesDecimals
+          const stakedAmountRaw = converted?.amountRaw ?? userShares
+          const token = tokens.get(stakedTokenMint)
+          const stakedUsdValue = buildUsdValue(
+            stakedAmountRaw,
+            stakedTokenDecimals,
             token?.priceUsd,
           )
 
@@ -522,9 +871,9 @@ export const kaminoIntegration: SolanaIntegration = {
             staked: [
               {
                 amount: {
-                  token: vault.sharesMint,
-                  amount: userShares.toString(),
-                  decimals: vault.sharesDecimals.toString(),
+                  token: stakedTokenMint,
+                  amount: stakedAmountRaw.toString(),
+                  decimals: stakedTokenDecimals.toString(),
                 },
                 ...(token?.priceUsd !== undefined && {
                   priceUsd: token.priceUsd.toString(),
@@ -534,6 +883,17 @@ export const kaminoIntegration: SolanaIntegration = {
                 }),
               },
             ],
+            ...(converted && {
+              meta: {
+                kamino: {
+                  source: 'kvault',
+                  vault: account.address,
+                  shareMint: vault.sharesMint,
+                  shareAmountRaw: userShares.toString(),
+                  valuationSource: 'vaultSnapshot',
+                },
+              },
+            }),
           })
         } catch {
           // Ignore decode failures from non-vault or incompatible accounts.
@@ -592,18 +952,222 @@ export const kaminoIntegration: SolanaIntegration = {
     }
 
     const farmsByAddress = new Map<string, FarmStateWire>()
+    const farmVaultAddressSet = new Set<string>()
     for (const farmAddress of farmAddresses) {
       const account = fetchedAccountsMap[farmAddress]
       if (!account?.exists) continue
 
       try {
-        farmsByAddress.set(
-          farmAddress,
-          FarmState.decode(Buffer.from(account.data)) as FarmStateWire,
-        )
+        const farm = FarmState.decode(
+          Buffer.from(account.data),
+        ) as FarmStateWire
+        farmsByAddress.set(farmAddress, farm)
+
+        const strategyAddress = farm.strategyId.toString()
+        if (strategyAddress !== DEFAULT_PUBKEY) {
+          farmStrategyAddressSet.add(strategyAddress)
+        }
+
+        const vaultAddress = farm.vaultId.toString()
+        if (vaultAddress !== DEFAULT_PUBKEY) {
+          farmVaultAddressSet.add(vaultAddress)
+        }
       } catch {
         // Skip farms that fail to decode.
       }
+    }
+
+    const farmVaultAddressesToFetch = [...farmVaultAddressSet].filter(
+      (vaultAddress) => !kvaultByAddress.has(vaultAddress),
+    )
+    const farmVaultAccountsMap =
+      farmVaultAddressesToFetch.length > 0
+        ? yield farmVaultAddressesToFetch
+        : {}
+
+    for (const vaultAddress of farmVaultAddressesToFetch) {
+      const account = farmVaultAccountsMap[vaultAddress]
+      if (!account?.exists) continue
+
+      try {
+        const decoded = decodeKVaultSharesMintAndDecimals(account.data)
+        if (!decoded) continue
+        kvaultByAddress.set(vaultAddress, decoded)
+      } catch {
+        // Skip KVault accounts that fail to decode.
+      }
+    }
+
+    const farmStrategyAddresses = [...farmStrategyAddressSet]
+    const farmStrategyAccountsMap =
+      farmStrategyAddresses.length > 0 ? yield farmStrategyAddresses : {}
+
+    for (const strategyAddress of farmStrategyAddresses) {
+      const account = farmStrategyAccountsMap[strategyAddress]
+      if (!account?.exists) continue
+      if (account.programAddress !== KLIQUIDITY_PROGRAM_ID) continue
+
+      try {
+        const decoded = decodeKliquidityStrategy(account.data)
+        if (!decoded) continue
+        strategyByAddress.set(strategyAddress, decoded)
+      } catch {
+        // Skip strategy accounts that fail to decode.
+      }
+    }
+
+    const strategyPoolAndPositionFetchTargets = [
+      ...strategyByAddress.entries(),
+    ].filter(
+      ([, strategy]) =>
+        strategy.position !== DEFAULT_PUBKEY &&
+        strategy.pool !== DEFAULT_PUBKEY,
+    )
+    const strategyPoolAndPositionAddresses = [
+      ...new Set(
+        strategyPoolAndPositionFetchTargets.flatMap(([, strategy]) => [
+          strategy.pool,
+          strategy.position,
+        ]),
+      ),
+    ]
+    const strategyPoolAndPositionAccounts =
+      strategyPoolAndPositionAddresses.length > 0
+        ? yield strategyPoolAndPositionAddresses
+        : {}
+
+    const meteoraPositionsByStrategy = new Map<string, MeteoraPositionV2>()
+
+    for (const [
+      strategyAddress,
+      strategy,
+    ] of strategyPoolAndPositionFetchTargets) {
+      if (strategy.strategyDex === ORCA_DEX) {
+        const whirlpool = parseOrcaWhirlpool(
+          strategy.pool,
+          strategyPoolAndPositionAccounts[strategy.pool],
+        )
+        const position = parseOrcaPosition(
+          strategy.position,
+          strategyPoolAndPositionAccounts[strategy.position],
+        )
+        if (!whirlpool || !position) continue
+
+        const invested = getOrcaInvestedStrategyTokenAmounts(
+          whirlpool,
+          position,
+        )
+        if (!invested) continue
+        strategyInvestedByAddress.set(strategyAddress, invested)
+        continue
+      }
+
+      if (strategy.strategyDex === RAYDIUM_DEX) {
+        const poolAccount = strategyPoolAndPositionAccounts[strategy.pool]
+        const positionAccount =
+          strategyPoolAndPositionAccounts[strategy.position]
+        if (!poolAccount?.exists || !positionAccount?.exists) continue
+        if (
+          poolAccount.programAddress !== String(RAYDIUM_PROGRAM_ID) ||
+          positionAccount.programAddress !== String(RAYDIUM_PROGRAM_ID)
+        ) {
+          continue
+        }
+
+        const pool = decodeRaydiumPoolState(poolAccount.data)
+        const position = decodeRaydiumPersonalPositionState(
+          positionAccount.data,
+        )
+        if (!pool || !position) continue
+
+        const invested = getRaydiumInvestedStrategyTokenAmounts(pool, position)
+        if (!invested) continue
+        strategyInvestedByAddress.set(strategyAddress, invested)
+        continue
+      }
+
+      if (strategy.strategyDex === METEORA_DEX) {
+        const positionAccount =
+          strategyPoolAndPositionAccounts[strategy.position]
+        if (!positionAccount?.exists) continue
+        if (positionAccount.programAddress !== String(METEORA_PROGRAM_ID)) {
+          continue
+        }
+
+        const position = decodeMeteoraPositionV2(positionAccount.data)
+        if (!position) continue
+        meteoraPositionsByStrategy.set(strategyAddress, position)
+      }
+    }
+
+    const meteoraBinArrayAddressesByStrategy = new Map<
+      string,
+      [string, string]
+    >()
+    const meteoraBinArrayAddresses = new Set<string>()
+
+    for (const [
+      strategyAddress,
+      position,
+    ] of meteoraPositionsByStrategy.entries()) {
+      const strategy = strategyByAddress.get(strategyAddress)
+      if (!strategy) continue
+
+      const lowerBinArrayIndex = binIdToBinArrayIndex(
+        new BN(position.lowerBinId),
+      )
+      const [lowerBinArrayAddress] = await deriveBinArray(
+        strategy.pool as Address,
+        lowerBinArrayIndex,
+        METEORA_PROGRAM_ID,
+      )
+      const [upperBinArrayAddress] = await deriveBinArray(
+        strategy.pool as Address,
+        lowerBinArrayIndex.add(new BN(1)),
+        METEORA_PROGRAM_ID,
+      )
+
+      const lower = String(lowerBinArrayAddress)
+      const upper = String(upperBinArrayAddress)
+      meteoraBinArrayAddressesByStrategy.set(strategyAddress, [lower, upper])
+      meteoraBinArrayAddresses.add(lower)
+      meteoraBinArrayAddresses.add(upper)
+    }
+
+    const meteoraBinArrayAccountsMap =
+      meteoraBinArrayAddresses.size > 0
+        ? yield [...meteoraBinArrayAddresses]
+        : {}
+    const meteoraBinArrayByAddress = new Map<string, MeteoraBinArray>()
+
+    for (const address of meteoraBinArrayAddresses) {
+      const account = meteoraBinArrayAccountsMap[address]
+      if (!account?.exists) continue
+      if (account.programAddress !== String(METEORA_PROGRAM_ID)) continue
+
+      const decoded = decodeMeteoraBinArray(account.data)
+      if (!decoded) continue
+      meteoraBinArrayByAddress.set(address, decoded)
+    }
+
+    for (const [
+      strategyAddress,
+      position,
+    ] of meteoraPositionsByStrategy.entries()) {
+      const binArrayAddresses =
+        meteoraBinArrayAddressesByStrategy.get(strategyAddress)
+      if (!binArrayAddresses) continue
+
+      const lowerBinArray = meteoraBinArrayByAddress.get(binArrayAddresses[0])
+      const upperBinArray = meteoraBinArrayByAddress.get(binArrayAddresses[1])
+      if (!lowerBinArray || !upperBinArray) continue
+
+      const invested = getMeteoraInvestedStrategyTokenAmounts(position, [
+        lowerBinArray,
+        upperBinArray,
+      ])
+      if (!invested) continue
+      strategyInvestedByAddress.set(strategyAddress, invested)
     }
 
     const lendingPositions: UserDefiPosition[] = []
@@ -729,24 +1293,174 @@ export const kaminoIntegration: SolanaIntegration = {
       const farm = farmsByAddress.get(farmAddress)
       if (!farm) continue
 
-      const stakedRaw = scaledWadsToRawAmount(aggregate.activeStakeScaled)
-      const pendingWithdrawalRaw = scaledWadsToRawAmount(
+      const stakedShareAmountRaw = scaledWadsToRawAmount(
+        aggregate.activeStakeScaled,
+      )
+      const pendingWithdrawalShareAmountRaw = scaledWadsToRawAmount(
         aggregate.pendingWithdrawalUnstakeScaled,
       )
-      const stakedToken = farm.token.mint.toString()
-      const stakedTokenDecimalsNum = toNumber(farm.token.decimals)
-      const stakedTokenDecimals = stakedTokenDecimalsNum.toString()
-      const stakedTokenInfo = tokens.get(stakedToken)
-      const stakedUsdValue = buildUsdValue(
-        stakedRaw,
-        stakedTokenDecimalsNum,
-        stakedTokenInfo?.priceUsd,
-      )
-      const pendingUsdValue = buildUsdValue(
-        pendingWithdrawalRaw,
-        stakedTokenDecimalsNum,
-        stakedTokenInfo?.priceUsd,
-      )
+      const stakedShareMint = farm.token.mint.toString()
+      const stakedShareDecimalsNum = toNumber(farm.token.decimals)
+
+      const farmVaultAddress = farm.vaultId.toString()
+      const farmVault =
+        farmVaultAddress !== DEFAULT_PUBKEY
+          ? kvaultByAddress.get(farmVaultAddress)
+          : undefined
+      const farmStrategyAddress = farm.strategyId.toString()
+      const farmStrategy =
+        farmStrategyAddress !== DEFAULT_PUBKEY
+          ? strategyByAddress.get(farmStrategyAddress)
+          : undefined
+      const farmStrategyInvested =
+        farmStrategyAddress !== DEFAULT_PUBKEY
+          ? strategyInvestedByAddress.get(farmStrategyAddress)
+          : undefined
+
+      const stakedVaultUnderlying =
+        farmVault?.sharesMint === stakedShareMint
+          ? convertVaultSharesToUnderlyingAmount(
+              stakedShareAmountRaw,
+              farmVault,
+            )
+          : null
+      const pendingVaultUnderlying =
+        farmVault?.sharesMint === stakedShareMint
+          ? convertVaultSharesToUnderlyingAmount(
+              pendingWithdrawalShareAmountRaw,
+              farmVault,
+            )
+          : null
+
+      const stakedStrategyUnderlying =
+        farmStrategy?.sharesMint === stakedShareMint
+          ? convertStrategySharesToUnderlyingAmounts(
+              stakedShareAmountRaw,
+              farmStrategy,
+              farmStrategyInvested,
+            )
+          : null
+      const pendingStrategyUnderlying =
+        farmStrategy?.sharesMint === stakedShareMint
+          ? convertStrategySharesToUnderlyingAmounts(
+              pendingWithdrawalShareAmountRaw,
+              farmStrategy,
+              farmStrategyInvested,
+            )
+          : null
+
+      const stakingComponentUsdValues: Array<string | undefined> = []
+      const staked: Array<{
+        amount: {
+          token: string
+          amount: string
+          decimals: string
+        }
+        priceUsd?: string
+        usdValue?: string
+      }> = []
+      const unbonding: Array<{
+        amount: {
+          token: string
+          amount: string
+          decimals: string
+        }
+        priceUsd?: string
+        usdValue?: string
+      }> = []
+
+      const appendAmountValue = (
+        target:
+          | Array<{
+              amount: {
+                token: string
+                amount: string
+                decimals: string
+              }
+              priceUsd?: string
+              usdValue?: string
+            }>
+          | undefined,
+        tokenMint: string,
+        amountRaw: bigint,
+        decimals: number,
+      ): void => {
+        if (!target || amountRaw <= 0n) return
+        const tokenInfo = tokens.get(tokenMint)
+        const usdValue = buildUsdValue(amountRaw, decimals, tokenInfo?.priceUsd)
+        stakingComponentUsdValues.push(usdValue)
+
+        target.push({
+          amount: {
+            token: tokenMint,
+            amount: amountRaw.toString(),
+            decimals: decimals.toString(),
+          },
+          ...(tokenInfo?.priceUsd !== undefined && {
+            priceUsd: tokenInfo.priceUsd.toString(),
+          }),
+          ...(usdValue !== undefined && { usdValue }),
+        })
+      }
+
+      if (stakedStrategyUnderlying) {
+        appendAmountValue(
+          staked,
+          stakedStrategyUnderlying.tokenA.tokenMint,
+          stakedStrategyUnderlying.tokenA.amountRaw,
+          stakedStrategyUnderlying.tokenA.tokenDecimals,
+        )
+        appendAmountValue(
+          staked,
+          stakedStrategyUnderlying.tokenB.tokenMint,
+          stakedStrategyUnderlying.tokenB.amountRaw,
+          stakedStrategyUnderlying.tokenB.tokenDecimals,
+        )
+      } else if (stakedVaultUnderlying) {
+        appendAmountValue(
+          staked,
+          stakedVaultUnderlying.tokenMint,
+          stakedVaultUnderlying.amountRaw,
+          stakedVaultUnderlying.tokenDecimals,
+        )
+      } else {
+        appendAmountValue(
+          staked,
+          stakedShareMint,
+          stakedShareAmountRaw,
+          stakedShareDecimalsNum,
+        )
+      }
+
+      if (pendingStrategyUnderlying) {
+        appendAmountValue(
+          unbonding,
+          pendingStrategyUnderlying.tokenA.tokenMint,
+          pendingStrategyUnderlying.tokenA.amountRaw,
+          pendingStrategyUnderlying.tokenA.tokenDecimals,
+        )
+        appendAmountValue(
+          unbonding,
+          pendingStrategyUnderlying.tokenB.tokenMint,
+          pendingStrategyUnderlying.tokenB.amountRaw,
+          pendingStrategyUnderlying.tokenB.tokenDecimals,
+        )
+      } else if (pendingVaultUnderlying) {
+        appendAmountValue(
+          unbonding,
+          pendingVaultUnderlying.tokenMint,
+          pendingVaultUnderlying.amountRaw,
+          pendingVaultUnderlying.tokenDecimals,
+        )
+      } else {
+        appendAmountValue(
+          unbonding,
+          stakedShareMint,
+          pendingWithdrawalShareAmountRaw,
+          stakedShareDecimalsNum,
+        )
+      }
+
       const rewardUsdValues: Array<string | undefined> = []
 
       const rewards = farm.rewardInfos
@@ -784,56 +1498,61 @@ export const kaminoIntegration: SolanaIntegration = {
         .filter((entry) => entry !== null)
 
       if (
-        stakedRaw <= 0n &&
-        pendingWithdrawalRaw <= 0n &&
+        staked.length === 0 &&
+        unbonding.length === 0 &&
         rewards.length === 0
       ) {
         continue
       }
 
       const positionUsdValue = sumUsdValues([
-        stakedUsdValue,
-        pendingUsdValue,
+        ...stakingComponentUsdValues,
         ...rewardUsdValues,
       ])
+      const hasVaultConversion =
+        stakedVaultUnderlying !== null || pendingVaultUnderlying !== null
+      const hasStrategyConversion =
+        stakedStrategyUnderlying !== null || pendingStrategyUnderlying !== null
+      const hasStrategyInvestedLiquidity =
+        farmStrategyAddress !== DEFAULT_PUBKEY &&
+        strategyInvestedByAddress.has(farmStrategyAddress)
 
       farmsPositions.push({
         platformId: 'kamino',
         positionKind: 'staking',
         ...(positionUsdValue !== undefined && { usdValue: positionUsdValue }),
-        ...(stakedRaw > 0n && {
-          staked: [
-            {
-              amount: {
-                token: stakedToken,
-                amount: stakedRaw.toString(),
-                decimals: stakedTokenDecimals,
-              },
-              ...(stakedTokenInfo?.priceUsd !== undefined && {
-                priceUsd: stakedTokenInfo.priceUsd.toString(),
-              }),
-              ...(stakedUsdValue !== undefined && { usdValue: stakedUsdValue }),
-            },
-          ],
-        }),
-        ...(pendingWithdrawalRaw > 0n && {
-          unbonding: [
-            {
-              amount: {
-                token: stakedToken,
-                amount: pendingWithdrawalRaw.toString(),
-                decimals: stakedTokenDecimals,
-              },
-              ...(stakedTokenInfo?.priceUsd !== undefined && {
-                priceUsd: stakedTokenInfo.priceUsd.toString(),
-              }),
-              ...(pendingUsdValue !== undefined && {
-                usdValue: pendingUsdValue,
-              }),
-            },
-          ],
-        }),
+        ...(staked.length > 0 && { staked }),
+        ...(unbonding.length > 0 && { unbonding }),
         ...(rewards.length > 0 && { rewards }),
+        ...((hasStrategyConversion || hasVaultConversion) && {
+          meta: {
+            kamino: hasStrategyConversion
+              ? {
+                  source: 'farm-strategy',
+                  farm: farmAddress,
+                  strategy: farmStrategyAddress,
+                  shareMint: stakedShareMint,
+                  shareAmountRaw: stakedShareAmountRaw.toString(),
+                  pendingShareAmountRaw:
+                    pendingWithdrawalShareAmountRaw.toString(),
+                  tokenAMint: farmStrategy?.tokenAMint,
+                  tokenBMint: farmStrategy?.tokenBMint,
+                  strategyDex: farmStrategy?.strategyDex,
+                  includesInvestedLiquidity: hasStrategyInvestedLiquidity,
+                  valuationSource: 'strategySnapshot',
+                }
+              : {
+                  source: 'farm-vault',
+                  farm: farmAddress,
+                  vault: farmVaultAddress,
+                  shareMint: stakedShareMint,
+                  shareAmountRaw: stakedShareAmountRaw.toString(),
+                  pendingShareAmountRaw:
+                    pendingWithdrawalShareAmountRaw.toString(),
+                  valuationSource: 'vaultSnapshot',
+                },
+          },
+        }),
       })
     }
 
