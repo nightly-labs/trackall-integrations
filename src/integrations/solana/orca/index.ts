@@ -46,7 +46,7 @@ type ClockState = {
   unixTimestamp: BN
 }
 
-export const testAddress = 'FDnPSh8tkDhe1oydb4ot4GtiwVVu1iYgJcAYPwxRMHa5'
+export const testAddress = '93PSyNrS7zBhrXaHHfU1ZtfegcKq5SaCYc35ZwPVrK3K'
 
 export const PROGRAM_IDS = [
   ORCA_WHIRLPOOL_PROGRAM_ID.toBase58(),
@@ -212,15 +212,23 @@ function collectCandidateMints(accounts: MaybeSolanaAccount[]): {
 } {
   const positionMints = new Set<string>()
   const bundleMints = new Set<string>()
+  const tokenProgramId = TOKEN_PROGRAM_ID.toBase58()
+  const token2022ProgramId = TOKEN_2022_PROGRAM_ID.toBase58()
 
   for (const account of accounts) {
     if (!account.exists) continue
-    const amount = readTokenAccountAmount(account.data)
     const mint = readTokenAccountMint(account.data)
-    if (amount !== 1n || !mint) continue
+    if (!mint) continue
+
+    if (account.programAddress === token2022ProgramId) {
+      const amount = readTokenAccountAmount(account.data)
+      if (amount !== 1n) continue
+    } else if (account.programAddress !== tokenProgramId) {
+      continue
+    }
 
     positionMints.add(mint)
-    if (account.programAddress === TOKEN_PROGRAM_ID.toBase58()) {
+    if (account.programAddress === tokenProgramId) {
       bundleMints.add(mint)
     }
   }

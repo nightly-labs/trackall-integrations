@@ -61,13 +61,16 @@ describe('raydium integration', () => {
     expect(amount1).toBe(5_000_000n)
   })
 
-  it('uses split mint sources: SPL for CP/AMM and Token-2022 for CLMM', async () => {
+  it('uses split mint sources: SPL for CP/AMM and NFT-like Token-2022 for CLMM', async () => {
     const tokens = new TokenPlugin()
     const plugins = { endpoint: solanaRpcUrl, tokens }
 
     const splMint = new PublicKey('So11111111111111111111111111111111111111112')
-    const token2022Mint = new PublicKey(
+    const token2022NftMint = new PublicKey(
       'Es9vMFrzaCER8f6A2QxYDs2fzGEGZm4G6dkprdFM5oc',
+    )
+    const token2022NonNftMint = new PublicKey(
+      'NFTUkR4u7wKxy9QLaX2TGvd9oZSWoMo4jqSJqdMb7Nk',
     )
 
     const clmmProgram = new PublicKey((clmmIdl as { address: string }).address)
@@ -75,8 +78,12 @@ describe('raydium integration', () => {
       [Buffer.from('position'), splMint.toBuffer()],
       clmmProgram,
     )
-    const [token2022ClmmPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from('position'), token2022Mint.toBuffer()],
+    const [token2022NftClmmPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from('position'), token2022NftMint.toBuffer()],
+      clmmProgram,
+    )
+    const [token2022NonNftClmmPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from('position'), token2022NonNftMint.toBuffer()],
       clmmProgram,
     )
 
@@ -105,12 +112,19 @@ describe('raydium integration', () => {
           }
           if (req.programId === TOKEN_2022_PROGRAM_ID.toBase58()) {
             return {
-              token2022Ata: {
+              token2022NftAta: {
                 exists: true,
-                address: 'token2022Ata',
+                address: 'token2022NftAta',
                 lamports: 0n,
                 programAddress: TOKEN_2022_PROGRAM_ID.toBase58(),
-                data: buildTokenAccountData(token2022Mint, 7n),
+                data: buildTokenAccountData(token2022NftMint, 1n),
+              },
+              token2022NonNftAta: {
+                exists: true,
+                address: 'token2022NonNftAta',
+                lamports: 0n,
+                programAddress: TOKEN_2022_PROGRAM_ID.toBase58(),
+                data: buildTokenAccountData(token2022NonNftMint, 2n),
               },
             }
           }
@@ -134,9 +148,66 @@ describe('raydium integration', () => {
     expect(positions).toEqual([])
     expect(getProgramAccountsCalls).toBe(2)
     expect(queriedMints.has(splMint.toBase58())).toBe(true)
-    expect(queriedMints.has(token2022Mint.toBase58())).toBe(false)
-    expect(capturedPhase2Addresses).toEqual([token2022ClmmPda.toBase58()])
+    expect(queriedMints.has(token2022NftMint.toBase58())).toBe(false)
+    expect(queriedMints.has(token2022NonNftMint.toBase58())).toBe(false)
+    expect(capturedPhase2Addresses).toEqual([token2022NftClmmPda.toBase58()])
     expect(capturedPhase2Addresses.includes(splClmmPda.toBase58())).toBe(false)
+    expect(
+      capturedPhase2Addresses.includes(token2022NonNftClmmPda.toBase58()),
+    ).toBe(false)
+  })
+
+  it('skips CLMM PDA fetch for Token-2022 mint balances greater than 1', async () => {
+    const tokens = new TokenPlugin()
+    const plugins = { endpoint: solanaRpcUrl, tokens }
+
+    const token2022NonNftMint = new PublicKey(
+      'NFTUkR4u7wKxy9QLaX2TGvd9oZSWoMo4jqSJqdMb7Nk',
+    )
+    const clmmProgram = new PublicKey((clmmIdl as { address: string }).address)
+    const [token2022NonNftClmmPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from('position'), token2022NonNftMint.toBuffer()],
+      clmmProgram,
+    )
+
+    let batchFetchCalls = 0
+    let capturedPhase2Addresses: string[] = []
+    let getProgramAccountsCalls = 0
+
+    const [positions] = await runIntegrations(
+      [getUserPositions(wallet, plugins)],
+      async (addresses) => {
+        batchFetchCalls++
+        capturedPhase2Addresses = [...addresses]
+        return {}
+      },
+      async (req: ProgramRequest): Promise<AccountsMap> => {
+        if (req.kind === 'getTokenAccountsByOwner') {
+          if (req.programId === TOKEN_PROGRAM_ID.toBase58()) return {}
+          if (req.programId === TOKEN_2022_PROGRAM_ID.toBase58()) {
+            return {
+              token2022NonNftAta: {
+                exists: true,
+                address: 'token2022NonNftAta',
+                lamports: 0n,
+                programAddress: TOKEN_2022_PROGRAM_ID.toBase58(),
+                data: buildTokenAccountData(token2022NonNftMint, 7n),
+              },
+            }
+          }
+          return {}
+        }
+        if (req.kind === 'getProgramAccounts') getProgramAccountsCalls++
+        return {}
+      },
+    )
+
+    expect(positions).toEqual([])
+    expect(getProgramAccountsCalls).toBe(0)
+    expect(batchFetchCalls).toBe(0)
+    expect(
+      capturedPhase2Addresses.includes(token2022NonNftClmmPda.toBase58()),
+    ).toBe(false)
   })
 
   it('fetches user positions from Raydium CLMM + CP', async () => {

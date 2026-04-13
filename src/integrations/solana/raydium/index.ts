@@ -47,6 +47,7 @@ const PERSONAL_POSITION_DISC = Buffer.from(
 const CP_POOL_DISC_B64 = Buffer.from(
   idlDiscriminator(cpIdl, 'PoolState'),
 ).toString('base64')
+const NFT_TOKEN_AMOUNT_RAW = 1n
 
 // ─── BorshCoder for PersonalPositionState ────────────────────────────────────
 const clmmCoder = new BorshCoder(clmmIdl as never)
@@ -309,7 +310,7 @@ export const raydiumIntegration: SolanaIntegration = {
 
     // Build mint → amount maps:
     // - userSplMintBalances: SPL only (used by CP/AMM)
-    // - userToken2022MintBalances: Token-2022 only (used by CLMM)
+    // - userToken2022MintBalances: Token-2022 balances (used to detect NFT-like CLMM mints)
     const token2022ProgramId = TOKEN_2022_PROGRAM_ID.toBase58()
     const tokenProgramId = TOKEN_PROGRAM_ID.toBase58()
     const userSplMintBalances = new Map<string, bigint>()
@@ -338,7 +339,12 @@ export const raydiumIntegration: SolanaIntegration = {
       }
     }
 
-    if (userSplMintBalances.size === 0 && userToken2022MintBalances.size === 0)
+    const userToken2022NftMints = new Set<string>()
+    for (const [mint, amount] of userToken2022MintBalances) {
+      if (amount === NFT_TOKEN_AMOUNT_RAW) userToken2022NftMints.add(mint)
+    }
+
+    if (userSplMintBalances.size === 0 && userToken2022NftMints.size === 0)
       return []
 
     // ── Phase 1: Fetch CP pools matching user's LP mints ───────────────────
@@ -471,9 +477,9 @@ export const raydiumIntegration: SolanaIntegration = {
       ammV4VaultAddresses.push(m.baseVault, m.quoteVault)
     }
 
-    // Derive CLMM PersonalPositionState PDAs for Token-2022 user mints only
+    // Derive CLMM PersonalPositionState PDAs for Token-2022 NFT-like user mints only (amount=1)
     const clmmPdaEntries: { mint: string; pda: string }[] = []
-    for (const [mint] of userToken2022MintBalances) {
+    for (const mint of userToken2022NftMints) {
       try {
         const mintPubkey = new PublicKey(mint)
         const [pda] = PublicKey.findProgramAddressSync(
@@ -514,6 +520,7 @@ export const raydiumIntegration: SolanaIntegration = {
     const uniquePoolIds = new Set<string>()
 
     for (const entry of clmmPdaEntries) {
+      if (!userToken2022NftMints.has(entry.mint)) continue
       const acc = phase2Map[entry.pda]
       if (!acc?.exists) continue
       const buf = Buffer.from(acc.data)
