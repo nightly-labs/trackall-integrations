@@ -1,4 +1,4 @@
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
+import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { PublicKey } from '@solana/web3.js'
 import type {
   LendingBorrowedAsset,
@@ -13,8 +13,9 @@ import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange
 
 const SAVE_PROGRAM_ID = 'So1endDq2YkqhipRh3WViPa8hdiSpxWy6z3Z6tMCpAo'
 const DEFAULT_PUBLIC_KEY = '11111111111111111111111111111111'
+const TOKEN_PROGRAM_ID_STR = TOKEN_PROGRAM_ID.toBase58()
+const TOKEN_2022_PROGRAM_ID_STR = TOKEN_2022_PROGRAM_ID.toBase58()
 
-const OBLIGATION_ACCOUNT_SIZE = 1300
 const OBLIGATION_MARKET_OFFSET = 10
 const OBLIGATION_OWNER_OFFSET = 42
 const OBLIGATION_DEPOSITS_LEN_OFFSET = 202
@@ -38,9 +39,9 @@ const RESERVE_COLLATERAL_MINT_OFFSET = 227
 const RESERVE_COLLATERAL_MINT_TOTAL_SUPPLY_OFFSET = 259
 const RESERVE_ACCUMULATED_PROTOCOL_FEES_WADS_OFFSET = 373
 
-const TOKEN_ACCOUNT_SIZE = 165
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
+const TOKEN_ACCOUNT_MIN_SIZE = TOKEN_ACCOUNT_AMOUNT_OFFSET + 8
 
 const WAD = 10n ** 18n
 
@@ -79,7 +80,8 @@ export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
 export const PROGRAM_IDS = [
   SAVE_PROGRAM_ID,
-  TOKEN_PROGRAM_ID.toBase58(),
+  TOKEN_PROGRAM_ID_STR,
+  TOKEN_2022_PROGRAM_ID_STR,
 ] as const
 
 function readPubkey(data: Uint8Array, offset: number): string {
@@ -102,15 +104,21 @@ function parseObligation(
   address: string,
   data: Uint8Array,
 ): ParsedObligation | null {
-  if (data.length !== OBLIGATION_ACCOUNT_SIZE) return null
+  if (data.length < OBLIGATION_ITEMS_OFFSET) return null
 
   const depositsLen = data[OBLIGATION_DEPOSITS_LEN_OFFSET] ?? 0
   const borrowsLen = data[OBLIGATION_BORROWS_LEN_OFFSET] ?? 0
+  const depositsSectionEnd =
+    OBLIGATION_ITEMS_OFFSET + depositsLen * OBLIGATION_DEPOSIT_SIZE
+  const borrowsSectionEnd =
+    depositsSectionEnd + borrowsLen * OBLIGATION_BORROW_SIZE
+
+  if (borrowsSectionEnd > data.length) return null
+
   let cursor = OBLIGATION_ITEMS_OFFSET
 
   const deposits: ParsedObligationDeposit[] = []
   for (let index = 0; index < depositsLen; index++) {
-    if (cursor + OBLIGATION_DEPOSIT_SIZE > data.length) break
     deposits.push({
       reserve: readPubkey(data, cursor + OBLIGATION_DEPOSIT_RESERVE_OFFSET),
       depositedAmount: readU64LE(
@@ -123,7 +131,6 @@ function parseObligation(
 
   const borrows: ParsedObligationBorrow[] = []
   for (let index = 0; index < borrowsLen; index++) {
-    if (cursor + OBLIGATION_BORROW_SIZE > data.length) break
     borrows.push({
       reserve: readPubkey(data, cursor + OBLIGATION_BORROW_RESERVE_OFFSET),
       cumulativeBorrowRateWads: readU128LE(
@@ -147,7 +154,8 @@ function parseObligation(
 }
 
 function parseReserve(address: string, data: Uint8Array): ParsedReserve | null {
-  if (data.length !== RESERVE_ACCOUNT_SIZE) return null
+  if (data.length < RESERVE_ACCUMULATED_PROTOCOL_FEES_WADS_OFFSET + 16)
+    return null
 
   return {
     address,
@@ -300,14 +308,18 @@ export const saveIntegration: SolanaIntegration = {
         kind: 'getProgramAccounts' as const,
         programId: SAVE_PROGRAM_ID,
         filters: [
-          { dataSize: OBLIGATION_ACCOUNT_SIZE },
           { memcmp: { offset: OBLIGATION_OWNER_OFFSET, bytes: walletAddress } },
         ],
       },
       {
         kind: 'getTokenAccountsByOwner' as const,
         owner: walletAddress,
-        programId: TOKEN_PROGRAM_ID.toBase58(),
+        programId: TOKEN_PROGRAM_ID_STR,
+      },
+      {
+        kind: 'getTokenAccountsByOwner' as const,
+        owner: walletAddress,
+        programId: TOKEN_2022_PROGRAM_ID_STR,
       },
     ]
 
@@ -317,18 +329,16 @@ export const saveIntegration: SolanaIntegration = {
     for (const account of Object.values(phase0)) {
       if (!account.exists) continue
 
-      if (
-        account.programAddress === SAVE_PROGRAM_ID &&
-        account.data.length === OBLIGATION_ACCOUNT_SIZE
-      ) {
+      if (account.programAddress === SAVE_PROGRAM_ID) {
         const obligation = parseObligation(account.address, account.data)
         if (obligation) obligations.push(obligation)
         continue
       }
 
       if (
-        account.programAddress === TOKEN_PROGRAM_ID.toBase58() &&
-        account.data.length === TOKEN_ACCOUNT_SIZE
+        (account.programAddress === TOKEN_PROGRAM_ID_STR ||
+          account.programAddress === TOKEN_2022_PROGRAM_ID_STR) &&
+        account.data.length >= TOKEN_ACCOUNT_MIN_SIZE
       ) {
         const mint = readTokenAccountMint(account.data)
         const amount = readTokenAccountAmount(account.data)
@@ -351,7 +361,6 @@ export const saveIntegration: SolanaIntegration = {
 
     for (const account of Object.values(reservesMap)) {
       if (!account.exists) continue
-      if (account.data.length !== RESERVE_ACCOUNT_SIZE) continue
 
       const reserve = parseReserve(account.address, account.data)
       if (!reserve) continue
