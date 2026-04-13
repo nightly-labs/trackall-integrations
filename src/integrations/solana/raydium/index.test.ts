@@ -152,9 +152,9 @@ describe('raydium integration', () => {
     expect(queriedMints.has(token2022NonNftMint.toBase58())).toBe(false)
     expect(capturedPhase2Addresses).toEqual([token2022NftClmmPda.toBase58()])
     expect(capturedPhase2Addresses.includes(splClmmPda.toBase58())).toBe(false)
-    expect(capturedPhase2Addresses.includes(token2022NonNftClmmPda.toBase58())).toBe(
-      false,
-    )
+    expect(
+      capturedPhase2Addresses.includes(token2022NonNftClmmPda.toBase58()),
+    ).toBe(false)
   })
 
   it('skips CLMM PDA fetch for Token-2022 mint balances greater than 1', async () => {
@@ -205,9 +205,9 @@ describe('raydium integration', () => {
     expect(positions).toEqual([])
     expect(getProgramAccountsCalls).toBe(0)
     expect(batchFetchCalls).toBe(0)
-    expect(capturedPhase2Addresses.includes(token2022NonNftClmmPda.toBase58())).toBe(
-      false,
-    )
+    expect(
+      capturedPhase2Addresses.includes(token2022NonNftClmmPda.toBase58()),
+    ).toBe(false)
   })
 
   it('fetches user positions from Raydium CLMM + CP', async () => {
