@@ -10,6 +10,7 @@ import type {
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import neutralVaults from './vaults.json'
+import { ONE_HOUR_IN_MS } from '../../../utils/solana'
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
@@ -319,6 +320,7 @@ export const neutralIntegration: SolanaIntegration = {
         {
           kind: 'getProgramAccounts' as const,
           programId,
+          cacheTtlMs: ONE_HOUR_IN_MS,
           filters: [
             {
               memcmp: {

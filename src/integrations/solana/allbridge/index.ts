@@ -10,6 +10,7 @@ import type {
   UserPositionsPlan,
 } from '../../../types/index'
 import { applyPositionPctUsdValueChange24 } from '../../../utils/positionChange'
+import { ONE_HOUR_IN_MS } from '../../../utils/solana'
 
 const ALLBRIDGE_BRIDGE_PROGRAM_ID =
   'BrdgN2RPzEMWF96ZbnnJaUtQDQx7VRXYaHHbYCBvceWB'
@@ -220,6 +221,7 @@ export const allbridgeIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: ALLBRIDGE_BRIDGE_PROGRAM_ID,
+        cacheTtlMs: ONE_HOUR_IN_MS,
         filters: [
           {
             memcmp: {

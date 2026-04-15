@@ -11,6 +11,7 @@ import type {
   UserPositionsPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
+import { ONE_HOUR_IN_MS } from '../../../utils/solana'
 
 const STABLE_SWAP_PROGRAM_ID = 'swapNyd8XiQwJ6ianp9snpu4brUqFxadzvHebnAXjJZ'
 const WEIGHTED_SWAP_PROGRAM_ID = 'swapFpHZwjELNnjvThjajtiVmkz3yPQEHjLtka2fwHW'
@@ -307,6 +308,7 @@ export const stabbleIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: STABLE_SWAP_PROGRAM_ID,
+        cacheTtlMs: ONE_HOUR_IN_MS,
         filters: [
           {
             memcmp: {
@@ -319,6 +321,7 @@ export const stabbleIntegration: SolanaIntegration = {
       },
       {
         kind: 'getProgramAccounts' as const,
+        cacheTtlMs: ONE_HOUR_IN_MS,
         programId: WEIGHTED_SWAP_PROGRAM_ID,
         filters: [
           {

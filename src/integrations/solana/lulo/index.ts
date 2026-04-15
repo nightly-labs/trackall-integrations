@@ -24,6 +24,7 @@ import type {
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import lendingIdl from '../jupiter-lend/idls/lending.json'
+import { ONE_HOUR_IN_MS } from '../../../utils/solana'
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
@@ -387,6 +388,7 @@ export const luloIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: JUPITER_LENDING_PROGRAM_ID,
+        cacheTtlMs: ONE_HOUR_IN_MS,
         filters: [
           {
             memcmp: {

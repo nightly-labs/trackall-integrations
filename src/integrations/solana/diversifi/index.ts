@@ -9,6 +9,7 @@ import type {
   UserPositionsPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
+import { ONE_HOUR_IN_MS } from '../../../utils/solana'
 
 const DIVERSIFI_BASKET_PROGRAM_ID =
   '3vyr9DRfMZb2KvUQdnps7YG3PY38XdguLBQaJ2DFkSxk'
@@ -137,6 +138,7 @@ export const diversifiIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: DIVERSIFI_BASKET_PROGRAM_ID,
+        cacheTtlMs: ONE_HOUR_IN_MS,
         filters: [{ dataSize: DIVERSIFI_BASKET_ACCOUNT_SIZE }],
       },
       {
