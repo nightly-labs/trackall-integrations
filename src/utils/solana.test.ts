@@ -24,15 +24,16 @@ afterEach(() => {
 
 describe('fetchProgramAccountsBatch getHttpJson', () => {
   it('parses object.data arrays and keyField rows', async () => {
-    setFetch(async () =>
-      new Response(
-        JSON.stringify({
-          data: [
-            { id: 'vault-a', apy: '1.11' },
-            { id: 'vault-b', apy: '2.22' },
-          ],
-        }),
-      ),
+    setFetch(
+      async () =>
+        new Response(
+          JSON.stringify({
+            data: [
+              { id: 'vault-a', apy: '1.11' },
+              { id: 'vault-b', apy: '2.22' },
+            ],
+          }),
+        ),
     )
 
     const map = await fetchProgramAccountsBatch(dummyConnection, {
@@ -43,18 +44,25 @@ describe('fetchProgramAccountsBatch getHttpJson', () => {
 
     expect(map['vault-a']?.exists).toBe(true)
     expect(map['vault-b']?.exists).toBe(true)
-    expect(decodeHttpJsonRow(map, 'vault-a')).toEqual({ id: 'vault-a', apy: '1.11' })
-    expect(decodeHttpJsonRow(map, 'vault-b')).toEqual({ id: 'vault-b', apy: '2.22' })
+    expect(decodeHttpJsonRow(map, 'vault-a')).toEqual({
+      id: 'vault-a',
+      apy: '1.11',
+    })
+    expect(decodeHttpJsonRow(map, 'vault-b')).toEqual({
+      id: 'vault-b',
+      apy: '2.22',
+    })
   })
 
   it('parses top-level arrays', async () => {
-    setFetch(async () =>
-      new Response(
-        JSON.stringify([
-          { strategy: 'strategy-1', totalApy: '3.14' },
-          { strategy: 'strategy-2', totalApy: '2.71' },
-        ]),
-      ),
+    setFetch(
+      async () =>
+        new Response(
+          JSON.stringify([
+            { strategy: 'strategy-1', totalApy: '3.14' },
+            { strategy: 'strategy-2', totalApy: '2.71' },
+          ]),
+        ),
     )
 
     const url = 'https://example.com/top-level-array'
@@ -72,13 +80,14 @@ describe('fetchProgramAccountsBatch getHttpJson', () => {
   })
 
   it('parses top-level objects as a single row', async () => {
-    setFetch(async () =>
-      new Response(
-        JSON.stringify({
-          apy: '4.56',
-          apyActual: '4.44',
-        }),
-      ),
+    setFetch(
+      async () =>
+        new Response(
+          JSON.stringify({
+            apy: '4.56',
+            apyActual: '4.44',
+          }),
+        ),
     )
 
     const url = 'https://example.com/top-level-object'

@@ -36,9 +36,9 @@ import { PublicKey } from '@solana/web3.js'
 import type {
   LendingBorrowedAsset,
   LendingDefiPosition,
-  ProgramRequest,
   LendingSuppliedAsset,
   MaybeSolanaAccount,
+  ProgramRequest,
   SolanaIntegration,
   SolanaPlugins,
   UserDefiPosition,
