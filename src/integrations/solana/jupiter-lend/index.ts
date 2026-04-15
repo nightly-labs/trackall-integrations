@@ -470,7 +470,9 @@ function toMintProtocolKey(mint: string, protocol: string): string {
   return `${mint}:${protocol}`
 }
 
-export function buildVaultPositionLookupRequest(positionMint: string): ProgramRequest {
+export function buildVaultPositionLookupRequest(
+  positionMint: string,
+): ProgramRequest {
   return {
     kind: 'getProgramAccounts',
     programId: VAULTS_PROGRAM_ID,
@@ -831,14 +833,23 @@ export const jupiterLendIntegration: SolanaIntegration = {
 
     // Derive and fetch user liquidity positions from matched wallet and program mints.
     const userHeldMints = new Set(userMintBalances.keys())
-    const mintProtocolPairs = new Map<string, { mint: string; protocol: string }>()
+    const mintProtocolPairs = new Map<
+      string,
+      { mint: string; protocol: string }
+    >()
     const addMintProtocolPair = (mint: string, protocol: string) => {
-      mintProtocolPairs.set(toMintProtocolKey(mint, protocol), { mint, protocol })
+      mintProtocolPairs.set(toMintProtocolKey(mint, protocol), {
+        mint,
+        protocol,
+      })
     }
 
     for (const pool of earnPools) {
       if (!validatedEarnMints.has(pool.mint)) continue
-      if (!userHeldMints.has(pool.fTokenMint) && !userHeldMints.has(pool.mint)) {
+      if (
+        !userHeldMints.has(pool.fTokenMint) &&
+        !userHeldMints.has(pool.mint)
+      ) {
         continue
       }
       addMintProtocolPair(pool.mint, pool.lendingAddress)
@@ -880,7 +891,10 @@ export const jupiterLendIntegration: SolanaIntegration = {
 
     const derivedSupplyPositionPairs = new Set<string>()
 
-    for (const [addressKey, expected] of expectedDerivedUserPositions.entries()) {
+    for (const [
+      addressKey,
+      expected,
+    ] of expectedDerivedUserPositions.entries()) {
       const account = derivedUserPositionsMap[addressKey]
       if (!account?.exists) continue
       if (account.programAddress !== LIQUIDITY_PROGRAM_ID) continue
@@ -1049,7 +1063,10 @@ export const jupiterLendIntegration: SolanaIntegration = {
 
     // ── Decode Earn positions ─────────────────────────────────────────────────
     for (const pool of earnPools) {
-      const supplyPositionPair = toMintProtocolKey(pool.mint, pool.lendingAddress)
+      const supplyPositionPair = toMintProtocolKey(
+        pool.mint,
+        pool.lendingAddress,
+      )
       if (!derivedSupplyPositionPairs.has(supplyPositionPair)) continue
 
       const shares = userMintBalances.get(pool.fTokenMint) ?? 0n

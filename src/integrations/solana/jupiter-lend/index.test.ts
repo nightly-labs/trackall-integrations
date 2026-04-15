@@ -12,6 +12,7 @@ import {
   fetchAccountsBatch,
   fetchProgramAccountsBatch,
 } from '../../../utils/solana'
+import vaultsIdl from './idls/vaults.json'
 import {
   applyRateMagnifierToScale,
   buildVaultPositionLookupRequest,
@@ -22,7 +23,6 @@ import {
   jupiterLendIntegration,
   testAddress,
 } from './index'
-import vaultsIdl from './idls/vaults.json'
 
 const solanaRpcUrl =
   process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
