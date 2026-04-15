@@ -14,7 +14,6 @@ import {
 import { PROGRAM_ID as RAYDIUM_PROGRAM_ID } from '@kamino-finance/kliquidity-sdk/dist/@codegen/raydium/programId'
 import {
   binIdToBinArrayIndex,
-  deriveBinArray,
   getBinFromBinArrays,
 } from '@kamino-finance/kliquidity-sdk/dist/utils/meteora'
 import type {
@@ -31,7 +30,6 @@ import {
   LiquidityMath as RaydiumLiquidityMath,
   SqrtPriceMath as RaydiumSqrtPriceMath,
 } from '@raydium-io/raydium-sdk-v2/lib'
-import type { Address } from '@solana/kit'
 import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import type { AccountInfo } from '@solana/web3.js'
 import { PublicKey } from '@solana/web3.js'
@@ -399,6 +397,24 @@ function toNumber(value: unknown): number {
     return Number(String(value))
   }
   return 0
+}
+
+function deriveMeteoraBinArrayAddress(
+  poolAddress: string,
+  index: BN,
+): PublicKey {
+  const binArrayBytes = index.isNeg()
+    ? index.toTwos(64).toBuffer('le', 8)
+    : index.toBuffer('le', 8)
+  const [pda] = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from('bin_array'),
+      new PublicKey(poolAddress).toBuffer(),
+      Buffer.from(binArrayBytes),
+    ],
+    new PublicKey(String(METEORA_PROGRAM_ID)),
+  )
+  return pda
 }
 
 function readU64LE(buf: Buffer, offset: number): bigint {
@@ -1286,15 +1302,13 @@ export const kaminoIntegration: SolanaIntegration = {
       const lowerBinArrayIndex = binIdToBinArrayIndex(
         new BN(position.lowerBinId),
       )
-      const [lowerBinArrayAddress] = await deriveBinArray(
-        strategy.pool as Address,
+      const lowerBinArrayAddress = deriveMeteoraBinArrayAddress(
+        strategy.pool,
         lowerBinArrayIndex,
-        METEORA_PROGRAM_ID,
       )
-      const [upperBinArrayAddress] = await deriveBinArray(
-        strategy.pool as Address,
+      const upperBinArrayAddress = deriveMeteoraBinArrayAddress(
+        strategy.pool,
         lowerBinArrayIndex.add(new BN(1)),
-        METEORA_PROGRAM_ID,
       )
 
       const lower = String(lowerBinArrayAddress)
