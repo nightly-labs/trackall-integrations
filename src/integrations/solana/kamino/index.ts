@@ -43,6 +43,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -1877,6 +1878,20 @@ export const kaminoIntegration: SolanaIntegration = {
     applyPositionsPctUsdValueChange24(tokenSource, positions)
     return positions
   },
+
+  getUsersFilter: (): UsersFilter[] => [
+    {
+      programId: KLEND_PROGRAM_ID,
+      discriminator: Obligation.discriminator,
+      ownerOffset: 64,
+    },
+    {
+      programId: FARMS_PROGRAM_ID,
+      discriminator: UserState.discriminator,
+      dataSize: UserState.layout.span + 8,
+      ownerOffset: 48,
+    },
+  ],
 }
 
 export default kaminoIntegration
