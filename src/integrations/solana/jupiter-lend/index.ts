@@ -321,9 +321,7 @@ export function calculateTokenReserveAnnualRatesScaled(
         FOUR_DECIMALS
     } else {
       ratioSupplyYield =
-        (utilization *
-          RATE_OUTPUT_DECIMALS *
-          (FOUR_DECIMALS + supplyRatio)) /
+        (utilization * RATE_OUTPUT_DECIMALS * (FOUR_DECIMALS + supplyRatio)) /
         (FOUR_DECIMALS * FOUR_DECIMALS)
     }
 
@@ -336,8 +334,7 @@ export function calculateTokenReserveAnnualRatesScaled(
       reserve.totalBorrowWithInterest < reserve.totalBorrowInterestFree
         ? (borrowRatio * RATE_OUTPUT_DECIMALS) / (FOUR_DECIMALS + borrowRatio)
         : RATE_OUTPUT_DECIMALS -
-          (borrowRatio * RATE_OUTPUT_DECIMALS) /
-            (FOUR_DECIMALS + borrowRatio)
+          (borrowRatio * RATE_OUTPUT_DECIMALS) / (FOUR_DECIMALS + borrowRatio)
 
     ratioSupplyYield =
       (ratioSupplyYield * borrowYieldShare * FOUR_DECIMALS) /
@@ -470,10 +467,18 @@ function decodeTokenReserveRateInputs(
     try {
       const decoded = coder.accounts.decode('TokenReserve', Buffer.from(data))
       const mint = (decoded.mint as PublicKey).toBase58()
-      const totalSupplyWithInterest = toBigIntSafe(decoded.total_supply_with_interest)
-      const totalSupplyInterestFree = toBigIntSafe(decoded.total_supply_interest_free)
-      const totalBorrowWithInterest = toBigIntSafe(decoded.total_borrow_with_interest)
-      const totalBorrowInterestFree = toBigIntSafe(decoded.total_borrow_interest_free)
+      const totalSupplyWithInterest = toBigIntSafe(
+        decoded.total_supply_with_interest,
+      )
+      const totalSupplyInterestFree = toBigIntSafe(
+        decoded.total_supply_interest_free,
+      )
+      const totalBorrowWithInterest = toBigIntSafe(
+        decoded.total_borrow_with_interest,
+      )
+      const totalBorrowInterestFree = toBigIntSafe(
+        decoded.total_borrow_interest_free,
+      )
       const supplyExchangePrice = toBigIntSafe(decoded.supply_exchange_price)
       const borrowExchangePrice = toBigIntSafe(decoded.borrow_exchange_price)
       if (
@@ -645,7 +650,9 @@ export const jupiterLendIntegration: SolanaIntegration = {
             ),
             rewardsRateModel: (d.rewards_rate_model as PublicKey).toBase58(),
           })
-          if (isLendingPdaValid((d.mint as PublicKey).toBase58(), acc.address)) {
+          if (
+            isLendingPdaValid((d.mint as PublicKey).toBase58(), acc.address)
+          ) {
             validatedEarnMints.add((d.mint as PublicKey).toBase58())
           }
         } catch {
@@ -658,7 +665,10 @@ export const jupiterLendIntegration: SolanaIntegration = {
         const mint = readTokenAccountMint(acc.data)
         const amount = readTokenAccountAmount(acc.data)
         if (mint && amount !== null && amount > 0n) {
-          userMintBalances.set(mint, (userMintBalances.get(mint) ?? 0n) + amount)
+          userMintBalances.set(
+            mint,
+            (userMintBalances.get(mint) ?? 0n) + amount,
+          )
         }
         continue
       }
@@ -880,7 +890,9 @@ export const jupiterLendIntegration: SolanaIntegration = {
 
       const rewardsModelAccount = rateInputsMap[pool.rewardsRateModel]
       if (!rewardsModelAccount?.exists) continue
-      const rewardModel = decodeLendingRewardsRateModel(rewardsModelAccount.data)
+      const rewardModel = decodeLendingRewardsRateModel(
+        rewardsModelAccount.data,
+      )
       if (!rewardModel) continue
 
       const fTokenMintAccount = rateInputsMap[pool.fTokenMint]
@@ -925,10 +937,9 @@ export const jupiterLendIntegration: SolanaIntegration = {
         earnSupplyRateScaled !== undefined
           ? formatScaledRate(earnSupplyRateScaled)
           : undefined
-      const rewardsRateScaled =
-        validatedEarnMints.has(pool.mint)
-          ? earnRewardsRateByMint.get(pool.mint)
-          : undefined
+      const rewardsRateScaled = validatedEarnMints.has(pool.mint)
+        ? earnRewardsRateByMint.get(pool.mint)
+        : undefined
       const requiresRewards = pool.rewardsRateModel !== DEFAULT_PUBKEY
       const apyRate =
         earnSupplyRateScaled !== undefined &&
