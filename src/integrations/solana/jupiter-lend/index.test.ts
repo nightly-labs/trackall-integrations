@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
-import { Connection } from '@solana/web3.js'
-import type { UserPositionsPlan } from '../../../types/index'
+import { borrowPda } from '@jup-ag/lend'
+import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token'
+import { Connection, PublicKey } from '@solana/web3.js'
+import type {
+  GetProgramAccountsRequest,
+  ProgramRequest,
+  UserPositionsPlan,
+} from '../../../types/index'
 import { runIntegrations, TokenPlugin } from '../../../types/index'
 import {
   fetchAccountsBatch,
@@ -8,12 +14,15 @@ import {
 } from '../../../utils/solana'
 import {
   applyRateMagnifierToScale,
+  buildVaultPositionLookupRequest,
   calculateEarnBaseSupplyRateScaled,
   calculateTokenReserveAnnualRatesScaled,
   denormalizeVaultAmount,
+  deriveUserLiquidityPositionPdas,
   jupiterLendIntegration,
   testAddress,
 } from './index'
+import vaultsIdl from './idls/vaults.json'
 
 const solanaRpcUrl =
   process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
@@ -27,6 +36,70 @@ function isNumericString(value: string): boolean {
 }
 
 describe('jupiter-lend integration', () => {
+  it('starts discovery without full Position account scan', async () => {
+    const tokens = new TokenPlugin()
+    const plugins = { endpoint: solanaRpcUrl, tokens }
+    const plan = getUserPositions(wallets[0] ?? testAddress, plugins)
+
+    const first = await plan.next()
+    if (first.done) throw new Error('Expected discovery requests')
+    if (!Array.isArray(first.value)) throw new Error('Expected request array')
+
+    const requests = first.value as ProgramRequest[]
+    const vaultProgramRequests = requests.filter(
+      (req): req is GetProgramAccountsRequest =>
+        req.kind === 'getProgramAccounts' &&
+        req.programId === vaultsIdl.address,
+    )
+
+    expect(vaultProgramRequests).toHaveLength(3)
+    expect(
+      requests.some(
+        (req) =>
+          req.kind === 'getTokenAccountsByOwner' &&
+          req.programId === TOKEN_2022_PROGRAM_ID.toBase58(),
+      ),
+    ).toBe(true)
+
+    await plan.return([])
+  })
+
+  it('builds targeted vault position lookup request by position mint', () => {
+    const mint = 'So11111111111111111111111111111111111111112'
+    const req = buildVaultPositionLookupRequest(mint)
+    if (req.kind !== 'getProgramAccounts') {
+      throw new Error('Expected getProgramAccounts request')
+    }
+
+    expect(req.kind).toBe('getProgramAccounts')
+    expect(req.programId).toBe(vaultsIdl.address)
+    expect(req.filters).toHaveLength(2)
+    expect(req.filters[1]).toEqual({
+      memcmp: {
+        offset: 14,
+        bytes: mint,
+        encoding: 'base58',
+      },
+    })
+  })
+
+  it('derives both user supply and borrow position PDAs for mint/protocol', () => {
+    const mint = 'So11111111111111111111111111111111111111112'
+    const protocol = '3n8muNMSAzM64M56gH8zvQHceQ3yvGN28AL5soMgqdD8'
+
+    const derived = deriveUserLiquidityPositionPdas(mint, protocol)
+    expect(derived).not.toBeNull()
+
+    const mintPk = new PublicKey(mint)
+    const protocolPk = new PublicKey(protocol)
+    expect(derived?.supplyPositionAddress).toBe(
+      borrowPda.getUserSupplyPosition(mintPk, protocolPk).toBase58(),
+    )
+    expect(derived?.borrowPositionAddress).toBe(
+      borrowPda.getUserBorrowPosition(mintPk, protocolPk).toBase58(),
+    )
+  })
+
   it('denormalizes vault amounts for mints with decimals lower than 9', () => {
     expect(denormalizeVaultAmount(1027578000n, 6)).toBe(1027578n)
     expect(denormalizeVaultAmount(165631n, 8)).toBe(16563n)

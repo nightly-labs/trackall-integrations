@@ -23,10 +23,12 @@ export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 // ─── Program IDs ─────────────────────────────────────────────────────────────
 const LENDING_PROGRAM_ID = lendingIdl.address
 const VAULTS_PROGRAM_ID = vaultsIdl.address
+const LIQUIDITY_PROGRAM_ID = 'jupeiUmn818Jg1ekPURTpr4mFo29p46vygyykFJ3wZC'
 
 export const PROGRAM_IDS = [
   LENDING_PROGRAM_ID,
   VAULTS_PROGRAM_ID,
+  LIQUIDITY_PROGRAM_ID,
   TOKEN_PROGRAM_ID.toBase58(),
   TOKEN_2022_PROGRAM_ID.toBase58(),
 ] as const
@@ -70,6 +72,14 @@ const VAULT_METADATA_DISC_B64 = accountDiscriminatorBase64(
   vaultsIdl,
   'VaultMetadata',
 )
+const USER_SUPPLY_POSITION_DISC_B64 = accountDiscriminatorBase64(
+  vaultsIdl,
+  'UserSupplyPosition',
+)
+const USER_BORROW_POSITION_DISC_B64 = accountDiscriminatorBase64(
+  vaultsIdl,
+  'UserBorrowPosition',
+)
 
 // SPL token account: amount at offset 64, mint at offset 0, owner at offset 32
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
@@ -100,7 +110,10 @@ type DecodedPositionWithAddress = DecodedPosition & {
   accountAddress: string
 }
 
+type UserLiquidityPositionKind = 'supply' | 'borrow'
+
 type VaultConfigData = {
+  address: string
   supplyToken: string
   borrowToken: string
   supplyRateMagnifier: number
@@ -433,6 +446,80 @@ function deriveLiquidityPdas(
   }
 }
 
+export function deriveUserLiquidityPositionPdas(
+  mint: string,
+  protocol: string,
+): { supplyPositionAddress: string; borrowPositionAddress: string } | null {
+  try {
+    const mintPubkey = new PublicKey(mint)
+    const protocolPubkey = new PublicKey(protocol)
+    return {
+      supplyPositionAddress: borrowPda
+        .getUserSupplyPosition(mintPubkey, protocolPubkey)
+        .toBase58(),
+      borrowPositionAddress: borrowPda
+        .getUserBorrowPosition(mintPubkey, protocolPubkey)
+        .toBase58(),
+    }
+  } catch {
+    return null
+  }
+}
+
+function toMintProtocolKey(mint: string, protocol: string): string {
+  return `${mint}:${protocol}`
+}
+
+export function buildVaultPositionLookupRequest(positionMint: string): ProgramRequest {
+  return {
+    kind: 'getProgramAccounts',
+    programId: VAULTS_PROGRAM_ID,
+    filters: [
+      {
+        memcmp: {
+          offset: 0,
+          bytes: POSITION_DISC_B64,
+          encoding: 'base64',
+        },
+      },
+      {
+        memcmp: {
+          offset: POSITION_MINT_OFFSET,
+          bytes: positionMint,
+          encoding: 'base58',
+        },
+      },
+    ],
+  }
+}
+
+function decodeUserLiquidityPositionAccount(
+  kind: UserLiquidityPositionKind,
+  data: Uint8Array,
+): { mint: string; protocol: string; amount: bigint } | null {
+  try {
+    const decoded = vaultsCoder.accounts.decode(
+      kind === 'supply' ? 'UserSupplyPosition' : 'UserBorrowPosition',
+      Buffer.from(data),
+    ) as {
+      protocol: PublicKey
+      mint: PublicKey
+      amount: unknown
+    }
+
+    const amount = toBigIntSafe(decoded.amount)
+    if (amount === null) return null
+
+    return {
+      mint: decoded.mint.toBase58(),
+      protocol: decoded.protocol.toBase58(),
+      amount,
+    }
+  } catch {
+    return null
+  }
+}
+
 function isLendingPdaValid(mint: string, accountAddress: string): boolean {
   try {
     const expected = lendingPda.getLending(new PublicKey(mint)).toBase58()
@@ -554,17 +641,9 @@ export const jupiterLendIntegration: SolanaIntegration = {
         programId: TOKEN_PROGRAM_ID.toBase58(),
       },
       {
-        kind: 'getProgramAccounts',
-        programId: VAULTS_PROGRAM_ID,
-        filters: [
-          {
-            memcmp: {
-              offset: 0,
-              bytes: POSITION_DISC_B64,
-              encoding: 'base64',
-            },
-          },
-        ],
+        kind: 'getTokenAccountsByOwner',
+        owner: walletAddress,
+        programId: TOKEN_2022_PROGRAM_ID.toBase58(),
       },
       {
         kind: 'getProgramAccounts',
@@ -611,6 +690,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
     const earnPools: Array<{
       mint: string
       fTokenMint: string
+      lendingAddress: string
       decimals: number
       tokenExchangePrice: bigint
       rewardsRateModel: string
@@ -644,6 +724,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
           earnPools.push({
             mint: (d.mint as PublicKey).toBase58(),
             fTokenMint: (d.f_token_mint as PublicKey).toBase58(),
+            lendingAddress: acc.address,
             decimals: d.decimals as number,
             tokenExchangePrice: BigInt(
               (d.token_exchange_price as BN).toString(),
@@ -661,7 +742,10 @@ export const jupiterLendIntegration: SolanaIntegration = {
         continue
       }
 
-      if (acc.programAddress === TOKEN_PROGRAM_ID.toBase58()) {
+      if (
+        acc.programAddress === TOKEN_PROGRAM_ID.toBase58() ||
+        acc.programAddress === TOKEN_2022_PROGRAM_ID.toBase58()
+      ) {
         const mint = readTokenAccountMint(acc.data)
         const amount = readTokenAccountAmount(acc.data)
         if (mint && amount !== null && amount > 0n) {
@@ -676,22 +760,6 @@ export const jupiterLendIntegration: SolanaIntegration = {
       if (acc.programAddress !== VAULTS_PROGRAM_ID) continue
 
       const discriminator = readDiscriminatorBase64(acc.data)
-      if (discriminator === POSITION_DISC_B64) {
-        const parsed = parsePositionAccount(acc.data)
-        if (!parsed || parsed.supplyAmount === 0n) continue
-        if (!positionsByMint.has(parsed.positionMint)) {
-          const positionWithAddress: DecodedPositionWithAddress = {
-            ...parsed,
-            accountAddress: acc.address,
-          }
-          positionsByMint.set(parsed.positionMint, positionWithAddress)
-          if (isPositionPdaValid(positionWithAddress)) {
-            validatedPositionMints.add(parsed.positionMint)
-          }
-        }
-        continue
-      }
-
       if (discriminator === VAULT_CONFIG_DISC_B64) {
         try {
           const d = vaultsCoder.accounts.decode(
@@ -700,6 +768,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
           )
           const vaultId = d.vault_id as number
           const cfg: VaultConfigData = {
+            address: acc.address,
             supplyToken: (d.supply_token as PublicKey).toBase58(),
             borrowToken: (d.borrow_token as PublicKey).toBase58(),
             supplyRateMagnifier: d.supply_rate_magnifier as number,
@@ -760,16 +829,80 @@ export const jupiterLendIntegration: SolanaIntegration = {
       }
     }
 
-    // Earn: which fTokenMints does the user hold via SPL?
-    const splEarnBalances = new Map<string, bigint>()
-    const needsToken22Check: string[] = []
+    // Derive and fetch user liquidity positions from matched wallet and program mints.
+    const userHeldMints = new Set(userMintBalances.keys())
+    const mintProtocolPairs = new Map<string, { mint: string; protocol: string }>()
+    const addMintProtocolPair = (mint: string, protocol: string) => {
+      mintProtocolPairs.set(toMintProtocolKey(mint, protocol), { mint, protocol })
+    }
 
     for (const pool of earnPools) {
-      const balance = userMintBalances.get(pool.fTokenMint)
-      if (balance !== undefined && balance > 0n) {
-        splEarnBalances.set(pool.fTokenMint, balance)
-      } else {
-        needsToken22Check.push(pool.fTokenMint)
+      if (!validatedEarnMints.has(pool.mint)) continue
+      if (!userHeldMints.has(pool.fTokenMint) && !userHeldMints.has(pool.mint)) {
+        continue
+      }
+      addMintProtocolPair(pool.mint, pool.lendingAddress)
+    }
+
+    for (const cfg of validatedVaultConfigMap.values()) {
+      if (userHeldMints.has(cfg.supplyToken)) {
+        addMintProtocolPair(cfg.supplyToken, cfg.address)
+      }
+      if (userHeldMints.has(cfg.borrowToken)) {
+        addMintProtocolPair(cfg.borrowToken, cfg.address)
+      }
+    }
+
+    const expectedDerivedUserPositions = new Map<
+      string,
+      { mint: string; protocol: string; kind: UserLiquidityPositionKind }
+    >()
+    for (const pair of mintProtocolPairs.values()) {
+      const pdas = deriveUserLiquidityPositionPdas(pair.mint, pair.protocol)
+      if (!pdas) continue
+
+      expectedDerivedUserPositions.set(pdas.supplyPositionAddress, {
+        mint: pair.mint,
+        protocol: pair.protocol,
+        kind: 'supply',
+      })
+      expectedDerivedUserPositions.set(pdas.borrowPositionAddress, {
+        mint: pair.mint,
+        protocol: pair.protocol,
+        kind: 'borrow',
+      })
+    }
+
+    const derivedUserPositionsMap =
+      expectedDerivedUserPositions.size > 0
+        ? yield [...expectedDerivedUserPositions.keys()]
+        : {}
+
+    const derivedSupplyPositionPairs = new Set<string>()
+
+    for (const [addressKey, expected] of expectedDerivedUserPositions.entries()) {
+      const account = derivedUserPositionsMap[addressKey]
+      if (!account?.exists) continue
+      if (account.programAddress !== LIQUIDITY_PROGRAM_ID) continue
+
+      const expectedDisc =
+        expected.kind === 'supply'
+          ? USER_SUPPLY_POSITION_DISC_B64
+          : USER_BORROW_POSITION_DISC_B64
+      if (readDiscriminatorBase64(account.data) !== expectedDisc) continue
+
+      const decoded = decodeUserLiquidityPositionAccount(
+        expected.kind,
+        account.data,
+      )
+      if (!decoded) continue
+      if (decoded.mint !== expected.mint) continue
+      if (decoded.protocol !== expected.protocol) continue
+
+      if (expected.kind === 'supply' && decoded.amount > 0n) {
+        derivedSupplyPositionPairs.add(
+          toMintProtocolKey(decoded.mint, decoded.protocol),
+        )
       }
     }
 
@@ -778,6 +911,31 @@ export const jupiterLendIntegration: SolanaIntegration = {
       .filter(([, amount]) => amount === 1n)
       .map(([mint]) => mint)
 
+    const positionLookupRequests = userPositionMints.map(
+      buildVaultPositionLookupRequest,
+    )
+    const positionLookupMap =
+      positionLookupRequests.length > 0 ? yield positionLookupRequests : {}
+
+    for (const acc of Object.values(positionLookupMap)) {
+      if (!acc.exists) continue
+      if (acc.programAddress !== VAULTS_PROGRAM_ID) continue
+      if (readDiscriminatorBase64(acc.data) !== POSITION_DISC_B64) continue
+
+      const parsed = parsePositionAccount(acc.data)
+      if (!parsed || parsed.supplyAmount === 0n) continue
+      if (positionsByMint.has(parsed.positionMint)) continue
+
+      const positionWithAddress: DecodedPositionWithAddress = {
+        ...parsed,
+        accountAddress: acc.address,
+      }
+      positionsByMint.set(parsed.positionMint, positionWithAddress)
+      if (isPositionPdaValid(positionWithAddress)) {
+        validatedPositionMints.add(parsed.positionMint)
+      }
+    }
+
     const ownedPositions: DecodedPositionWithAddress[] = []
     for (const positionMint of userPositionMints) {
       const position = positionsByMint.get(positionMint)
@@ -785,39 +943,16 @@ export const jupiterLendIntegration: SolanaIntegration = {
       ownedPositions.push(position)
     }
 
-    // ── Phase 1: Token-2022 fallback check by owner ──────────────────────────
-    const token22Map =
-      needsToken22Check.length > 0
-        ? yield {
-            kind: 'getTokenAccountsByOwner',
-            owner: walletAddress,
-            programId: TOKEN_2022_PROGRAM_ID.toBase58(),
-          } satisfies ProgramRequest
-        : {}
-
-    const token22MintsToCheck = new Set(needsToken22Check)
-    const token22EarnBalances = new Map<string, bigint>()
-
-    for (const acc of Object.values(token22Map)) {
-      if (!acc.exists) continue
-      if (acc.programAddress !== TOKEN_2022_PROGRAM_ID.toBase58()) continue
-
-      const mint = readTokenAccountMint(acc.data)
-      const amount = readTokenAccountAmount(acc.data)
-      if (!mint || amount === null || amount <= 0n) continue
-      if (!token22MintsToCheck.has(mint)) continue
-
-      token22EarnBalances.set(
-        mint,
-        (token22EarnBalances.get(mint) ?? 0n) + amount,
-      )
-    }
-
     // ── Phase 2: Strict APY inputs (reserve + rate model PDAs) ───────────────
     const mintsNeedingRates = new Set<string>()
 
     for (const pool of earnPools) {
-      if (validatedEarnMints.has(pool.mint)) {
+      if (
+        validatedEarnMints.has(pool.mint) &&
+        derivedSupplyPositionPairs.has(
+          toMintProtocolKey(pool.mint, pool.lendingAddress),
+        )
+      ) {
         mintsNeedingRates.add(pool.mint)
       }
     }
@@ -914,10 +1049,10 @@ export const jupiterLendIntegration: SolanaIntegration = {
 
     // ── Decode Earn positions ─────────────────────────────────────────────────
     for (const pool of earnPools) {
-      const shares =
-        splEarnBalances.get(pool.fTokenMint) ??
-        token22EarnBalances.get(pool.fTokenMint) ??
-        0n
+      const supplyPositionPair = toMintProtocolKey(pool.mint, pool.lendingAddress)
+      if (!derivedSupplyPositionPairs.has(supplyPositionPair)) continue
+
+      const shares = userMintBalances.get(pool.fTokenMint) ?? 0n
 
       if (shares === 0n) continue
 
@@ -930,14 +1065,17 @@ export const jupiterLendIntegration: SolanaIntegration = {
         priceUsd !== undefined
           ? ((Number(underlying) / 10 ** pool.decimals) * priceUsd).toString()
           : undefined
-      const earnSupplyRateScaled = validatedEarnMints.has(pool.mint)
+      const hasStrictEarnInputs =
+        validatedEarnMints.has(pool.mint) &&
+        derivedSupplyPositionPairs.has(supplyPositionPair)
+      const earnSupplyRateScaled = hasStrictEarnInputs
         ? earnSupplyRateByMint.get(pool.mint)
         : undefined
       const supplyRate =
         earnSupplyRateScaled !== undefined
           ? formatScaledRate(earnSupplyRateScaled)
           : undefined
-      const rewardsRateScaled = validatedEarnMints.has(pool.mint)
+      const rewardsRateScaled = hasStrictEarnInputs
         ? earnRewardsRateByMint.get(pool.mint)
         : undefined
       const requiresRewards = pool.rewardsRateModel !== DEFAULT_PUBKEY
