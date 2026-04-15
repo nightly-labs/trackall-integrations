@@ -63,6 +63,13 @@ export type UserPositionsPlan = AsyncGenerator<
   AccountsMap
 >
 
+export interface UsersFilter {
+  programId: SolanaAddress
+  discriminator?: Uint8Array
+  ownerOffset: number
+  dataSize?: number
+}
+
 export interface SolanaIntegration {
   /** Platform identifier. */
   platformId: PlatformId
@@ -77,4 +84,6 @@ export interface SolanaIntegration {
     address: string,
     plugins: SolanaPlugins,
   ) => UserPositionsPlan
+  /** Get filters describing how to fetch all users of the integration. */
+  getUsersFilter?: () => UsersFilter[]
 }
