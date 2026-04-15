@@ -14,7 +14,6 @@ import {
 import { PROGRAM_ID as RAYDIUM_PROGRAM_ID } from '@kamino-finance/kliquidity-sdk/dist/@codegen/raydium/programId'
 import {
   binIdToBinArrayIndex,
-  deriveBinArray,
   getBinFromBinArrays,
 } from '@kamino-finance/kliquidity-sdk/dist/utils/meteora'
 import type {
@@ -31,7 +30,6 @@ import {
   LiquidityMath as RaydiumLiquidityMath,
   SqrtPriceMath as RaydiumSqrtPriceMath,
 } from '@raydium-io/raydium-sdk-v2/lib'
-import type { Address } from '@solana/kit'
 import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import type { AccountInfo } from '@solana/web3.js'
 import { PublicKey } from '@solana/web3.js'
@@ -40,6 +38,7 @@ import type {
   LendingDefiPosition,
   LendingSuppliedAsset,
   MaybeSolanaAccount,
+  ProgramRequest,
   SolanaIntegration,
   SolanaPlugins,
   UserDefiPosition,
@@ -72,6 +71,14 @@ const FARMS_WAD = 10n ** 18n
 const ORCA_DEX = 0
 const RAYDIUM_DEX = 1
 const METEORA_DEX = 2
+const KAMINO_API_BASE_URL = 'https://api.kamino.finance'
+const KAMINO_KVAULTS_LIST_URL = `${KAMINO_API_BASE_URL}/kvaults/vaults`
+const KAMINO_STRATEGIES_METRICS_URL = `${KAMINO_API_BASE_URL}/strategies/metrics?env=mainnet-beta&status=LIVE`
+const KAMINO_APY_CACHE_TTL_MS = 60 * 60 * 1000
+
+function getKaminoVaultMetricsUrl(vaultAddress: string): string {
+  return `${KAMINO_API_BASE_URL}/kvaults/vaults/${vaultAddress}/metrics`
+}
 
 interface KlendDeposit {
   depositReserve: string
@@ -223,6 +230,157 @@ interface StrategyInvestedTokenAmountsRaw {
   tokenBAmountRaw: bigint
 }
 
+function toRecord(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    return undefined
+  return value as Record<string, unknown>
+}
+
+function toNonEmptyString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
+function toValidApyString(value: unknown): string | undefined {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) return undefined
+    return value.toString()
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (trimmed.length === 0) return undefined
+    const parsed = Number(trimmed)
+    if (!Number.isFinite(parsed)) return undefined
+    return trimmed
+  }
+
+  return undefined
+}
+
+function decodeHttpJsonRow(
+  account: MaybeSolanaAccount | undefined,
+): unknown | undefined {
+  if (!account?.exists || account.programAddress !== 'http-json') {
+    return undefined
+  }
+
+  try {
+    return JSON.parse(Buffer.from(account.data).toString('utf8')) as unknown
+  } catch {
+    return undefined
+  }
+}
+
+function groupHttpJsonRowsByUrl(
+  accountsMap: Record<string, MaybeSolanaAccount>,
+): Map<string, unknown[]> {
+  const grouped = new Map<string, Array<{ index: number; row: unknown }>>()
+
+  for (const account of Object.values(accountsMap)) {
+    if (!account.exists || account.programAddress !== 'http-json') continue
+
+    const delimiterIndex = account.address.lastIndexOf('#')
+    if (delimiterIndex <= 0 || delimiterIndex >= account.address.length - 1) {
+      continue
+    }
+
+    const url = account.address.slice(0, delimiterIndex)
+    const indexString = account.address.slice(delimiterIndex + 1)
+    const index = Number(indexString)
+    if (!Number.isInteger(index) || index < 0) continue
+
+    const row = decodeHttpJsonRow(account)
+    if (row === undefined) continue
+
+    const entries = grouped.get(url) ?? []
+    entries.push({ index, row })
+    grouped.set(url, entries)
+  }
+
+  const rowsByUrl = new Map<string, unknown[]>()
+  for (const [url, entries] of grouped.entries()) {
+    entries.sort((left, right) => left.index - right.index)
+    rowsByUrl.set(
+      url,
+      entries.map((entry) => entry.row),
+    )
+  }
+
+  return rowsByUrl
+}
+
+function parseKaminoVaultCatalog(rows: unknown[]): {
+  farmToVault: Map<string, string>
+  vaultAddresses: Set<string>
+} {
+  const farmToVault = new Map<string, string>()
+  const vaultAddresses = new Set<string>()
+
+  for (const row of rows) {
+    const record = toRecord(row)
+    if (!record) continue
+
+    const vaultAddress = toNonEmptyString(record.address)
+    if (!vaultAddress) continue
+    vaultAddresses.add(vaultAddress)
+
+    const state = toRecord(record.state)
+    const vaultFarm = toNonEmptyString(state?.vaultFarm)
+    if (!vaultFarm || vaultFarm === DEFAULT_PUBKEY) continue
+
+    farmToVault.set(vaultFarm, vaultAddress)
+  }
+
+  return { farmToVault, vaultAddresses }
+}
+
+function parseKaminoVaultApyMap(
+  rowsByUrl: Map<string, unknown[]>,
+  vaultAddresses: Iterable<string>,
+): Map<string, string> {
+  const apyByVaultAddress = new Map<string, string>()
+
+  for (const vaultAddress of vaultAddresses) {
+    const row = rowsByUrl.get(getKaminoVaultMetricsUrl(vaultAddress))?.[0]
+    const metrics = toRecord(row)
+    if (!metrics) continue
+
+    const apy =
+      toValidApyString(metrics.apy) ?? toValidApyString(metrics.apyActual)
+    if (apy === undefined) continue
+
+    apyByVaultAddress.set(vaultAddress, apy)
+  }
+
+  return apyByVaultAddress
+}
+
+function parseKaminoStrategyApyMap(rows: unknown[]): Map<string, string> {
+  const apyByStrategy = new Map<string, string>()
+
+  for (const row of rows) {
+    const record = toRecord(row)
+    if (!record) continue
+
+    const strategyAddress = toNonEmptyString(record.strategy)
+    if (!strategyAddress) continue
+
+    const apyRecord = toRecord(record.apy)
+    const kaminoApyRecord = toRecord(record.kaminoApy)
+    const apy =
+      toValidApyString(toRecord(kaminoApyRecord?.vault)?.apy7d) ??
+      toValidApyString(kaminoApyRecord?.totalApy) ??
+      toValidApyString(apyRecord?.totalApy)
+    if (apy === undefined) continue
+
+    apyByStrategy.set(strategyAddress, apy)
+  }
+
+  return apyByStrategy
+}
+
 function toBigInt(value: unknown): bigint {
   if (typeof value === 'bigint') return value
   if (typeof value === 'number') return BigInt(value)
@@ -239,6 +397,24 @@ function toNumber(value: unknown): number {
     return Number(String(value))
   }
   return 0
+}
+
+function deriveMeteoraBinArrayAddress(
+  poolAddress: string,
+  index: BN,
+): PublicKey {
+  const binArrayBytes = index.isNeg()
+    ? index.toTwos(64).toBuffer('le', 8)
+    : index.toBuffer('le', 8)
+  const [pda] = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from('bin_array'),
+      new PublicKey(poolAddress).toBuffer(),
+      Buffer.from(binArrayBytes),
+    ],
+    new PublicKey(String(METEORA_PROGRAM_ID)),
+  )
+  return pda
 }
 
 function readU64LE(buf: Buffer, offset: number): bigint {
@@ -804,6 +980,13 @@ export const kaminoIntegration: SolanaIntegration = {
     >()
 
     const kvaultSharePositions: UserDefiPosition[] = []
+    const kvaultVaultAddressByPosition = new Map<UserDefiPosition, string>()
+    const farmsPositionsWithAddress: Array<{
+      position: UserDefiPosition
+      farmAddress: string
+      farmVaultAddress: string
+      farmStrategyAddress: string
+    }> = []
     const seenSharesMints = new Set<string>()
 
     for (const account of Object.values(phase1Map)) {
@@ -865,7 +1048,7 @@ export const kaminoIntegration: SolanaIntegration = {
           )
 
           seenSharesMints.add(vault.sharesMint)
-          kvaultSharePositions.push({
+          const kvaultPosition: UserDefiPosition = {
             platformId: 'kamino',
             positionKind: 'staking',
             ...(stakedUsdValue !== undefined && { usdValue: stakedUsdValue }),
@@ -895,7 +1078,9 @@ export const kaminoIntegration: SolanaIntegration = {
                 },
               },
             }),
-          })
+          }
+          kvaultSharePositions.push(kvaultPosition)
+          kvaultVaultAddressByPosition.set(kvaultPosition, account.address)
         } catch {
           // Ignore decode failures from non-vault or incompatible accounts.
         }
@@ -1117,15 +1302,13 @@ export const kaminoIntegration: SolanaIntegration = {
       const lowerBinArrayIndex = binIdToBinArrayIndex(
         new BN(position.lowerBinId),
       )
-      const [lowerBinArrayAddress] = await deriveBinArray(
-        strategy.pool as Address,
+      const lowerBinArrayAddress = deriveMeteoraBinArrayAddress(
+        strategy.pool,
         lowerBinArrayIndex,
-        METEORA_PROGRAM_ID,
       )
-      const [upperBinArrayAddress] = await deriveBinArray(
-        strategy.pool as Address,
+      const upperBinArrayAddress = deriveMeteoraBinArrayAddress(
+        strategy.pool,
         lowerBinArrayIndex.add(new BN(1)),
-        METEORA_PROGRAM_ID,
       )
 
       const lower = String(lowerBinArrayAddress)
@@ -1518,7 +1701,7 @@ export const kaminoIntegration: SolanaIntegration = {
         farmStrategyAddress !== DEFAULT_PUBKEY &&
         strategyInvestedByAddress.has(farmStrategyAddress)
 
-      farmsPositions.push({
+      const farmPosition: UserDefiPosition = {
         platformId: 'kamino',
         positionKind: 'staking',
         ...(positionUsdValue !== undefined && { usdValue: positionUsdValue }),
@@ -1554,7 +1737,134 @@ export const kaminoIntegration: SolanaIntegration = {
                 },
           },
         }),
+      }
+      farmsPositions.push(farmPosition)
+      farmsPositionsWithAddress.push({
+        position: farmPosition,
+        farmAddress,
+        farmVaultAddress,
+        farmStrategyAddress,
       })
+    }
+
+    const kaminoCatalogAndStrategyRequests: ProgramRequest[] = [
+      {
+        kind: 'getHttpJson',
+        url: KAMINO_KVAULTS_LIST_URL,
+        cacheTtlMs: KAMINO_APY_CACHE_TTL_MS,
+      },
+      {
+        kind: 'getHttpJson',
+        url: KAMINO_STRATEGIES_METRICS_URL,
+        cacheTtlMs: KAMINO_APY_CACHE_TTL_MS,
+      },
+    ]
+    const kaminoCatalogAndStrategyMap = yield kaminoCatalogAndStrategyRequests
+    const kaminoRowsByUrl = groupHttpJsonRowsByUrl(kaminoCatalogAndStrategyMap)
+    const { farmToVault, vaultAddresses: knownVaultAddresses } =
+      parseKaminoVaultCatalog(
+        kaminoRowsByUrl.get(KAMINO_KVAULTS_LIST_URL) ?? [],
+      )
+    const strategyApyByAddress = parseKaminoStrategyApyMap(
+      kaminoRowsByUrl.get(KAMINO_STRATEGIES_METRICS_URL) ?? [],
+    )
+
+    const vaultAddressesToFetchApy = new Set<string>()
+    for (const vaultAddress of kvaultVaultAddressByPosition.values()) {
+      if (
+        knownVaultAddresses.size > 0 &&
+        !knownVaultAddresses.has(vaultAddress)
+      ) {
+        continue
+      }
+      vaultAddressesToFetchApy.add(vaultAddress)
+    }
+
+    const getFarmApyCandidateVaultAddresses = (
+      farmAddress: string,
+      farmVaultAddress: string,
+    ): string[] => {
+      const candidates: string[] = []
+      const mappedVaultAddress = farmToVault.get(farmAddress)
+
+      if (farmVaultAddress !== DEFAULT_PUBKEY) {
+        if (
+          knownVaultAddresses.size === 0 ||
+          knownVaultAddresses.has(farmVaultAddress)
+        ) {
+          candidates.push(farmVaultAddress)
+        }
+      }
+
+      if (
+        mappedVaultAddress &&
+        (knownVaultAddresses.size === 0 ||
+          knownVaultAddresses.has(mappedVaultAddress)) &&
+        !candidates.includes(mappedVaultAddress)
+      ) {
+        candidates.push(mappedVaultAddress)
+      }
+
+      return candidates
+    }
+
+    for (const farmPosition of farmsPositionsWithAddress) {
+      const candidateVaultAddresses = getFarmApyCandidateVaultAddresses(
+        farmPosition.farmAddress,
+        farmPosition.farmVaultAddress,
+      )
+      for (const vaultAddress of candidateVaultAddresses) {
+        vaultAddressesToFetchApy.add(vaultAddress)
+      }
+    }
+
+    const vaultMetricsRequests: ProgramRequest[] = [
+      ...vaultAddressesToFetchApy,
+    ].map((vaultAddress) => ({
+      kind: 'getHttpJson',
+      url: getKaminoVaultMetricsUrl(vaultAddress),
+      cacheTtlMs: KAMINO_APY_CACHE_TTL_MS,
+    }))
+    const vaultMetricsMap =
+      vaultMetricsRequests.length > 0 ? yield vaultMetricsRequests : {}
+    const vaultApyByAddress = parseKaminoVaultApyMap(
+      groupHttpJsonRowsByUrl(vaultMetricsMap),
+      vaultAddressesToFetchApy,
+    )
+
+    for (const [
+      position,
+      vaultAddress,
+    ] of kvaultVaultAddressByPosition.entries()) {
+      const apy = vaultApyByAddress.get(vaultAddress)
+      if (apy === undefined) continue
+      if (position.positionKind === 'staking') position.apy = apy
+    }
+    for (const farmPosition of farmsPositionsWithAddress) {
+      if (farmPosition.farmStrategyAddress !== DEFAULT_PUBKEY) {
+        const strategyApy = strategyApyByAddress.get(
+          farmPosition.farmStrategyAddress,
+        )
+        if (
+          strategyApy !== undefined &&
+          farmPosition.position.positionKind === 'staking'
+        ) {
+          farmPosition.position.apy = strategyApy
+          continue
+        }
+      }
+
+      const candidateVaultAddresses = getFarmApyCandidateVaultAddresses(
+        farmPosition.farmAddress,
+        farmPosition.farmVaultAddress,
+      )
+      const apy = candidateVaultAddresses
+        .map((vaultAddress) => vaultApyByAddress.get(vaultAddress))
+        .find((value): value is string => value !== undefined)
+      if (apy === undefined) continue
+      if (farmPosition.position.positionKind === 'staking') {
+        farmPosition.position.apy = apy
+      }
     }
 
     const positions = [

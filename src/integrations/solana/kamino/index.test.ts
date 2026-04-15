@@ -18,6 +18,10 @@ if (!testAddress) throw new Error('No wallet configured for Kamino tests')
 const { getUserPositions } = kaminoIntegration
 if (!getUserPositions) throw new Error('getUserPositions not implemented')
 
+function isNumericString(value: string): boolean {
+  return Number.isFinite(Number(value))
+}
+
 describe('kamino integration', () => {
   it('fetches KLend and KVault positions', async () => {
     const connection = new Connection(solanaRpcUrl, 'confirmed')
@@ -79,6 +83,9 @@ describe('kamino integration', () => {
       }
       if (hasComponentUsd) {
         expect(position.usdValue).toBeDefined()
+      }
+      if (position.apy !== undefined) {
+        expect(isNumericString(position.apy)).toBe(true)
       }
     }
 
@@ -153,6 +160,9 @@ describe('kamino integration', () => {
       if (hasComponentUsd) {
         expect(position.usdValue).toBeDefined()
       }
+      if (position.apy !== undefined) {
+        expect(isNumericString(position.apy)).toBe(true)
+      }
     }
 
     expect(convertedVaultStakingEntries > 0).toBe(true)
@@ -208,10 +218,16 @@ describe('kamino integration', () => {
     expect(results).toHaveLength(wallets.length)
     for (const positions of results) {
       expect(Array.isArray(positions)).toBe(true)
+      for (const position of positions) {
+        if (position.positionKind === 'staking' && position.apy !== undefined) {
+          expect(isNumericString(position.apy)).toBe(true)
+        }
+      }
     }
 
     const firstWalletPositions = results[0] ?? []
     let strategyConvertedStakingCount = 0
+    let strategyConvertedWithApyCount = 0
     let pairTokenRowsFound = false
     for (const position of firstWalletPositions) {
       if (position.positionKind !== 'staking') continue
@@ -231,6 +247,10 @@ describe('kamino integration', () => {
       }
 
       strategyConvertedStakingCount++
+      if (position.apy !== undefined) {
+        expect(isNumericString(position.apy)).toBe(true)
+        strategyConvertedWithApyCount++
+      }
       const shareMint =
         kaminoMeta && typeof kaminoMeta === 'object'
           ? (kaminoMeta as Record<string, unknown>).shareMint
@@ -255,6 +275,7 @@ describe('kamino integration', () => {
       }
     }
     expect(strategyConvertedStakingCount > 0).toBe(true)
+    expect(strategyConvertedWithApyCount > 0).toBe(true)
     expect(pairTokenRowsFound).toBe(true)
   }, 120000)
 })
