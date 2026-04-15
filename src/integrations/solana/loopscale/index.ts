@@ -11,6 +11,7 @@ import type {
   UserPositionsPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
+import { ONE_HOUR_IN_MS } from '../../../utils/solana'
 import loopscaleIdl from './idls/loopscale.json'
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
@@ -525,6 +526,7 @@ export const loopscaleIntegration: SolanaIntegration = {
         (vaultAddr) => ({
           kind: 'getProgramAccounts' as const,
           programId: LOOPSCALE_IDL_SOURCE_PROGRAM_ID,
+          cacheTtlMs: ONE_HOUR_IN_MS,
           filters: [
             {
               memcmp: {

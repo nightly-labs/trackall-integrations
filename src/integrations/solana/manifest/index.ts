@@ -16,6 +16,7 @@ import type {
   UserPositionsPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
+import { ONE_HOUR_IN_MS } from '../../../utils/solana'
 
 const MANIFEST_PROGRAM_ID = 'MNFSTqtC93rEfYHB6hF82sKdZpUDFWkViLByLd1k1Ms'
 const WRAPPER_PROGRAM_ID = 'wMNFSTkir3HgyZTsB7uqu3i7FA73grFCptPXgrZjksL'
@@ -215,6 +216,7 @@ export const manifestIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: MANIFEST_PROGRAM_ID,
+        cacheTtlMs: ONE_HOUR_IN_MS,
         filters: [
           {
             memcmp: {

@@ -10,6 +10,7 @@ import type {
   UserPositionsPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
+import { ONE_HOUR_IN_MS } from '../../../utils/solana'
 
 const SYMMETRY_VAULTS_V3_PROGRAM_ID =
   'BASKT7aKd8n7ibpUbwLP3Wiyxyi3yoiXsxBk4Hpumate'
@@ -504,6 +505,7 @@ export const symmetryIntegration: SolanaIntegration = {
         ? yield legacyMints.map((mint) => ({
             kind: 'getProgramAccounts' as const,
             programId: SYMMETRY_LEGACY_FUNDS_PROGRAM_ID,
+            cacheTtlMs: ONE_HOUR_IN_MS,
             filters: [
               {
                 memcmp: {

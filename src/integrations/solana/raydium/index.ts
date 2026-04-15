@@ -13,7 +13,7 @@ import type {
   UserPositionsPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
-
+import { ONE_HOUR_IN_MS } from '../../../utils/solana'
 import clmmIdl from './idls/amm_v3.json'
 import cpIdl from './idls/raydium_cp_swap.json'
 
@@ -393,6 +393,7 @@ export const raydiumIntegration: SolanaIntegration = {
         {
           kind: 'getProgramAccounts' as const,
           programId: CP_PROGRAM_ID,
+          cacheTtlMs: ONE_HOUR_IN_MS,
           filters: [
             {
               memcmp: {
@@ -407,6 +408,7 @@ export const raydiumIntegration: SolanaIntegration = {
         {
           kind: 'getProgramAccounts' as const,
           programId: AMM_V4.toBase58(),
+          cacheTtlMs: ONE_HOUR_IN_MS,
           filters: [
             { dataSize: 752 },
             { memcmp: { offset: 464, bytes: mint } },

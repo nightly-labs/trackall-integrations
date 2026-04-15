@@ -13,6 +13,7 @@ import type {
   UserPositionsPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
+import { ONE_HOUR_IN_MS } from '../../../utils/solana'
 
 const DIVVY_HOUSE_PROGRAM_ID = 'dvyFwAPniptQNb1ey4eM12L8iLHrzdiDsPPDndd6xAR'
 const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
@@ -185,6 +186,7 @@ export const divvyIntegration: SolanaIntegration = {
       (dataSize) => ({
         kind: 'getProgramAccounts' as const,
         programId: DIVVY_HOUSE_PROGRAM_ID,
+        cacheTtlMs: ONE_HOUR_IN_MS,
         filters: [
           {
             memcmp: {

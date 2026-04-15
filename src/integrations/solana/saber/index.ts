@@ -10,6 +10,7 @@ import type {
   UserPositionsPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
+import { ONE_HOUR_IN_MS } from '../../../utils/solana'
 
 const SABER_SWAP_PROGRAM_ID = 'SSwpkEEcbUqx4vtoEByFjSkhKdCT862DNVb52nZg1UZ'
 
@@ -166,6 +167,7 @@ export const saberIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: SABER_SWAP_PROGRAM_ID,
+        cacheTtlMs: ONE_HOUR_IN_MS,
         filters: [{ dataSize: SWAP_ACCOUNT_SIZE }],
       },
     ]

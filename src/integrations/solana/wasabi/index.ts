@@ -14,6 +14,7 @@ import type {
   UserPositionsPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
+import { ONE_HOUR_IN_MS } from '../../../utils/solana'
 import wasabiIdl from './idls/wasabi.json'
 
 type WasabiIdl = {
@@ -261,6 +262,7 @@ export const wasabiIntegration: SolanaIntegration = {
       (collateralVault) => ({
         kind: 'getProgramAccounts' as const,
         programId: WASABI_PROGRAM_ID,
+        cacheTtlMs: ONE_HOUR_IN_MS,
         filters: [
           {
             memcmp: {

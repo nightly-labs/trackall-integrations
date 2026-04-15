@@ -12,6 +12,7 @@ import type {
   UserPositionsPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
+import { ONE_HOUR_IN_MS } from '../../../utils/solana'
 import omnipairIdl from './idls/omnipair.json'
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
@@ -211,6 +212,7 @@ export const omnipairIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: OMNIPAIR_PROGRAM_ID,
+        cacheTtlMs: ONE_HOUR_IN_MS,
         filters: [
           {
             memcmp: {
