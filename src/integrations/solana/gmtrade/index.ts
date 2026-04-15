@@ -34,7 +34,7 @@ const PENDING_ACTION_STATE = 0
 const POSITION_KIND_LONG = 1
 const POSITION_KIND_SHORT = 2
 const ORDER_SIDE_LONG = 0
-
+const ONE_HOUR_IN_MS = 60 * 60 * 1000
 const ORDER_KIND_LABELS: Record<number, string> = {
   0: 'liquidation',
   1: 'auto-deleveraging',
@@ -379,6 +379,7 @@ export const gmtradeIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: GMTRADE_STORE_PROGRAM_ID,
+        cacheTtlMs: ONE_HOUR_IN_MS,
         filters: [
           {
             memcmp: {

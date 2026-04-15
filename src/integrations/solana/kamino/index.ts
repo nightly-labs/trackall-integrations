@@ -52,7 +52,7 @@ const KLEND_PROGRAM_ID = 'KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD'
 const KVAULT_PROGRAM_ID = 'KvauGMspG5k6rtzrqqn7WNn3oZdyKqLKwK2XWQ8FLjd'
 const FARMS_PROGRAM_ID = 'FarmsPZpWu9i7Kky8tPN37rs2TpmMrAZrC7S7vJa91Hr'
 const KLIQUIDITY_PROGRAM_ID = '6LtLpnUFNByNXLyCoK9wA2MykKAmQNZKBdY8s47dehDc'
-
+const ONE_HOUR_IN_MS = 60 * 60 * 1000
 export const PROGRAM_IDS = [
   KLEND_PROGRAM_ID,
   KVAULT_PROGRAM_ID,
@@ -888,6 +888,7 @@ export const kaminoIntegration: SolanaIntegration = {
 
     const kvaultRequests = [...userMintBalances.keys()].map((mint) => ({
       kind: 'getProgramAccounts' as const,
+      cacheTtlMs: ONE_HOUR_IN_MS,
       programId: KVAULT_PROGRAM_ID,
       filters: [
         {
@@ -929,6 +930,7 @@ export const kaminoIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts' as const,
         programId: KLEND_PROGRAM_ID,
+        cacheTtlMs: ONE_HOUR_IN_MS,
         filters: [
           {
             memcmp: {
