@@ -24,7 +24,7 @@ export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 const LENDING_PROGRAM_ID = lendingIdl.address
 const VAULTS_PROGRAM_ID = vaultsIdl.address
 const LIQUIDITY_PROGRAM_ID = 'jupeiUmn818Jg1ekPURTpr4mFo29p46vygyykFJ3wZC'
-
+const ONE_HOUR_IN_MS = 60 * 60 * 1000
 export const PROGRAM_IDS = [
   LENDING_PROGRAM_ID,
   VAULTS_PROGRAM_ID,
@@ -627,6 +627,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts',
         programId: LENDING_PROGRAM_ID,
+        cacheTtlMs: ONE_HOUR_IN_MS,
         filters: [
           {
             memcmp: {
@@ -650,6 +651,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts',
         programId: VAULTS_PROGRAM_ID,
+        cacheTtlMs: ONE_HOUR_IN_MS,
         filters: [
           {
             memcmp: {
@@ -663,6 +665,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts',
         programId: VAULTS_PROGRAM_ID,
+        cacheTtlMs: ONE_HOUR_IN_MS,
         filters: [
           {
             memcmp: {
@@ -676,6 +679,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
       {
         kind: 'getProgramAccounts',
         programId: VAULTS_PROGRAM_ID,
+        cacheTtlMs: ONE_HOUR_IN_MS,
         filters: [
           {
             memcmp: {
