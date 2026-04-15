@@ -140,12 +140,42 @@ async function fetchViaGetProgramAccounts(
   return map
 }
 
+const httpJsonCache = new Map<
+  string,
+  {
+    expiresAt: number
+    map: AccountsMap
+  }
+>()
+
+function getHttpJsonCacheKey(req: GetHttpJsonRequest): string {
+  return `${req.url}::${req.keyField ?? ''}`
+}
+
+function toHttpJsonRows(payload: unknown): unknown[] {
+  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    const record = payload as { data?: unknown }
+    if (Array.isArray(record.data)) return record.data
+    return [payload]
+  }
+  if (Array.isArray(payload)) return payload
+  return []
+}
+
 async function fetchViaHttpJson(req: GetHttpJsonRequest): Promise<AccountsMap> {
+  const now = Date.now()
+  const useCache = (req.cacheTtlMs ?? 0) > 0
+  const cacheKey = getHttpJsonCacheKey(req)
+  if (useCache) {
+    const cached = httpJsonCache.get(cacheKey)
+    if (cached && cached.expiresAt > now) return cached.map
+  }
+
   const map: AccountsMap = {}
 
   const res = await fetch(req.url)
-  const json = (await res.json()) as { data?: unknown }
-  const rows = Array.isArray(json.data) ? json.data : []
+  const payload = (await res.json()) as unknown
+  const rows = toHttpJsonRows(payload)
 
   const encoder = new TextEncoder()
   rows.forEach((row, idx) => {
@@ -166,6 +196,13 @@ async function fetchViaHttpJson(req: GetHttpJsonRequest): Promise<AccountsMap> {
       data: encoder.encode(JSON.stringify(row)),
     }
   })
+
+  if (useCache) {
+    httpJsonCache.set(cacheKey, {
+      expiresAt: now + (req.cacheTtlMs ?? 0),
+      map,
+    })
+  }
 
   return map
 }

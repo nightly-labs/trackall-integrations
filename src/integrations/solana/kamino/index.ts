@@ -38,6 +38,7 @@ import { PublicKey } from '@solana/web3.js'
 import type {
   LendingBorrowedAsset,
   LendingDefiPosition,
+  ProgramRequest,
   LendingSuppliedAsset,
   MaybeSolanaAccount,
   SolanaIntegration,
@@ -75,28 +76,11 @@ const METEORA_DEX = 2
 const KAMINO_API_BASE_URL = 'https://api.kamino.finance'
 const KAMINO_KVAULTS_LIST_URL = `${KAMINO_API_BASE_URL}/kvaults/vaults`
 const KAMINO_STRATEGIES_METRICS_URL = `${KAMINO_API_BASE_URL}/strategies/metrics?env=mainnet-beta&status=LIVE`
-const KAMINO_APY_CACHE_TTL_MS = 5 * 60 * 1000
+const KAMINO_APY_CACHE_TTL_MS = 60 * 60 * 1000
 
-interface KaminoKvaultsListCache {
-  expiresAt: number
-  farmToVault: Map<string, string>
-  vaultAddresses: Set<string>
+function getKaminoVaultMetricsUrl(vaultAddress: string): string {
+  return `${KAMINO_API_BASE_URL}/kvaults/vaults/${vaultAddress}/metrics`
 }
-
-let kaminoKvaultsListCache: KaminoKvaultsListCache | undefined
-const kaminoVaultApyCache = new Map<
-  string,
-  {
-    expiresAt: number
-    apy?: string
-  }
->()
-let kaminoStrategyApyMapCache:
-  | {
-      expiresAt: number
-      apyByStrategy: Map<string, string>
-    }
-  | undefined
 
 interface KlendDeposit {
   depositReserve: string
@@ -277,169 +261,126 @@ function toValidApyString(value: unknown): string | undefined {
   return undefined
 }
 
-async function fetchKaminoVaultCatalog(): Promise<{
-  farmToVault: Map<string, string>
-  vaultAddresses: Set<string>
-}> {
-  const now = Date.now()
-  if (kaminoKvaultsListCache && kaminoKvaultsListCache.expiresAt > now) {
-    return {
-      farmToVault: kaminoKvaultsListCache.farmToVault,
-      vaultAddresses: kaminoKvaultsListCache.vaultAddresses,
-    }
+function decodeHttpJsonRow(
+  account: MaybeSolanaAccount | undefined,
+): unknown | undefined {
+  if (!account?.exists || account.programAddress !== 'http-json') {
+    return undefined
   }
 
   try {
-    const response = await fetch(KAMINO_KVAULTS_LIST_URL)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch kvaults list: ${response.status}`)
-    }
-
-    const payload = (await response.json()) as unknown
-    if (!Array.isArray(payload)) {
-      throw new Error('Unexpected kvaults list response shape')
-    }
-
-    const farmToVault = new Map<string, string>()
-    const vaultAddresses = new Set<string>()
-
-    for (const row of payload) {
-      const record = toRecord(row)
-      if (!record) continue
-
-      const vaultAddress = toNonEmptyString(record.address)
-      if (!vaultAddress) continue
-      vaultAddresses.add(vaultAddress)
-
-      const state = toRecord(record.state)
-      const vaultFarm = toNonEmptyString(state?.vaultFarm)
-      if (!vaultFarm || vaultFarm === DEFAULT_PUBKEY) continue
-
-      farmToVault.set(vaultFarm, vaultAddress)
-    }
-
-    kaminoKvaultsListCache = {
-      expiresAt: now + KAMINO_APY_CACHE_TTL_MS,
-      farmToVault,
-      vaultAddresses,
-    }
-
-    return { farmToVault, vaultAddresses }
+    return JSON.parse(Buffer.from(account.data).toString('utf8')) as unknown
   } catch {
-    return {
-      farmToVault: new Map<string, string>(),
-      vaultAddresses: new Set<string>(),
-    }
-  }
-}
-
-async function fetchKaminoVaultApy(
-  vaultAddress: string,
-): Promise<string | undefined> {
-  const now = Date.now()
-  const cached = kaminoVaultApyCache.get(vaultAddress)
-  if (cached && cached.expiresAt > now) {
-    return cached.apy
-  }
-
-  try {
-    const response = await fetch(
-      `${KAMINO_API_BASE_URL}/kvaults/vaults/${vaultAddress}/metrics`,
-    )
-    if (!response.ok) {
-      throw new Error(`Failed to fetch vault metrics: ${response.status}`)
-    }
-
-    const payload = (await response.json()) as unknown
-    const metrics = toRecord(payload)
-    if (!metrics) {
-      throw new Error('Unexpected vault metrics response shape')
-    }
-
-    const apy =
-      toValidApyString(metrics.apy) ?? toValidApyString(metrics.apyActual)
-    const cacheEntry: {
-      expiresAt: number
-      apy?: string
-    } = {
-      expiresAt: now + KAMINO_APY_CACHE_TTL_MS,
-    }
-    if (apy !== undefined) cacheEntry.apy = apy
-    kaminoVaultApyCache.set(vaultAddress, cacheEntry)
-    return apy
-  } catch {
-    kaminoVaultApyCache.set(vaultAddress, {
-      expiresAt: now + 30 * 1000,
-    })
     return undefined
   }
 }
 
-async function fetchKaminoVaultApyMap(
-  vaultAddresses: Iterable<string>,
-): Promise<Map<string, string>> {
-  const entries = await Promise.all(
-    [...vaultAddresses].map(async (vaultAddress) => {
-      const apy = await fetchKaminoVaultApy(vaultAddress)
-      return [vaultAddress, apy] as const
-    }),
-  )
+function groupHttpJsonRowsByUrl(
+  accountsMap: Record<string, MaybeSolanaAccount>,
+): Map<string, unknown[]> {
+  const grouped = new Map<string, Array<{ index: number; row: unknown }>>()
 
-  return new Map(
-    entries.filter(
-      (entry): entry is [string, string] => entry[1] !== undefined,
-    ),
-  )
+  for (const account of Object.values(accountsMap)) {
+    if (!account.exists || account.programAddress !== 'http-json') continue
+
+    const delimiterIndex = account.address.lastIndexOf('#')
+    if (delimiterIndex <= 0 || delimiterIndex >= account.address.length - 1) {
+      continue
+    }
+
+    const url = account.address.slice(0, delimiterIndex)
+    const indexString = account.address.slice(delimiterIndex + 1)
+    const index = Number(indexString)
+    if (!Number.isInteger(index) || index < 0) continue
+
+    const row = decodeHttpJsonRow(account)
+    if (row === undefined) continue
+
+    const entries = grouped.get(url) ?? []
+    entries.push({ index, row })
+    grouped.set(url, entries)
+  }
+
+  const rowsByUrl = new Map<string, unknown[]>()
+  for (const [url, entries] of grouped.entries()) {
+    entries.sort((left, right) => left.index - right.index)
+    rowsByUrl.set(
+      url,
+      entries.map((entry) => entry.row),
+    )
+  }
+
+  return rowsByUrl
 }
 
-async function fetchKaminoStrategyApyMap(): Promise<Map<string, string>> {
-  const now = Date.now()
-  if (kaminoStrategyApyMapCache && kaminoStrategyApyMapCache.expiresAt > now) {
-    return kaminoStrategyApyMapCache.apyByStrategy
+function parseKaminoVaultCatalog(rows: unknown[]): {
+  farmToVault: Map<string, string>
+  vaultAddresses: Set<string>
+} {
+  const farmToVault = new Map<string, string>()
+  const vaultAddresses = new Set<string>()
+
+  for (const row of rows) {
+    const record = toRecord(row)
+    if (!record) continue
+
+    const vaultAddress = toNonEmptyString(record.address)
+    if (!vaultAddress) continue
+    vaultAddresses.add(vaultAddress)
+
+    const state = toRecord(record.state)
+    const vaultFarm = toNonEmptyString(state?.vaultFarm)
+    if (!vaultFarm || vaultFarm === DEFAULT_PUBKEY) continue
+
+    farmToVault.set(vaultFarm, vaultAddress)
   }
 
-  try {
-    const response = await fetch(KAMINO_STRATEGIES_METRICS_URL)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch strategy metrics: ${response.status}`)
-    }
+  return { farmToVault, vaultAddresses }
+}
 
-    const payload = (await response.json()) as unknown
-    if (!Array.isArray(payload)) {
-      throw new Error('Unexpected strategy metrics response shape')
-    }
+function parseKaminoVaultApyMap(
+  rowsByUrl: Map<string, unknown[]>,
+  vaultAddresses: Iterable<string>,
+): Map<string, string> {
+  const apyByVaultAddress = new Map<string, string>()
 
-    const apyByStrategy = new Map<string, string>()
-    for (const row of payload) {
-      const record = toRecord(row)
-      if (!record) continue
+  for (const vaultAddress of vaultAddresses) {
+    const row = rowsByUrl.get(getKaminoVaultMetricsUrl(vaultAddress))?.[0]
+    const metrics = toRecord(row)
+    if (!metrics) continue
 
-      const strategyAddress = toNonEmptyString(record.strategy)
-      if (!strategyAddress) continue
+    const apy =
+      toValidApyString(metrics.apy) ?? toValidApyString(metrics.apyActual)
+    if (apy === undefined) continue
 
-      const apyRecord = toRecord(record.apy)
-      const kaminoApyRecord = toRecord(record.kaminoApy)
-      const apy =
-        toValidApyString(toRecord(kaminoApyRecord?.vault)?.apy7d) ??
-        toValidApyString(kaminoApyRecord?.totalApy) ??
-        toValidApyString(apyRecord?.totalApy)
-      if (apy === undefined) continue
-
-      apyByStrategy.set(strategyAddress, apy)
-    }
-
-    kaminoStrategyApyMapCache = {
-      expiresAt: now + KAMINO_APY_CACHE_TTL_MS,
-      apyByStrategy,
-    }
-    return apyByStrategy
-  } catch {
-    kaminoStrategyApyMapCache = {
-      expiresAt: now + 30 * 1000,
-      apyByStrategy: new Map<string, string>(),
-    }
-    return kaminoStrategyApyMapCache.apyByStrategy
+    apyByVaultAddress.set(vaultAddress, apy)
   }
+
+  return apyByVaultAddress
+}
+
+function parseKaminoStrategyApyMap(rows: unknown[]): Map<string, string> {
+  const apyByStrategy = new Map<string, string>()
+
+  for (const row of rows) {
+    const record = toRecord(row)
+    if (!record) continue
+
+    const strategyAddress = toNonEmptyString(record.strategy)
+    if (!strategyAddress) continue
+
+    const apyRecord = toRecord(record.apy)
+    const kaminoApyRecord = toRecord(record.kaminoApy)
+    const apy =
+      toValidApyString(toRecord(kaminoApyRecord?.vault)?.apy7d) ??
+      toValidApyString(kaminoApyRecord?.totalApy) ??
+      toValidApyString(apyRecord?.totalApy)
+    if (apy === undefined) continue
+
+    apyByStrategy.set(strategyAddress, apy)
+  }
+
+  return apyByStrategy
 }
 
 function toBigInt(value: unknown): bigint {
@@ -1792,8 +1733,28 @@ export const kaminoIntegration: SolanaIntegration = {
       })
     }
 
+    const kaminoCatalogAndStrategyRequests: ProgramRequest[] = [
+      {
+        kind: 'getHttpJson',
+        url: KAMINO_KVAULTS_LIST_URL,
+        cacheTtlMs: KAMINO_APY_CACHE_TTL_MS,
+      },
+      {
+        kind: 'getHttpJson',
+        url: KAMINO_STRATEGIES_METRICS_URL,
+        cacheTtlMs: KAMINO_APY_CACHE_TTL_MS,
+      },
+    ]
+    const kaminoCatalogAndStrategyMap = yield kaminoCatalogAndStrategyRequests
+    const kaminoRowsByUrl = groupHttpJsonRowsByUrl(kaminoCatalogAndStrategyMap)
     const { farmToVault, vaultAddresses: knownVaultAddresses } =
-      await fetchKaminoVaultCatalog()
+      parseKaminoVaultCatalog(
+        kaminoRowsByUrl.get(KAMINO_KVAULTS_LIST_URL) ?? [],
+      )
+    const strategyApyByAddress = parseKaminoStrategyApyMap(
+      kaminoRowsByUrl.get(KAMINO_STRATEGIES_METRICS_URL) ?? [],
+    )
+
     const vaultAddressesToFetchApy = new Set<string>()
     for (const vaultAddress of kvaultVaultAddressByPosition.values()) {
       if (
@@ -1843,10 +1804,20 @@ export const kaminoIntegration: SolanaIntegration = {
       }
     }
 
-    const vaultApyByAddress = await fetchKaminoVaultApyMap(
+    const vaultMetricsRequests: ProgramRequest[] = [
+      ...vaultAddressesToFetchApy,
+    ].map((vaultAddress) => ({
+      kind: 'getHttpJson',
+      url: getKaminoVaultMetricsUrl(vaultAddress),
+      cacheTtlMs: KAMINO_APY_CACHE_TTL_MS,
+    }))
+    const vaultMetricsMap =
+      vaultMetricsRequests.length > 0 ? yield vaultMetricsRequests : {}
+    const vaultApyByAddress = parseKaminoVaultApyMap(
+      groupHttpJsonRowsByUrl(vaultMetricsMap),
       vaultAddressesToFetchApy,
     )
-    const strategyApyByAddress = await fetchKaminoStrategyApyMap()
+
     for (const [
       position,
       vaultAddress,
