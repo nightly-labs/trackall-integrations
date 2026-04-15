@@ -1,4 +1,5 @@
 import { BorshCoder } from '@coral-xyz/anchor'
+import { borrowPda, lendingPda } from '@jup-ag/lend'
 import { getRatioAtTick, INIT_TICK, MIN_TICK } from '@jup-ag/lend/borrow'
 import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { PublicKey } from '@solana/web3.js'
@@ -35,6 +36,11 @@ const EXCHANGE_PRECISION = BigInt('1000000000000')
 const INIT_TICK_VALUE = INIT_TICK // -2147483648
 const MIN_TICK_VALUE = MIN_TICK // -16383
 const INTERNAL_VAULT_DECIMALS = 9
+const FOUR_DECIMALS = 10_000n
+const RATE_OUTPUT_DECIMALS = 100_000_000_000_000_000n // 1e17
+const RATE_SCALE = 1_000_000_000_000n // 1e12
+const RATE_SCALE_DECIMALS = 12
+const RATE_SCALE_PER_BPS = RATE_SCALE / FOUR_DECIMALS // 1e8
 
 const lendingCoder = new BorshCoder(lendingIdl as never)
 const vaultsCoder = new BorshCoder(vaultsIdl as never)
@@ -68,9 +74,12 @@ const VAULT_METADATA_DISC_B64 = accountDiscriminatorBase64(
 // SPL token account: amount at offset 64, mint at offset 0, owner at offset 32
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
+const TOKEN_MINT_SUPPLY_OFFSET = 36
+const DEFAULT_PUBKEY = PublicKey.default.toBase58()
 
 // Position struct (Anchor bytemuck): discriminator (8) + fields (packed)
 const POSITION_VAULT_ID_OFFSET = 8
+const POSITION_NFT_ID_OFFSET = 10
 const POSITION_MINT_OFFSET = 14
 const POSITION_IS_SUPPLY_ONLY_OFFSET = 46
 const POSITION_TICK_OFFSET = 47
@@ -78,6 +87,7 @@ const POSITION_SUPPLY_AMOUNT_OFFSET = 55
 const POSITION_DUST_DEBT_AMOUNT_OFFSET = 63
 
 type DecodedPosition = {
+  nftId: number
   vaultId: number
   positionMint: string
   isSupplyOnly: boolean
@@ -86,12 +96,57 @@ type DecodedPosition = {
   dustDebtAmount: bigint
 }
 
+type DecodedPositionWithAddress = DecodedPosition & {
+  accountAddress: string
+}
+
+type VaultConfigData = {
+  supplyToken: string
+  borrowToken: string
+  supplyRateMagnifier: number
+  borrowRateMagnifier: number
+}
+
+type VaultStateData = {
+  vaultSupplyExchangePrice: bigint
+  vaultBorrowExchangePrice: bigint
+}
+
+type TokenReserveRateInputs = {
+  mint: string
+  borrowRate: number
+  feeOnInterest: number
+  lastUtilization: number
+  supplyExchangePrice: bigint
+  borrowExchangePrice: bigint
+  totalSupplyWithInterest: bigint
+  totalSupplyInterestFree: bigint
+  totalBorrowWithInterest: bigint
+  totalBorrowInterestFree: bigint
+}
+
+export type TokenReserveAnnualRatesScaled = {
+  supplyRateScaled: bigint
+  borrowRateScaled: bigint
+}
+
+type LendingRewardsRateModelInput = {
+  startTvl: bigint
+  duration: bigint
+  startTime: bigint
+  yearlyReward: bigint
+}
+
 function readPubkey(buf: Buffer, offset: number): string {
   return new PublicKey(buf.slice(offset, offset + 32)).toBase58()
 }
 
 function readU16LE(buf: Buffer, offset: number): number {
   return buf.readUInt16LE(offset)
+}
+
+function readU32LE(buf: Buffer, offset: number): number {
+  return buf.readUInt32LE(offset)
 }
 
 function readI32LE(buf: Buffer, offset: number): number {
@@ -114,6 +169,12 @@ function readTokenAccountMint(data: Uint8Array): string | null {
   return readPubkey(buf, TOKEN_ACCOUNT_MINT_OFFSET)
 }
 
+function readTokenMintSupply(data: Uint8Array): bigint | null {
+  const buf = Buffer.from(data)
+  if (buf.length < TOKEN_MINT_SUPPLY_OFFSET + 8) return null
+  return readU64LE(buf, TOKEN_MINT_SUPPLY_OFFSET)
+}
+
 function readDiscriminatorBase64(data: Uint8Array): string | null {
   if (data.length < 8) return null
   return Buffer.from(data.subarray(0, 8)).toString('base64')
@@ -124,6 +185,7 @@ function parsePositionAccount(data: Uint8Array): DecodedPosition | null {
   if (buf.length < POSITION_DUST_DEBT_AMOUNT_OFFSET + 8) return null
 
   return {
+    nftId: readU32LE(buf, POSITION_NFT_ID_OFFSET),
     vaultId: readU16LE(buf, POSITION_VAULT_ID_OFFSET),
     positionMint: readPubkey(buf, POSITION_MINT_OFFSET),
     isSupplyOnly: buf[POSITION_IS_SUPPLY_ONLY_OFFSET] !== 0,
@@ -158,6 +220,296 @@ export function denormalizeVaultAmount(
   if (mintDecimals >= INTERNAL_VAULT_DECIMALS) return amount
   const delta = INTERNAL_VAULT_DECIMALS - mintDecimals
   return amount / 10n ** BigInt(delta)
+}
+
+function formatScaledRate(rateScaled: bigint): string {
+  const negative = rateScaled < 0n
+  const absValue = negative ? -rateScaled : rateScaled
+  const integerPart = absValue / RATE_SCALE
+  const fractionalPart = absValue % RATE_SCALE
+
+  if (fractionalPart === 0n) {
+    return `${negative ? '-' : ''}${integerPart}`
+  }
+
+  const fractionalStr = fractionalPart
+    .toString()
+    .padStart(RATE_SCALE_DECIMALS, '0')
+    .replace(/0+$/, '')
+
+  return `${negative ? '-' : ''}${integerPart}.${fractionalStr}`
+}
+
+function negateRateString(rate: string): string {
+  return rate.startsWith('-') ? rate.slice(1) : `-${rate}`
+}
+
+function toBigIntSafe(value: unknown): bigint | null {
+  if (typeof value === 'bigint') return value
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || !Number.isInteger(value)) return null
+    return BigInt(value)
+  }
+  if (typeof value === 'string') {
+    try {
+      return BigInt(value)
+    } catch {
+      return null
+    }
+  }
+  if (
+    value !== null &&
+    typeof value === 'object' &&
+    'toString' in value &&
+    typeof value.toString === 'function'
+  ) {
+    try {
+      return BigInt(value.toString())
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
+function getWithInterestVsFreeRatio(
+  withInterest: bigint,
+  interestFree: bigint,
+): bigint {
+  if (withInterest > interestFree) {
+    return (interestFree * FOUR_DECIMALS) / withInterest
+  }
+  if (withInterest < interestFree) {
+    return (withInterest * FOUR_DECIMALS) / interestFree
+  }
+  return withInterest > 0n ? FOUR_DECIMALS : 0n
+}
+
+export function calculateTokenReserveAnnualRatesScaled(
+  reserve: TokenReserveRateInputs,
+): TokenReserveAnnualRatesScaled | null {
+  if (reserve.borrowRate < 0 || reserve.feeOnInterest < 0) return null
+  if (reserve.feeOnInterest > Number(FOUR_DECIMALS)) return null
+
+  const borrowRate = BigInt(reserve.borrowRate)
+  const utilization = BigInt(Math.max(reserve.lastUtilization, 0))
+  const feeOnInterest = BigInt(reserve.feeOnInterest)
+
+  const borrowRateScaled = (borrowRate * RATE_SCALE) / FOUR_DECIMALS
+  let supplyRateScaled = 0n
+
+  if (
+    borrowRate > 0n &&
+    reserve.totalBorrowWithInterest > 0n &&
+    reserve.totalSupplyWithInterest > 0n
+  ) {
+    const supplyRatio = getWithInterestVsFreeRatio(
+      reserve.totalSupplyWithInterest,
+      reserve.totalSupplyInterestFree,
+    )
+
+    let ratioSupplyYield: bigint
+    if (reserve.totalSupplyWithInterest < reserve.totalSupplyInterestFree) {
+      if (supplyRatio === 0n) {
+        return { supplyRateScaled, borrowRateScaled }
+      }
+
+      const invertedSupplyRatio =
+        (RATE_OUTPUT_DECIMALS * FOUR_DECIMALS) / supplyRatio
+      ratioSupplyYield =
+        (utilization * (RATE_OUTPUT_DECIMALS + invertedSupplyRatio)) /
+        FOUR_DECIMALS
+    } else {
+      ratioSupplyYield =
+        (utilization * RATE_OUTPUT_DECIMALS * (FOUR_DECIMALS + supplyRatio)) /
+        (FOUR_DECIMALS * FOUR_DECIMALS)
+    }
+
+    const borrowRatio = getWithInterestVsFreeRatio(
+      reserve.totalBorrowWithInterest,
+      reserve.totalBorrowInterestFree,
+    )
+
+    const borrowYieldShare =
+      reserve.totalBorrowWithInterest < reserve.totalBorrowInterestFree
+        ? (borrowRatio * RATE_OUTPUT_DECIMALS) / (FOUR_DECIMALS + borrowRatio)
+        : RATE_OUTPUT_DECIMALS -
+          (borrowRatio * RATE_OUTPUT_DECIMALS) / (FOUR_DECIMALS + borrowRatio)
+
+    ratioSupplyYield =
+      (ratioSupplyYield * borrowYieldShare * FOUR_DECIMALS) /
+      RATE_OUTPUT_DECIMALS /
+      RATE_OUTPUT_DECIMALS
+
+    supplyRateScaled =
+      borrowRate * ratioSupplyYield * (FOUR_DECIMALS - feeOnInterest)
+  }
+
+  return { supplyRateScaled, borrowRateScaled }
+}
+
+export function applyRateMagnifierToScale(
+  baseRateScaled: bigint,
+  magnifier: number,
+): bigint {
+  return baseRateScaled + BigInt(magnifier) * RATE_SCALE_PER_BPS
+}
+
+export function calculateEarnBaseSupplyRateScaled(
+  reserve: TokenReserveRateInputs,
+): bigint {
+  const borrowWithInterestForRate =
+    (reserve.totalBorrowWithInterest * reserve.borrowExchangePrice) /
+    EXCHANGE_PRECISION
+  const supplyWithInterestForRate =
+    (reserve.totalSupplyWithInterest * reserve.supplyExchangePrice) /
+    EXCHANGE_PRECISION
+
+  if (supplyWithInterestForRate === 0n) return 0n
+
+  const supplyRateBps =
+    (BigInt(reserve.borrowRate) *
+      (FOUR_DECIMALS - BigInt(reserve.feeOnInterest)) *
+      borrowWithInterestForRate) /
+    (supplyWithInterestForRate * FOUR_DECIMALS)
+
+  return (supplyRateBps * RATE_SCALE) / FOUR_DECIMALS
+}
+
+function decodeLendingRewardsRateModel(
+  data: Uint8Array,
+): LendingRewardsRateModelInput | null {
+  try {
+    const decoded = lendingCoder.accounts.decode(
+      'LendingRewardsRateModel',
+      Buffer.from(data),
+    )
+    const startTvl = toBigIntSafe(decoded.start_tvl)
+    const duration = toBigIntSafe(decoded.duration)
+    const startTime = toBigIntSafe(decoded.start_time)
+    const yearlyReward = toBigIntSafe(decoded.yearly_reward)
+    if (
+      startTvl === null ||
+      duration === null ||
+      startTime === null ||
+      yearlyReward === null
+    ) {
+      return null
+    }
+    return { startTvl, duration, startTime, yearlyReward }
+  } catch {
+    return null
+  }
+}
+
+function calculateEarnRewardsRateScaled(
+  model: LendingRewardsRateModelInput,
+  tokenExchangePrice: bigint,
+  fTokenSupply: bigint,
+): bigint {
+  if (model.startTime === 0n || model.duration === 0n) return 0n
+
+  const now = BigInt(Math.floor(Date.now() / 1000))
+  if (now > model.startTime + model.duration) return 0n
+
+  const totalAssets = (tokenExchangePrice * fTokenSupply) / EXCHANGE_PRECISION
+  if (totalAssets === 0n || totalAssets < model.startTvl) return 0n
+
+  const rewardsRateBps = (model.yearlyReward * FOUR_DECIMALS) / totalAssets
+  return (rewardsRateBps * RATE_SCALE) / FOUR_DECIMALS
+}
+
+function deriveLiquidityPdas(
+  mint: string,
+): { reserveAddress: string; rateModelAddress: string } | null {
+  try {
+    const mintPubkey = new PublicKey(mint)
+    return {
+      reserveAddress: borrowPda.getLiquidityReserve(mintPubkey).toBase58(),
+      rateModelAddress: borrowPda.getRateModel(mintPubkey).toBase58(),
+    }
+  } catch {
+    return null
+  }
+}
+
+function isLendingPdaValid(mint: string, accountAddress: string): boolean {
+  try {
+    const expected = lendingPda.getLending(new PublicKey(mint)).toBase58()
+    return expected === accountAddress
+  } catch {
+    return false
+  }
+}
+
+function isPositionPdaValid(position: DecodedPositionWithAddress): boolean {
+  try {
+    const expectedPosition = borrowPda
+      .getPosition(position.vaultId, position.nftId)
+      .toBase58()
+    if (expectedPosition !== position.accountAddress) return false
+
+    const expectedMint = borrowPda
+      .getPositionMint(position.vaultId, position.nftId)
+      .toBase58()
+    return expectedMint === position.positionMint
+  } catch {
+    return false
+  }
+}
+
+function decodeTokenReserveRateInputs(
+  data: Uint8Array,
+): TokenReserveRateInputs | null {
+  const decodeWithCoder = (
+    coder: BorshCoder,
+  ): TokenReserveRateInputs | null => {
+    try {
+      const decoded = coder.accounts.decode('TokenReserve', Buffer.from(data))
+      const mint = (decoded.mint as PublicKey).toBase58()
+      const totalSupplyWithInterest = toBigIntSafe(
+        decoded.total_supply_with_interest,
+      )
+      const totalSupplyInterestFree = toBigIntSafe(
+        decoded.total_supply_interest_free,
+      )
+      const totalBorrowWithInterest = toBigIntSafe(
+        decoded.total_borrow_with_interest,
+      )
+      const totalBorrowInterestFree = toBigIntSafe(
+        decoded.total_borrow_interest_free,
+      )
+      const supplyExchangePrice = toBigIntSafe(decoded.supply_exchange_price)
+      const borrowExchangePrice = toBigIntSafe(decoded.borrow_exchange_price)
+      if (
+        totalSupplyWithInterest === null ||
+        totalSupplyInterestFree === null ||
+        totalBorrowWithInterest === null ||
+        totalBorrowInterestFree === null ||
+        supplyExchangePrice === null ||
+        borrowExchangePrice === null
+      ) {
+        return null
+      }
+
+      return {
+        mint,
+        borrowRate: Number(decoded.borrow_rate),
+        feeOnInterest: Number(decoded.fee_on_interest),
+        lastUtilization: Number(decoded.last_utilization),
+        supplyExchangePrice,
+        borrowExchangePrice,
+        totalSupplyWithInterest,
+        totalSupplyInterestFree,
+        totalBorrowWithInterest,
+        totalBorrowInterestFree,
+      }
+    } catch {
+      return null
+    }
+  }
+
+  return decodeWithCoder(lendingCoder) ?? decodeWithCoder(vaultsCoder)
 }
 
 // ─── Integration ─────────────────────────────────────────────────────────────
@@ -261,21 +613,20 @@ export const jupiterLendIntegration: SolanaIntegration = {
       fTokenMint: string
       decimals: number
       tokenExchangePrice: bigint
+      rewardsRateModel: string
     }> = []
+    const validatedEarnMints = new Set<string>()
 
     // Build mint → amount map for all user SPL token accounts.
     const userMintBalances = new Map<string, bigint>()
 
-    const positionsByMint = new Map<string, DecodedPosition>()
+    const positionsByMint = new Map<string, DecodedPositionWithAddress>()
+    const validatedPositionMints = new Set<string>()
 
-    const vaultConfigMap = new Map<
-      number,
-      { supplyToken: string; borrowToken: string }
-    >()
-    const vaultStateMap = new Map<
-      number,
-      { vaultSupplyExchangePrice: bigint; vaultBorrowExchangePrice: bigint }
-    >()
+    const vaultConfigMap = new Map<number, VaultConfigData>()
+    const validatedVaultConfigMap = new Map<number, VaultConfigData>()
+    const vaultStateMap = new Map<number, VaultStateData>()
+    const validatedVaultStateMap = new Map<number, VaultStateData>()
     const vaultMetaMap = new Map<
       number,
       { supplyDecimals: number; borrowDecimals: number }
@@ -297,7 +648,13 @@ export const jupiterLendIntegration: SolanaIntegration = {
             tokenExchangePrice: BigInt(
               (d.token_exchange_price as BN).toString(),
             ),
+            rewardsRateModel: (d.rewards_rate_model as PublicKey).toBase58(),
           })
+          if (
+            isLendingPdaValid((d.mint as PublicKey).toBase58(), acc.address)
+          ) {
+            validatedEarnMints.add((d.mint as PublicKey).toBase58())
+          }
         } catch {
           // skip accounts that fail to decode
         }
@@ -308,7 +665,10 @@ export const jupiterLendIntegration: SolanaIntegration = {
         const mint = readTokenAccountMint(acc.data)
         const amount = readTokenAccountAmount(acc.data)
         if (mint && amount !== null && amount > 0n) {
-          userMintBalances.set(mint, amount)
+          userMintBalances.set(
+            mint,
+            (userMintBalances.get(mint) ?? 0n) + amount,
+          )
         }
         continue
       }
@@ -320,7 +680,14 @@ export const jupiterLendIntegration: SolanaIntegration = {
         const parsed = parsePositionAccount(acc.data)
         if (!parsed || parsed.supplyAmount === 0n) continue
         if (!positionsByMint.has(parsed.positionMint)) {
-          positionsByMint.set(parsed.positionMint, parsed)
+          const positionWithAddress: DecodedPositionWithAddress = {
+            ...parsed,
+            accountAddress: acc.address,
+          }
+          positionsByMint.set(parsed.positionMint, positionWithAddress)
+          if (isPositionPdaValid(positionWithAddress)) {
+            validatedPositionMints.add(parsed.positionMint)
+          }
         }
         continue
       }
@@ -331,10 +698,19 @@ export const jupiterLendIntegration: SolanaIntegration = {
             'VaultConfig',
             Buffer.from(acc.data),
           )
-          vaultConfigMap.set(d.vault_id as number, {
+          const vaultId = d.vault_id as number
+          const cfg: VaultConfigData = {
             supplyToken: (d.supply_token as PublicKey).toBase58(),
             borrowToken: (d.borrow_token as PublicKey).toBase58(),
-          })
+            supplyRateMagnifier: d.supply_rate_magnifier as number,
+            borrowRateMagnifier: d.borrow_rate_magnifier as number,
+          }
+          if (!vaultConfigMap.has(vaultId)) {
+            vaultConfigMap.set(vaultId, cfg)
+          }
+          if (borrowPda.getVaultConfig(vaultId).toBase58() === acc.address) {
+            validatedVaultConfigMap.set(vaultId, cfg)
+          }
         } catch {
           // skip accounts that fail to decode
         }
@@ -347,14 +723,21 @@ export const jupiterLendIntegration: SolanaIntegration = {
             'VaultState',
             Buffer.from(acc.data),
           )
-          vaultStateMap.set(d.vault_id as number, {
+          const vaultId = d.vault_id as number
+          const state: VaultStateData = {
             vaultSupplyExchangePrice: BigInt(
               (d.vault_supply_exchange_price as BN).toString(),
             ),
             vaultBorrowExchangePrice: BigInt(
               (d.vault_borrow_exchange_price as BN).toString(),
             ),
-          })
+          }
+          if (!vaultStateMap.has(vaultId)) {
+            vaultStateMap.set(vaultId, state)
+          }
+          if (borrowPda.getVaultState(vaultId).toBase58() === acc.address) {
+            validatedVaultStateMap.set(vaultId, state)
+          }
         } catch {
           // skip accounts that fail to decode
         }
@@ -395,7 +778,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
       .filter(([, amount]) => amount === 1n)
       .map(([mint]) => mint)
 
-    const ownedPositions: DecodedPosition[] = []
+    const ownedPositions: DecodedPositionWithAddress[] = []
     for (const positionMint of userPositionMints) {
       const position = positionsByMint.get(positionMint)
       if (!position) continue
@@ -430,6 +813,103 @@ export const jupiterLendIntegration: SolanaIntegration = {
       )
     }
 
+    // ── Phase 2: Strict APY inputs (reserve + rate model PDAs) ───────────────
+    const mintsNeedingRates = new Set<string>()
+
+    for (const pool of earnPools) {
+      if (validatedEarnMints.has(pool.mint)) {
+        mintsNeedingRates.add(pool.mint)
+      }
+    }
+
+    for (const pos of ownedPositions) {
+      if (!validatedPositionMints.has(pos.positionMint)) continue
+      const apyCfg = validatedVaultConfigMap.get(pos.vaultId)
+      const apyState = validatedVaultStateMap.get(pos.vaultId)
+      if (!apyCfg || !apyState) continue
+      mintsNeedingRates.add(apyCfg.supplyToken)
+      mintsNeedingRates.add(apyCfg.borrowToken)
+    }
+
+    const reserveAddressByMint = new Map<string, string>()
+    const rateModelAddressByMint = new Map<string, string>()
+    const rewardsModelAddressByMint = new Map<string, string>()
+    const fTokenMintByMint = new Map<string, string>()
+    for (const mint of mintsNeedingRates) {
+      const pdas = deriveLiquidityPdas(mint)
+      if (!pdas) continue
+      reserveAddressByMint.set(mint, pdas.reserveAddress)
+      rateModelAddressByMint.set(mint, pdas.rateModelAddress)
+    }
+    for (const pool of earnPools) {
+      if (!validatedEarnMints.has(pool.mint)) continue
+      fTokenMintByMint.set(pool.mint, pool.fTokenMint)
+      if (pool.rewardsRateModel !== DEFAULT_PUBKEY) {
+        rewardsModelAddressByMint.set(pool.mint, pool.rewardsRateModel)
+      }
+    }
+
+    const rateInputAddresses = [
+      ...new Set([
+        ...reserveAddressByMint.values(),
+        ...rateModelAddressByMint.values(),
+        ...rewardsModelAddressByMint.values(),
+        ...fTokenMintByMint.values(),
+      ]),
+    ]
+    const rateInputsMap =
+      rateInputAddresses.length > 0 ? yield rateInputAddresses : {}
+
+    const baseRatesByMint = new Map<string, TokenReserveAnnualRatesScaled>()
+    const earnSupplyRateByMint = new Map<string, bigint>()
+    const earnRewardsRateByMint = new Map<string, bigint>()
+    for (const [mint, reserveAddress] of reserveAddressByMint.entries()) {
+      const reserveAccount = rateInputsMap[reserveAddress]
+      if (!reserveAccount?.exists) continue
+
+      const rateModelAddress = rateModelAddressByMint.get(mint)
+      if (!rateModelAddress) continue
+      const rateModelAccount = rateInputsMap[rateModelAddress]
+      if (!rateModelAccount?.exists) continue
+
+      const reserve = decodeTokenReserveRateInputs(reserveAccount.data)
+      if (!reserve || reserve.mint !== mint) continue
+
+      earnSupplyRateByMint.set(mint, calculateEarnBaseSupplyRateScaled(reserve))
+
+      const rates = calculateTokenReserveAnnualRatesScaled(reserve)
+      if (!rates) continue
+      baseRatesByMint.set(mint, rates)
+    }
+    for (const pool of earnPools) {
+      if (!validatedEarnMints.has(pool.mint)) continue
+      if (pool.rewardsRateModel === DEFAULT_PUBKEY) {
+        earnRewardsRateByMint.set(pool.mint, 0n)
+        continue
+      }
+
+      const rewardsModelAccount = rateInputsMap[pool.rewardsRateModel]
+      if (!rewardsModelAccount?.exists) continue
+      const rewardModel = decodeLendingRewardsRateModel(
+        rewardsModelAccount.data,
+      )
+      if (!rewardModel) continue
+
+      const fTokenMintAccount = rateInputsMap[pool.fTokenMint]
+      if (!fTokenMintAccount?.exists) continue
+      const fTokenSupply = readTokenMintSupply(fTokenMintAccount.data)
+      if (fTokenSupply === null) continue
+
+      earnRewardsRateByMint.set(
+        pool.mint,
+        calculateEarnRewardsRateScaled(
+          rewardModel,
+          pool.tokenExchangePrice,
+          fTokenSupply,
+        ),
+      )
+    }
+
     const result: UserDefiPosition[] = []
 
     // ── Decode Earn positions ─────────────────────────────────────────────────
@@ -450,6 +930,22 @@ export const jupiterLendIntegration: SolanaIntegration = {
         priceUsd !== undefined
           ? ((Number(underlying) / 10 ** pool.decimals) * priceUsd).toString()
           : undefined
+      const earnSupplyRateScaled = validatedEarnMints.has(pool.mint)
+        ? earnSupplyRateByMint.get(pool.mint)
+        : undefined
+      const supplyRate =
+        earnSupplyRateScaled !== undefined
+          ? formatScaledRate(earnSupplyRateScaled)
+          : undefined
+      const rewardsRateScaled = validatedEarnMints.has(pool.mint)
+        ? earnRewardsRateByMint.get(pool.mint)
+        : undefined
+      const requiresRewards = pool.rewardsRateModel !== DEFAULT_PUBKEY
+      const apyRate =
+        earnSupplyRateScaled !== undefined &&
+        (!requiresRewards || rewardsRateScaled !== undefined)
+          ? earnSupplyRateScaled + (rewardsRateScaled ?? 0n)
+          : undefined
 
       const supplied: LendingSuppliedAsset = {
         amount: {
@@ -457,16 +953,21 @@ export const jupiterLendIntegration: SolanaIntegration = {
           amount: underlying.toString(),
           decimals: pool.decimals.toString(),
         },
+        ...(supplyRate !== undefined && { supplyRate }),
         ...(priceUsd !== undefined && { priceUsd: priceUsd.toString() }),
         ...(usdValue !== undefined && { usdValue }),
       }
 
-      result.push({
+      const earnPosition: LendingDefiPosition = {
         positionKind: 'lending',
         platformId: 'jupiter',
         supplied: [supplied],
         ...(usdValue !== undefined && { usdValue: usdValue }),
-      } satisfies LendingDefiPosition)
+      }
+      if (apyRate !== undefined) {
+        earnPosition.apy = formatScaledRate(apyRate)
+      }
+      result.push(earnPosition)
     }
 
     // ── Decode CDP vault positions ────────────────────────────────────────────
@@ -475,6 +976,17 @@ export const jupiterLendIntegration: SolanaIntegration = {
       const state = vaultStateMap.get(pos.vaultId)
       const meta = vaultMetaMap.get(pos.vaultId)
       if (!cfg || !state) continue
+
+      const apyCfg = validatedVaultConfigMap.get(pos.vaultId)
+      const apyState = validatedVaultStateMap.get(pos.vaultId)
+      const hasStrictApyInputs =
+        validatedPositionMints.has(pos.positionMint) &&
+        apyCfg !== undefined &&
+        apyState !== undefined &&
+        apyCfg.supplyToken === cfg.supplyToken &&
+        apyCfg.borrowToken === cfg.borrowToken &&
+        apyState.vaultSupplyExchangePrice === state.vaultSupplyExchangePrice &&
+        apyState.vaultBorrowExchangePrice === state.vaultBorrowExchangePrice
 
       const supplyDecimals = meta?.supplyDecimals ?? 6
       const borrowDecimals = meta?.borrowDecimals ?? 6
@@ -512,6 +1024,32 @@ export const jupiterLendIntegration: SolanaIntegration = {
         borrowPriceUsd !== undefined && debtAmount > 0n
           ? (Number(debtAmount) / 10 ** borrowDecimals) * borrowPriceUsd
           : undefined
+      const baseSupplyRates =
+        hasStrictApyInputs && apyCfg
+          ? baseRatesByMint.get(apyCfg.supplyToken)
+          : undefined
+      const baseBorrowRates =
+        hasStrictApyInputs && apyCfg
+          ? baseRatesByMint.get(apyCfg.borrowToken)
+          : undefined
+      const supplyRate =
+        baseSupplyRates !== undefined && apyCfg
+          ? formatScaledRate(
+              applyRateMagnifierToScale(
+                baseSupplyRates.supplyRateScaled,
+                apyCfg.supplyRateMagnifier,
+              ),
+            )
+          : undefined
+      const borrowRate =
+        baseBorrowRates !== undefined && apyCfg
+          ? formatScaledRate(
+              applyRateMagnifierToScale(
+                baseBorrowRates.borrowRateScaled,
+                apyCfg.borrowRateMagnifier,
+              ),
+            )
+          : undefined
 
       const supplied: LendingSuppliedAsset = {
         amount: {
@@ -519,6 +1057,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
           amount: colAmount.toString(),
           decimals: supplyDecimals.toString(),
         },
+        ...(supplyRate !== undefined && { supplyRate }),
         ...(supplyPriceUsd !== undefined && {
           priceUsd: supplyPriceUsd.toString(),
         }),
@@ -539,6 +1078,7 @@ export const jupiterLendIntegration: SolanaIntegration = {
             amount: debtAmount.toString(),
             decimals: borrowDecimals.toString(),
           },
+          ...(borrowRate !== undefined && { borrowRate }),
           ...(borrowPriceUsd !== undefined && {
             priceUsd: borrowPriceUsd.toString(),
           }),
@@ -548,6 +1088,12 @@ export const jupiterLendIntegration: SolanaIntegration = {
         if (colUsd !== undefined && debtUsd !== undefined) {
           positionResult.usdValue = (colUsd - debtUsd).toString()
         }
+      }
+
+      if (supplyRate !== undefined) {
+        positionResult.apy = supplyRate
+      } else if (debtAmount > 0n && borrowRate !== undefined) {
+        positionResult.apy = negateRateString(borrowRate)
       }
 
       result.push(positionResult)
