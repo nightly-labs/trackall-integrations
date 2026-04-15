@@ -14,8 +14,8 @@ import type {
   UserPositionsPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
-import wasabiIdl from './idls/wasabi.json'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
+import wasabiIdl from './idls/wasabi.json'
 
 type WasabiIdl = {
   address: string

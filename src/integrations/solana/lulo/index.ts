@@ -23,8 +23,8 @@ import type {
   UserPositionsPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
-import lendingIdl from '../jupiter-lend/idls/lending.json'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
+import lendingIdl from '../jupiter-lend/idls/lending.json'
 
 export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
