@@ -7,6 +7,9 @@ import {
   fetchProgramAccountsBatch,
 } from '../../../utils/solana'
 import {
+  applyRateMagnifierToScale,
+  calculateEarnBaseSupplyRateScaled,
+  calculateTokenReserveAnnualRatesScaled,
   denormalizeVaultAmount,
   jupiterLendIntegration,
   testAddress,
@@ -19,12 +22,76 @@ const wallets = [testAddress]
 const { getUserPositions } = jupiterLendIntegration
 if (!getUserPositions) throw new Error('getUserPositions not implemented')
 
+function isNumericString(value: string): boolean {
+  return /^-?\d+(\.\d+)?$/.test(value)
+}
+
 describe('jupiter-lend integration', () => {
   it('denormalizes vault amounts for mints with decimals lower than 9', () => {
     expect(denormalizeVaultAmount(1027578000n, 6)).toBe(1027578n)
     expect(denormalizeVaultAmount(165631n, 8)).toBe(16563n)
     expect(denormalizeVaultAmount(38557779n, 9)).toBe(38557779n)
     expect(denormalizeVaultAmount(12345n, 10)).toBe(12345n)
+  })
+
+  it('derives reserve annual supply and borrow rates from onchain reserve fields', () => {
+    const rates = calculateTokenReserveAnnualRatesScaled({
+      mint: 'So11111111111111111111111111111111111111112',
+      borrowRate: 4000, // 40%
+      feeOnInterest: 1000, // 10%
+      lastUtilization: 6000, // 60%
+      supplyExchangePrice: 1_000_000_000_000n,
+      borrowExchangePrice: 1_000_000_000_000n,
+      totalSupplyWithInterest: 80n,
+      totalSupplyInterestFree: 20n,
+      totalBorrowWithInterest: 50n,
+      totalBorrowInterestFree: 10n,
+    })
+
+    expect(rates).not.toBeNull()
+    expect(rates?.borrowRateScaled).toBe(400000000000n) // 0.4
+    expect(rates?.supplyRateScaled).toBe(225000000000n) // 0.225
+  })
+
+  it('returns zero supply rate when there is no with-interest borrow', () => {
+    const rates = calculateTokenReserveAnnualRatesScaled({
+      mint: 'So11111111111111111111111111111111111111112',
+      borrowRate: 3200,
+      feeOnInterest: 500,
+      lastUtilization: 5500,
+      supplyExchangePrice: 1_000_000_000_000n,
+      borrowExchangePrice: 1_000_000_000_000n,
+      totalSupplyWithInterest: 1_000_000n,
+      totalSupplyInterestFree: 0n,
+      totalBorrowWithInterest: 0n,
+      totalBorrowInterestFree: 100_000n,
+    })
+
+    expect(rates).not.toBeNull()
+    expect(rates?.borrowRateScaled).toBe(320000000000n)
+    expect(rates?.supplyRateScaled).toBe(0n)
+  })
+
+  it('applies vault rate magnifiers as signed annual bps deltas', () => {
+    expect(applyRateMagnifierToScale(60000000000n, 150)).toBe(75000000000n) // 0.06 + 0.015
+    expect(applyRateMagnifierToScale(60000000000n, -200)).toBe(40000000000n) // 0.06 - 0.02
+  })
+
+  it('derives earn base supply rate using with-interest value ratio', () => {
+    const supplyRateScaled = calculateEarnBaseSupplyRateScaled({
+      mint: 'So11111111111111111111111111111111111111112',
+      borrowRate: 4000, // 40%
+      feeOnInterest: 1000, // 10%
+      lastUtilization: 0,
+      supplyExchangePrice: 1_000_000_000_000n,
+      borrowExchangePrice: 1_000_000_000_000n,
+      totalSupplyWithInterest: 20n,
+      totalSupplyInterestFree: 80n,
+      totalBorrowWithInterest: 50n,
+      totalBorrowInterestFree: 10n,
+    })
+
+    expect(supplyRateScaled).toBe(900000000000n) // 0.9
   })
 
   it('fetches user supply positions', async () => {
@@ -36,7 +103,7 @@ describe('jupiter-lend integration', () => {
     let totalAccounts = 0
 
     const [positions] = await runIntegrations(
-      [getUserPositions(testAddress, plugins)],
+      [getUserPositions(wallets[0] ?? testAddress, plugins)],
       async (addresses) => {
         totalBatches++
         totalAccounts += addresses.length
@@ -63,6 +130,22 @@ describe('jupiter-lend integration', () => {
     console.log('Positions:', JSON.stringify(lendingPositions, null, 2))
 
     expect(Array.isArray(positions)).toBe(true)
+    for (const position of lendingPositions) {
+      if (position.positionKind !== 'lending') continue
+      if (position.apy !== undefined) {
+        expect(isNumericString(position.apy)).toBe(true)
+      }
+      for (const supplied of position.supplied ?? []) {
+        if (supplied.supplyRate !== undefined) {
+          expect(isNumericString(supplied.supplyRate)).toBe(true)
+        }
+      }
+      for (const borrowed of position.borrowed ?? []) {
+        if (borrowed.borrowRate !== undefined) {
+          expect(isNumericString(borrowed.borrowRate)).toBe(true)
+        }
+      }
+    }
   }, 60000)
 
   it('fetches positions for multiple wallets in batched RPC calls', async () => {
