@@ -72,6 +72,31 @@ const FARMS_WAD = 10n ** 18n
 const ORCA_DEX = 0
 const RAYDIUM_DEX = 1
 const METEORA_DEX = 2
+const KAMINO_API_BASE_URL = 'https://api.kamino.finance'
+const KAMINO_KVAULTS_LIST_URL = `${KAMINO_API_BASE_URL}/kvaults/vaults`
+const KAMINO_STRATEGIES_METRICS_URL = `${KAMINO_API_BASE_URL}/strategies/metrics?env=mainnet-beta&status=LIVE`
+const KAMINO_APY_CACHE_TTL_MS = 5 * 60 * 1000
+
+interface KaminoKvaultsListCache {
+  expiresAt: number
+  farmToVault: Map<string, string>
+  vaultAddresses: Set<string>
+}
+
+let kaminoKvaultsListCache: KaminoKvaultsListCache | undefined
+const kaminoVaultApyCache = new Map<
+  string,
+  {
+    expiresAt: number
+    apy?: string
+  }
+>()
+let kaminoStrategyApyMapCache:
+  | {
+      expiresAt: number
+      apyByStrategy: Map<string, string>
+    }
+  | undefined
 
 interface KlendDeposit {
   depositReserve: string
@@ -221,6 +246,200 @@ interface StrategyUnderlyingFromShares {
 interface StrategyInvestedTokenAmountsRaw {
   tokenAAmountRaw: bigint
   tokenBAmountRaw: bigint
+}
+
+function toRecord(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    return undefined
+  return value as Record<string, unknown>
+}
+
+function toNonEmptyString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
+function toValidApyString(value: unknown): string | undefined {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) return undefined
+    return value.toString()
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (trimmed.length === 0) return undefined
+    const parsed = Number(trimmed)
+    if (!Number.isFinite(parsed)) return undefined
+    return trimmed
+  }
+
+  return undefined
+}
+
+async function fetchKaminoVaultCatalog(): Promise<{
+  farmToVault: Map<string, string>
+  vaultAddresses: Set<string>
+}> {
+  const now = Date.now()
+  if (kaminoKvaultsListCache && kaminoKvaultsListCache.expiresAt > now) {
+    return {
+      farmToVault: kaminoKvaultsListCache.farmToVault,
+      vaultAddresses: kaminoKvaultsListCache.vaultAddresses,
+    }
+  }
+
+  try {
+    const response = await fetch(KAMINO_KVAULTS_LIST_URL)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch kvaults list: ${response.status}`)
+    }
+
+    const payload = (await response.json()) as unknown
+    if (!Array.isArray(payload)) {
+      throw new Error('Unexpected kvaults list response shape')
+    }
+
+    const farmToVault = new Map<string, string>()
+    const vaultAddresses = new Set<string>()
+
+    for (const row of payload) {
+      const record = toRecord(row)
+      if (!record) continue
+
+      const vaultAddress = toNonEmptyString(record.address)
+      if (!vaultAddress) continue
+      vaultAddresses.add(vaultAddress)
+
+      const state = toRecord(record.state)
+      const vaultFarm = toNonEmptyString(state?.vaultFarm)
+      if (!vaultFarm || vaultFarm === DEFAULT_PUBKEY) continue
+
+      farmToVault.set(vaultFarm, vaultAddress)
+    }
+
+    kaminoKvaultsListCache = {
+      expiresAt: now + KAMINO_APY_CACHE_TTL_MS,
+      farmToVault,
+      vaultAddresses,
+    }
+
+    return { farmToVault, vaultAddresses }
+  } catch {
+    return {
+      farmToVault: new Map<string, string>(),
+      vaultAddresses: new Set<string>(),
+    }
+  }
+}
+
+async function fetchKaminoVaultApy(
+  vaultAddress: string,
+): Promise<string | undefined> {
+  const now = Date.now()
+  const cached = kaminoVaultApyCache.get(vaultAddress)
+  if (cached && cached.expiresAt > now) {
+    return cached.apy
+  }
+
+  try {
+    const response = await fetch(
+      `${KAMINO_API_BASE_URL}/kvaults/vaults/${vaultAddress}/metrics`,
+    )
+    if (!response.ok) {
+      throw new Error(`Failed to fetch vault metrics: ${response.status}`)
+    }
+
+    const payload = (await response.json()) as unknown
+    const metrics = toRecord(payload)
+    if (!metrics) {
+      throw new Error('Unexpected vault metrics response shape')
+    }
+
+    const apy =
+      toValidApyString(metrics.apy) ?? toValidApyString(metrics.apyActual)
+    const cacheEntry: {
+      expiresAt: number
+      apy?: string
+    } = {
+      expiresAt: now + KAMINO_APY_CACHE_TTL_MS,
+    }
+    if (apy !== undefined) cacheEntry.apy = apy
+    kaminoVaultApyCache.set(vaultAddress, cacheEntry)
+    return apy
+  } catch {
+    kaminoVaultApyCache.set(vaultAddress, {
+      expiresAt: now + 30 * 1000,
+    })
+    return undefined
+  }
+}
+
+async function fetchKaminoVaultApyMap(
+  vaultAddresses: Iterable<string>,
+): Promise<Map<string, string>> {
+  const entries = await Promise.all(
+    [...vaultAddresses].map(async (vaultAddress) => {
+      const apy = await fetchKaminoVaultApy(vaultAddress)
+      return [vaultAddress, apy] as const
+    }),
+  )
+
+  return new Map(
+    entries.filter(
+      (entry): entry is [string, string] => entry[1] !== undefined,
+    ),
+  )
+}
+
+async function fetchKaminoStrategyApyMap(): Promise<Map<string, string>> {
+  const now = Date.now()
+  if (kaminoStrategyApyMapCache && kaminoStrategyApyMapCache.expiresAt > now) {
+    return kaminoStrategyApyMapCache.apyByStrategy
+  }
+
+  try {
+    const response = await fetch(KAMINO_STRATEGIES_METRICS_URL)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch strategy metrics: ${response.status}`)
+    }
+
+    const payload = (await response.json()) as unknown
+    if (!Array.isArray(payload)) {
+      throw new Error('Unexpected strategy metrics response shape')
+    }
+
+    const apyByStrategy = new Map<string, string>()
+    for (const row of payload) {
+      const record = toRecord(row)
+      if (!record) continue
+
+      const strategyAddress = toNonEmptyString(record.strategy)
+      if (!strategyAddress) continue
+
+      const apyRecord = toRecord(record.apy)
+      const kaminoApyRecord = toRecord(record.kaminoApy)
+      const apy =
+        toValidApyString(toRecord(kaminoApyRecord?.vault)?.apy7d) ??
+        toValidApyString(kaminoApyRecord?.totalApy) ??
+        toValidApyString(apyRecord?.totalApy)
+      if (apy === undefined) continue
+
+      apyByStrategy.set(strategyAddress, apy)
+    }
+
+    kaminoStrategyApyMapCache = {
+      expiresAt: now + KAMINO_APY_CACHE_TTL_MS,
+      apyByStrategy,
+    }
+    return apyByStrategy
+  } catch {
+    kaminoStrategyApyMapCache = {
+      expiresAt: now + 30 * 1000,
+      apyByStrategy: new Map<string, string>(),
+    }
+    return kaminoStrategyApyMapCache.apyByStrategy
+  }
 }
 
 function toBigInt(value: unknown): bigint {
@@ -804,6 +1023,13 @@ export const kaminoIntegration: SolanaIntegration = {
     >()
 
     const kvaultSharePositions: UserDefiPosition[] = []
+    const kvaultVaultAddressByPosition = new Map<UserDefiPosition, string>()
+    const farmsPositionsWithAddress: Array<{
+      position: UserDefiPosition
+      farmAddress: string
+      farmVaultAddress: string
+      farmStrategyAddress: string
+    }> = []
     const seenSharesMints = new Set<string>()
 
     for (const account of Object.values(phase1Map)) {
@@ -865,7 +1091,7 @@ export const kaminoIntegration: SolanaIntegration = {
           )
 
           seenSharesMints.add(vault.sharesMint)
-          kvaultSharePositions.push({
+          const kvaultPosition: UserDefiPosition = {
             platformId: 'kamino',
             positionKind: 'staking',
             ...(stakedUsdValue !== undefined && { usdValue: stakedUsdValue }),
@@ -895,7 +1121,9 @@ export const kaminoIntegration: SolanaIntegration = {
                 },
               },
             }),
-          })
+          }
+          kvaultSharePositions.push(kvaultPosition)
+          kvaultVaultAddressByPosition.set(kvaultPosition, account.address)
         } catch {
           // Ignore decode failures from non-vault or incompatible accounts.
         }
@@ -1518,7 +1746,7 @@ export const kaminoIntegration: SolanaIntegration = {
         farmStrategyAddress !== DEFAULT_PUBKEY &&
         strategyInvestedByAddress.has(farmStrategyAddress)
 
-      farmsPositions.push({
+      const farmPosition: UserDefiPosition = {
         platformId: 'kamino',
         positionKind: 'staking',
         ...(positionUsdValue !== undefined && { usdValue: positionUsdValue }),
@@ -1554,7 +1782,104 @@ export const kaminoIntegration: SolanaIntegration = {
                 },
           },
         }),
+      }
+      farmsPositions.push(farmPosition)
+      farmsPositionsWithAddress.push({
+        position: farmPosition,
+        farmAddress,
+        farmVaultAddress,
+        farmStrategyAddress,
       })
+    }
+
+    const { farmToVault, vaultAddresses: knownVaultAddresses } =
+      await fetchKaminoVaultCatalog()
+    const vaultAddressesToFetchApy = new Set<string>()
+    for (const vaultAddress of kvaultVaultAddressByPosition.values()) {
+      if (
+        knownVaultAddresses.size > 0 &&
+        !knownVaultAddresses.has(vaultAddress)
+      ) {
+        continue
+      }
+      vaultAddressesToFetchApy.add(vaultAddress)
+    }
+
+    const getFarmApyCandidateVaultAddresses = (
+      farmAddress: string,
+      farmVaultAddress: string,
+    ): string[] => {
+      const candidates: string[] = []
+      const mappedVaultAddress = farmToVault.get(farmAddress)
+
+      if (farmVaultAddress !== DEFAULT_PUBKEY) {
+        if (
+          knownVaultAddresses.size === 0 ||
+          knownVaultAddresses.has(farmVaultAddress)
+        ) {
+          candidates.push(farmVaultAddress)
+        }
+      }
+
+      if (
+        mappedVaultAddress &&
+        (knownVaultAddresses.size === 0 ||
+          knownVaultAddresses.has(mappedVaultAddress)) &&
+        !candidates.includes(mappedVaultAddress)
+      ) {
+        candidates.push(mappedVaultAddress)
+      }
+
+      return candidates
+    }
+
+    for (const farmPosition of farmsPositionsWithAddress) {
+      const candidateVaultAddresses = getFarmApyCandidateVaultAddresses(
+        farmPosition.farmAddress,
+        farmPosition.farmVaultAddress,
+      )
+      for (const vaultAddress of candidateVaultAddresses) {
+        vaultAddressesToFetchApy.add(vaultAddress)
+      }
+    }
+
+    const vaultApyByAddress = await fetchKaminoVaultApyMap(
+      vaultAddressesToFetchApy,
+    )
+    const strategyApyByAddress = await fetchKaminoStrategyApyMap()
+    for (const [
+      position,
+      vaultAddress,
+    ] of kvaultVaultAddressByPosition.entries()) {
+      const apy = vaultApyByAddress.get(vaultAddress)
+      if (apy === undefined) continue
+      if (position.positionKind === 'staking') position.apy = apy
+    }
+    for (const farmPosition of farmsPositionsWithAddress) {
+      if (farmPosition.farmStrategyAddress !== DEFAULT_PUBKEY) {
+        const strategyApy = strategyApyByAddress.get(
+          farmPosition.farmStrategyAddress,
+        )
+        if (
+          strategyApy !== undefined &&
+          farmPosition.position.positionKind === 'staking'
+        ) {
+          farmPosition.position.apy = strategyApy
+          continue
+        }
+      }
+
+      const candidateVaultAddresses = getFarmApyCandidateVaultAddresses(
+        farmPosition.farmAddress,
+        farmPosition.farmVaultAddress,
+      )
+      const apy = candidateVaultAddresses
+        .map((vaultAddress) => vaultApyByAddress.get(vaultAddress))
+        .find((value): value is string => value !== undefined)
+      if (apy === undefined) continue
+      if (farmPosition.position.positionKind === 'staking') {
+        farmPosition.position.apy = apy
+      }
     }
 
     const positions = [
