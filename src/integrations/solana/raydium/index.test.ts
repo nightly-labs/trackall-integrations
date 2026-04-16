@@ -33,9 +33,11 @@ function idlDiscriminator(
   idl: { accounts?: Array<{ name: string; discriminator?: number[] }> },
   accountName: string,
 ): Buffer {
-  const discriminator = idl.accounts?.find((a) => a.name === accountName)
-    ?.discriminator
-  if (!discriminator) throw new Error(`Missing discriminator for ${accountName}`)
+  const discriminator = idl.accounts?.find(
+    (a) => a.name === accountName,
+  )?.discriminator
+  if (!discriminator)
+    throw new Error(`Missing discriminator for ${accountName}`)
   return Buffer.from(discriminator)
 }
 
@@ -143,7 +145,9 @@ describe('raydium integration', () => {
   })
 
   it('discovers Raydium mints and builds holder filters on both token programs', async () => {
-    const cpLpMint = new PublicKey('So11111111111111111111111111111111111111112')
+    const cpLpMint = new PublicKey(
+      'So11111111111111111111111111111111111111112',
+    )
     const ammLpMint = new PublicKey(
       'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
     )

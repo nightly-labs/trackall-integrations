@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { PublicKey } from '@solana/web3.js'
-import type { AccountsMap, UsersFilterPlan } from '../../../types/index'
 import { testIntegration } from '../../../test/solana-integration'
+import type { AccountsMap, UsersFilterPlan } from '../../../types/index'
 import { PROGRAM_IDS, saberIntegration, testAddress } from '.'
 
 const { getUsersFilter } = saberIntegration

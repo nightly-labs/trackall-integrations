@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { testIntegration } from '../../../test/solana-integration'
 import type {
   AccountsMap,
   GetProgramAccountsRequest,
@@ -6,7 +7,6 @@ import type {
   UsersFilter,
   UsersFilterPlan,
 } from '../../../types/index'
-import { testIntegration } from '../../../test/solana-integration'
 import { PROGRAM_IDS, realmsIntegration, testAddress } from '.'
 
 const TOKEN_OWNER_RECORD_V1 = 2

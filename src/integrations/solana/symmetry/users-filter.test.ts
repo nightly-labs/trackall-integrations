@@ -24,14 +24,19 @@ const VAULT_COMPOSITION_OFFSET = 1751
 const getUsersFilter = symmetryIntegration.getUsersFilter
 if (!getUsersFilter) throw new Error('getUsersFilter not implemented')
 
-function buildVaultAccountData(mint: string, supplyOutstandingRaw: bigint): Uint8Array {
+function buildVaultAccountData(
+  mint: string,
+  supplyOutstandingRaw: bigint,
+): Uint8Array {
   const data = Buffer.alloc(VAULT_COMPOSITION_OFFSET)
   data[VAULT_VERSION_OFFSET] = 3
   new PublicKey(mint).toBuffer().copy(data, VAULT_MINT_OFFSET)
   data.writeBigUInt64LE(supplyOutstandingRaw, VAULT_SUPPLY_OUTSTANDING_OFFSET)
   data[VAULT_NUM_TOKENS_OFFSET] = 0
 
-  return Uint8Array.from(Buffer.concat([Buffer.alloc(VAULT_DISCRIMINATOR_BYTES), data]))
+  return Uint8Array.from(
+    Buffer.concat([Buffer.alloc(VAULT_DISCRIMINATOR_BYTES), data]),
+  )
 }
 
 function deriveVaultAddress(mint: string): string {

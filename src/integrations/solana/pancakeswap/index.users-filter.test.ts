@@ -24,9 +24,7 @@ function buildPersonalPositionData(nftMint: string): Uint8Array {
   const buf = Buffer.alloc(PERSONAL_POSITION_NFT_MINT_OFFSET + 32)
   PERSONAL_POSITION_DISC.copy(buf, 0)
   buf[8] = 1
-  new PublicKey(nftMint)
-    .toBuffer()
-    .copy(buf, PERSONAL_POSITION_NFT_MINT_OFFSET)
+  new PublicKey(nftMint).toBuffer().copy(buf, PERSONAL_POSITION_NFT_MINT_OFFSET)
   return new Uint8Array(buf)
 }
 
@@ -126,9 +124,11 @@ describe('pancakeswap getUsersFilter', () => {
 
     const filters = done.value
     expect(filters).toHaveLength(4)
-    expect(filters.every((filter) => filter.ownerOffset === TOKEN_ACCOUNT_OWNER_OFFSET)).toBe(
-      true,
-    )
+    expect(
+      filters.every(
+        (filter) => filter.ownerOffset === TOKEN_ACCOUNT_OWNER_OFFSET,
+      ),
+    ).toBe(true)
     expect(
       filters.every(
         (filter) =>
