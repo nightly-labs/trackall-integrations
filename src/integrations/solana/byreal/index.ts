@@ -7,7 +7,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -538,7 +538,7 @@ export const byrealIntegration: SolanaIntegration = {
 
   // Byreal position accounts are NFT-based and do not store a wallet pubkey.
   // The current UsersFilter shape cannot derive user addresses for this pattern.
-  getUsersFilter: (): UsersFilter[] => [],
+  getUsersFilter: (): UsersFilterSource => [],
 }
 
 export default byrealIntegration

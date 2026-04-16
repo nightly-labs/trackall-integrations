@@ -8,7 +8,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -232,7 +232,7 @@ export const nirvanaIntegration: SolanaIntegration = {
     return result
   },
 
-  getUsersFilter: (): UsersFilter[] => [
+  getUsersFilter: (): UsersFilterSource => [
     {
       programId: NIRVANA_PROGRAM_ID,
       discriminator: PERSONAL_ACCOUNT_DISCRIMINATOR,

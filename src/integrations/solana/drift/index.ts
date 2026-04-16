@@ -26,7 +26,7 @@ import type {
   StakingDefiPosition,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -535,7 +535,7 @@ export const driftIntegration: SolanaIntegration = {
     return result
   },
 
-  getUsersFilter: (): UsersFilter[] => [
+  getUsersFilter: (): UsersFilterSource => [
     {
       programId: DRIFT_PROGRAM_ID,
       discriminator: USER_DISCRIMINATOR,

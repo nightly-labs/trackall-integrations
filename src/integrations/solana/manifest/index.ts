@@ -14,7 +14,7 @@ import type {
   TradingOrder,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -416,7 +416,7 @@ export const manifestIntegration: SolanaIntegration = {
     return positions
   },
 
-  getUsersFilter: (): UsersFilter[] => [
+  getUsersFilter: (): UsersFilterSource => [
     {
       programId: WRAPPER_PROGRAM_ID,
       ownerOffset: 8,

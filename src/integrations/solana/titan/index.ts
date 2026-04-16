@@ -8,7 +8,7 @@ import type {
   TradingPositionStatus,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -402,7 +402,7 @@ export const titanIntegration: SolanaIntegration = {
     return positions
   },
 
-  getUsersFilter: (): UsersFilter[] => [
+  getUsersFilter: (): UsersFilterSource => [
     {
       programId: TITAN_LIMIT_ORDERS_PROGRAM_ID,
       ownerOffset: MAKER_OFFSET,

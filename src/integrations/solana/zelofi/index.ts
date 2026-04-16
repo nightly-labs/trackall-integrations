@@ -5,7 +5,7 @@ import type {
   StakingDefiPosition,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -115,7 +115,7 @@ export const zelofiIntegration: SolanaIntegration = {
     return positions
   },
 
-  getUsersFilter: (): UsersFilter[] => [
+  getUsersFilter: (): UsersFilterSource => [
     {
       programId: ZELOFI_PROGRAM_ID,
       ownerOffset: USER_RECORD_USER_KEY_OFFSET,

@@ -9,6 +9,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
   UsersFilter,
+  UsersFilterPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import clmmIdl from '../raydium/idls/amm_v3.json'
@@ -25,6 +26,7 @@ export const PROGRAM_IDS = [
   TOKEN_PROGRAM_ID.toBase58(),
   TOKEN_2022_PROGRAM_ID.toBase58(),
 ] as const
+const ONE_HOUR_IN_MS = 60 * 60 * 1000
 
 function idlDiscriminator(
   idl: { accounts?: Array<{ name: string; discriminator?: number[] }> },
@@ -38,6 +40,11 @@ function idlDiscriminator(
 const PERSONAL_POSITION_DISC = Buffer.from(
   idlDiscriminator(clmmIdl, 'PersonalPositionState'),
 )
+const PERSONAL_POSITION_DISC_B64 = PERSONAL_POSITION_DISC.toString('base64')
+const TOKEN_ACCOUNT_MINT_OFFSET = 0
+const TOKEN_ACCOUNT_OWNER_OFFSET = 32
+const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
+const PERSONAL_POSITION_NFT_MINT_OFFSET = 9
 
 const clmmCoder = new BorshCoder(clmmIdl as never)
 
@@ -61,14 +68,14 @@ function readU16LE(buf: Buffer, offset: number): number {
 
 function readTokenAccountMint(data: Uint8Array): string | null {
   const buf = Buffer.from(data)
-  if (buf.length < 32) return null
-  return readPubkey(buf, 0)
+  if (buf.length < TOKEN_ACCOUNT_MINT_OFFSET + 32) return null
+  return readPubkey(buf, TOKEN_ACCOUNT_MINT_OFFSET)
 }
 
 function readTokenAccountAmount(data: Uint8Array): bigint | null {
   const buf = Buffer.from(data)
-  if (buf.length < 72) return null
-  return buf.readBigUInt64LE(64)
+  if (buf.length < TOKEN_ACCOUNT_AMOUNT_OFFSET + 8) return null
+  return buf.readBigUInt64LE(TOKEN_ACCOUNT_AMOUNT_OFFSET)
 }
 
 function decodeClmmPool(buf: Buffer) {
@@ -347,6 +354,36 @@ function sumUsdValues(values: PositionValue[]): string | undefined {
   }
 
   return total.toString()
+}
+
+function buildTokenHolderUsersFiltersByMints(
+  mints: Iterable<string>,
+): UsersFilter[] {
+  const filters: UsersFilter[] = []
+  const tokenProgramId = TOKEN_PROGRAM_ID.toBase58()
+  const token2022ProgramId = TOKEN_2022_PROGRAM_ID.toBase58()
+
+  for (const mint of new Set(mints)) {
+    let mintBytes: Uint8Array
+    try {
+      mintBytes = new PublicKey(mint).toBytes()
+    } catch {
+      continue
+    }
+
+    filters.push({
+      programId: tokenProgramId,
+      ownerOffset: TOKEN_ACCOUNT_OWNER_OFFSET,
+      memcmps: [{ offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: mintBytes }],
+    })
+    filters.push({
+      programId: token2022ProgramId,
+      ownerOffset: TOKEN_ACCOUNT_OWNER_OFFSET,
+      memcmps: [{ offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: mintBytes }],
+    })
+  }
+
+  return filters
 }
 
 export const pancakeswapIntegration: SolanaIntegration = {
@@ -695,9 +732,38 @@ export const pancakeswapIntegration: SolanaIntegration = {
     return positions
   },
 
-  // Positions are discovered from user-owned token accounts and derived PDAs.
-  // There is no stable protocol account owner field for UsersFilter to scan.
-  getUsersFilter: (): UsersFilter[] => [],
+  getUsersFilter: async function* (): UsersFilterPlan {
+    const positionAccounts = yield {
+      kind: 'getProgramAccounts' as const,
+      programId: CLMM_PROGRAM.toBase58(),
+      cacheTtlMs: ONE_HOUR_IN_MS,
+      filters: [
+        {
+          memcmp: {
+            offset: 0,
+            bytes: PERSONAL_POSITION_DISC_B64,
+            encoding: 'base64',
+          },
+        },
+      ],
+    }
+
+    const discoveredPositionNftMints = new Set<string>()
+    for (const account of Object.values(positionAccounts)) {
+      if (!account.exists) continue
+      if (account.programAddress !== CLMM_PROGRAM.toBase58()) continue
+
+      const buf = Buffer.from(account.data)
+      if (buf.length < PERSONAL_POSITION_NFT_MINT_OFFSET + 32) continue
+      if (!buf.subarray(0, 8).equals(PERSONAL_POSITION_DISC)) continue
+
+      discoveredPositionNftMints.add(
+        readPubkey(buf, PERSONAL_POSITION_NFT_MINT_OFFSET),
+      )
+    }
+
+    return buildTokenHolderUsersFiltersByMints(discoveredPositionNftMints)
+  },
 }
 
 export default pancakeswapIntegration

@@ -5,7 +5,7 @@ import type {
   StakingDefiPosition,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -373,7 +373,7 @@ export const oreIntegration: SolanaIntegration = {
     return result
   },
 
-  getUsersFilter: (): UsersFilter[] => [
+  getUsersFilter: (): UsersFilterSource => [
     {
       programId: ORE_PROGRAM_ID.toBase58(),
       discriminator: MINER_DISCRIMINATOR_BYTES,

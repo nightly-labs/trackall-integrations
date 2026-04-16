@@ -9,7 +9,7 @@ import type {
   StakingDefiPosition,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -633,7 +633,7 @@ export const stabbleIntegration: SolanaIntegration = {
     return positions
   },
 
-  getUsersFilter: (): UsersFilter[] => [
+  getUsersFilter: (): UsersFilterSource => [
     {
       programId: REWARDER_PROGRAM_ID,
       discriminator: Uint8Array.from(REWARDER_MINER_DISCRIMINATOR),

@@ -16,7 +16,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import marginfiIdl from './idls/marginfi_0.1.7.json'
@@ -642,7 +642,7 @@ export const project0Integration: SolanaIntegration = {
     return positions
   },
 
-  getUsersFilter: (): UsersFilter[] => [
+  getUsersFilter: (): UsersFilterSource => [
     {
       programId: MARGINFI_PROGRAM_ID,
       discriminator: MARGINFI_ACCOUNT_DISC,

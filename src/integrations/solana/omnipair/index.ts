@@ -10,7 +10,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -428,7 +428,7 @@ export const omnipairIntegration: SolanaIntegration = {
     return result
   },
 
-  getUsersFilter: (): UsersFilter[] => [
+  getUsersFilter: (): UsersFilterSource => [
     {
       programId: OMNIPAIR_PROGRAM_ID,
       discriminator: USER_POSITION_DISCRIMINATOR,

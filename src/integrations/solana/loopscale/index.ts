@@ -9,7 +9,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -803,7 +803,7 @@ export const loopscaleIntegration: SolanaIntegration = {
     return result
   },
 
-  getUsersFilter: (): UsersFilter[] => [
+  getUsersFilter: (): UsersFilterSource => [
     {
       programId: LOOPSCALE_IDL_SOURCE_PROGRAM_ID,
       discriminator: LOAN_DISCRIMINATOR,

@@ -6,7 +6,7 @@ import type {
   StakedAsset,
   StakingDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -420,7 +420,7 @@ export const pythStakingIntegration: SolanaIntegration = {
     return positions
   },
 
-  getUsersFilter: (): UsersFilter[] => [
+  getUsersFilter: (): UsersFilterSource => [
     {
       programId: STAKING_PROGRAM_ID.toBase58(),
       discriminator: POSITION_DATA_DISCRIMINATOR,

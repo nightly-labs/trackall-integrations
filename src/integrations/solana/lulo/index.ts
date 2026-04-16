@@ -21,7 +21,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -629,7 +629,7 @@ export const luloIntegration: SolanaIntegration = {
     return finalizePositions(positions)
   },
 
-  getUsersFilter: (): UsersFilter[] => [
+  getUsersFilter: (): UsersFilterSource => [
     {
       programId: LULO_PROGRAM_ID,
       ownerOffset: LULO_USER_ACCOUNT_OWNER_OFFSET,

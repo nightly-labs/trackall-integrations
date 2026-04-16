@@ -11,6 +11,7 @@ import type {
   UserDefiPosition,
   UserPositionsPlan,
   UsersFilter,
+  UsersFilterPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -62,6 +63,7 @@ const REALM_COMMUNITY_MINT_OFFSET = 1
 const REALM_CONFIG_OFFSET = REALM_COMMUNITY_MINT_OFFSET + 32
 const REALM_COUNCIL_MINT_OPTION_OFFSET = REALM_CONFIG_OFFSET + 25
 const GOVERNANCE_PROGRAMS_PER_BATCH = 3
+const ONE_HOUR_IN_MS = 60 * 60 * 1000
 
 const textDecoder = new TextDecoder()
 
@@ -278,6 +280,43 @@ function buildTokenOwnerRecordRequest(
   }
 }
 
+function buildRealmDiscoveryRequest(
+  programId: string,
+  accountType: typeof REALM_V1 | typeof REALM_V2,
+): GetProgramAccountsRequest {
+  return {
+    kind: 'getProgramAccounts',
+    programId,
+    cacheTtlMs: ONE_HOUR_IN_MS,
+    filters: [
+      {
+        memcmp: {
+          offset: 0,
+          bytes: Buffer.from([accountType]).toString('base64'),
+          encoding: 'base64',
+        },
+      },
+    ],
+  }
+}
+
+function buildTokenOwnerRecordUsersFiltersForPrograms(
+  programIds: Iterable<string>,
+): UsersFilter[] {
+  return Array.from(new Set(programIds)).flatMap((programId) => [
+    {
+      programId,
+      discriminator: TOKEN_OWNER_RECORD_V1_DISC,
+      ownerOffset: TOR_OWNER_OFFSET,
+    },
+    {
+      programId,
+      discriminator: TOKEN_OWNER_RECORD_V2_DISC,
+      ownerOffset: TOR_OWNER_OFFSET,
+    },
+  ])
+}
+
 function buildUsdValue(
   depositAmount: bigint,
   token: TokenData | undefined,
@@ -445,19 +484,26 @@ export const realmsIntegration: SolanaIntegration = {
     return positions
   },
 
-  getUsersFilter: (): UsersFilter[] =>
-    PROGRAM_IDS.flatMap((programId) => [
-      {
-        programId,
-        discriminator: TOKEN_OWNER_RECORD_V1_DISC,
-        ownerOffset: TOR_OWNER_OFFSET,
-      },
-      {
-        programId,
-        discriminator: TOKEN_OWNER_RECORD_V2_DISC,
-        ownerOffset: TOR_OWNER_OFFSET,
-      },
-    ]),
+  getUsersFilter: async function* (): UsersFilterPlan {
+    const realmAccounts = yield PROGRAM_IDS.flatMap((programId) => [
+      buildRealmDiscoveryRequest(programId, REALM_V1),
+      buildRealmDiscoveryRequest(programId, REALM_V2),
+    ])
+
+    const discoveredProgramIds = new Set<string>()
+    for (const account of Object.values(realmAccounts)) {
+      if (!account.exists) continue
+      const decoded = decodeRealm(account.address, account.data)
+      if (!decoded) continue
+      discoveredProgramIds.add(account.programAddress)
+    }
+
+    if (discoveredProgramIds.size === 0) {
+      return buildTokenOwnerRecordUsersFiltersForPrograms(PROGRAM_IDS)
+    }
+
+    return buildTokenOwnerRecordUsersFiltersForPrograms(discoveredProgramIds)
+  },
 }
 
 export default realmsIntegration

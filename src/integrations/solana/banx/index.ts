@@ -10,7 +10,7 @@ import type {
   StakingDefiPosition,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import bondsIdl from './idls/bonds.json'
@@ -1082,7 +1082,7 @@ export const banxIntegration: SolanaIntegration = {
     return positions
   },
 
-  getUsersFilter: (): UsersFilter[] => [
+  getUsersFilter: (): UsersFilterSource => [
     {
       programId: BONDS_PROGRAM_ID,
       discriminator: BOND_TRADE_TRANSACTION_DISCRIMINATOR,

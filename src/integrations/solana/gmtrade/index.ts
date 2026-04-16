@@ -19,7 +19,7 @@ import type {
   TradingOrder,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import gmsolLiquidityProviderIdl from './idls/gmsol_liquidity_provider.json'
@@ -840,7 +840,7 @@ export const gmtradeIntegration: SolanaIntegration = {
     return result
   },
 
-  getUsersFilter: (): UsersFilter[] => [
+  getUsersFilter: (): UsersFilterSource => [
     {
       programId: GMTRADE_STORE_PROGRAM_ID,
       discriminator: STORE_POSITION_DISCRIMINATOR,

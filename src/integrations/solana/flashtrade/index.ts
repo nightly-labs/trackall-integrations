@@ -15,7 +15,7 @@ import type {
   TradingOrder,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -1051,7 +1051,7 @@ export const flashtradeIntegration: SolanaIntegration = {
     return result
   },
 
-  getUsersFilter: (): UsersFilter[] => [
+  getUsersFilter: (): UsersFilterSource => [
     {
       programId: FLASH_PROGRAM_ID,
       discriminator: POSITION_DISCRIMINATOR,

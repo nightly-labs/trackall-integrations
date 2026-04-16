@@ -7,7 +7,6 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -239,7 +238,7 @@ export const diversifiIntegration: SolanaIntegration = {
 
   // Diversifi positions are inferred from generic SPL token ownership.
   // There is no protocol-owned user account with a stable owner offset.
-  getUsersFilter: (): UsersFilter[] => [],
+  getUsersFilter: () => [],
 }
 
 export default diversifiIntegration
