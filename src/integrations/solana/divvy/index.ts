@@ -11,6 +11,7 @@ import type {
   StakingDefiPosition,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -21,6 +22,9 @@ const TOKEN_2022_PROGRAM_ID = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'
 const HOUSE_DISCRIMINATOR_B58 = '4cEdzVs6LUe'
 const HOUSE_ACCOUNT_SIZES = [294, 312] as const
 const MINER_DISCRIMINATOR_B58 = 'eNfVyjwGziX'
+const MINER_DISCRIMINATOR = Uint8Array.from([
+  223, 113, 15, 54, 123, 122, 140, 100,
+])
 const MINER_ACCOUNT_SIZE = 96
 
 const TOKEN_MINT_OFFSET = 0
@@ -459,6 +463,15 @@ export const divvyIntegration: SolanaIntegration = {
     applyPositionsPctUsdValueChange24(tokenSource, positions)
     return positions
   },
+
+  getUsersFilter: (): UsersFilter[] => [
+    {
+      programId: DIVVY_HOUSE_PROGRAM_ID,
+      discriminator: MINER_DISCRIMINATOR,
+      ownerOffset: MINER_AUTHORITY_OFFSET,
+      dataSize: MINER_ACCOUNT_SIZE,
+    },
+  ],
 }
 
 export default divvyIntegration

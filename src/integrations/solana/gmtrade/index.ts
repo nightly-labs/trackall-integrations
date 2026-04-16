@@ -19,6 +19,7 @@ import type {
   TradingOrder,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import gmsolLiquidityProviderIdl from './idls/gmsol_liquidity_provider.json'
@@ -141,17 +142,28 @@ const storeCoder = new BorshAccountsCoder(gmsolStoreIdl as unknown as Idl)
 const lpCoder = new BorshAccountsCoder(
   gmsolLiquidityProviderIdl as unknown as Idl,
 )
-const STORE_POSITION_DISCRIMINATOR_B64 = accountDiscriminatorB64('Position')
-const LP_POSITION_DISCRIMINATOR_B64 = accountDiscriminatorB64('Position')
-const ORDER_DISCRIMINATOR_B64 = accountDiscriminatorB64('Order')
-const MARKET_DISCRIMINATOR_B64 = accountDiscriminatorB64('Market')
+const STORE_POSITION_DISCRIMINATOR = accountDiscriminator('Position')
+const LP_POSITION_DISCRIMINATOR = accountDiscriminator('Position')
+const ORDER_DISCRIMINATOR = accountDiscriminator('Order')
+const MARKET_DISCRIMINATOR = accountDiscriminator('Market')
+const STORE_POSITION_DISCRIMINATOR_B64 = discriminatorBase64(
+  STORE_POSITION_DISCRIMINATOR,
+)
+const LP_POSITION_DISCRIMINATOR_B64 = discriminatorBase64(
+  LP_POSITION_DISCRIMINATOR,
+)
+const ORDER_DISCRIMINATOR_B64 = discriminatorBase64(ORDER_DISCRIMINATOR)
+const MARKET_DISCRIMINATOR_B64 = discriminatorBase64(MARKET_DISCRIMINATOR)
 
-function accountDiscriminatorB64(accountName: string): string {
+function accountDiscriminator(accountName: string): Uint8Array {
   return createHash('sha256')
     .update(`account:${accountName}`)
     .digest()
     .subarray(0, 8)
-    .toString('base64')
+}
+
+function discriminatorBase64(discriminator: Uint8Array): string {
+  return Buffer.from(discriminator).toString('base64')
 }
 
 function toBigInt(value: BigNumberish): bigint {
@@ -827,6 +839,24 @@ export const gmtradeIntegration: SolanaIntegration = {
     applyPositionsPctUsdValueChange24(tokenSource, result)
     return result
   },
+
+  getUsersFilter: (): UsersFilter[] => [
+    {
+      programId: GMTRADE_STORE_PROGRAM_ID,
+      discriminator: STORE_POSITION_DISCRIMINATOR,
+      ownerOffset: POSITION_OWNER_OFFSET,
+    },
+    {
+      programId: GMTRADE_STORE_PROGRAM_ID,
+      discriminator: ORDER_DISCRIMINATOR,
+      ownerOffset: ACTION_OWNER_OFFSET,
+    },
+    {
+      programId: GMTRADE_LP_PROGRAM_ID,
+      discriminator: LP_POSITION_DISCRIMINATOR,
+      ownerOffset: LP_POSITION_OWNER_OFFSET,
+    },
+  ],
 }
 
 export default gmtradeIntegration

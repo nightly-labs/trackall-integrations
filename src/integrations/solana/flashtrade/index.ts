@@ -15,6 +15,7 @@ import type {
   TradingOrder,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -178,15 +179,21 @@ const FLASH_IDL = flashPerpetualsIdl as Idl & {
   accounts?: Array<{ name: string; discriminator: number[] }>
 }
 const flashCoder = new BorshCoder(FLASH_IDL)
-const POSITION_DISCRIMINATOR_B64 = accountDiscriminatorB64('Position')
-const ORDER_DISCRIMINATOR_B64 = accountDiscriminatorB64('Order')
-const FLP_STAKE_DISCRIMINATOR_B64 = accountDiscriminatorB64('FlpStake')
-const TOKEN_STAKE_DISCRIMINATOR_B64 = accountDiscriminatorB64('TokenStake')
+const POSITION_DISCRIMINATOR = accountDiscriminator('Position')
+const ORDER_DISCRIMINATOR = accountDiscriminator('Order')
+const FLP_STAKE_DISCRIMINATOR = accountDiscriminator('FlpStake')
+const TOKEN_STAKE_DISCRIMINATOR = accountDiscriminator('TokenStake')
+const POSITION_DISCRIMINATOR_B64 = discriminatorBase64(POSITION_DISCRIMINATOR)
+const ORDER_DISCRIMINATOR_B64 = discriminatorBase64(ORDER_DISCRIMINATOR)
+const FLP_STAKE_DISCRIMINATOR_B64 = discriminatorBase64(FLP_STAKE_DISCRIMINATOR)
+const TOKEN_STAKE_DISCRIMINATOR_B64 = discriminatorBase64(
+  TOKEN_STAKE_DISCRIMINATOR,
+)
 
 const { marketMetaByAddress, custodyMetaByPoolAndUid, poolMetaByAddress } =
   buildStaticMetadata()
 
-function accountDiscriminatorB64(accountName: string): string {
+function accountDiscriminator(accountName: string): Uint8Array {
   const account = FLASH_IDL.accounts?.find(
     (candidate) => candidate.name === accountName,
   )
@@ -194,7 +201,11 @@ function accountDiscriminatorB64(accountName: string): string {
     throw new Error(`Flash IDL account "${accountName}" is not present`)
   }
 
-  return Buffer.from(account.discriminator).toString('base64')
+  return Uint8Array.from(account.discriminator)
+}
+
+function discriminatorBase64(discriminator: Uint8Array): string {
+  return Buffer.from(discriminator).toString('base64')
 }
 
 function toBigInt(value: BigNumberish): bigint {
@@ -1039,6 +1050,29 @@ export const flashtradeIntegration: SolanaIntegration = {
     applyPositionsPctUsdValueChange24(tokenSource, result)
     return result
   },
+
+  getUsersFilter: (): UsersFilter[] => [
+    {
+      programId: FLASH_PROGRAM_ID,
+      discriminator: POSITION_DISCRIMINATOR,
+      ownerOffset: POSITION_OWNER_OFFSET,
+    },
+    {
+      programId: FLASH_PROGRAM_ID,
+      discriminator: ORDER_DISCRIMINATOR,
+      ownerOffset: ORDER_OWNER_OFFSET,
+    },
+    {
+      programId: FLASH_PROGRAM_ID,
+      discriminator: FLP_STAKE_DISCRIMINATOR,
+      ownerOffset: FLP_STAKE_OWNER_OFFSET,
+    },
+    {
+      programId: FLASH_PROGRAM_ID,
+      discriminator: TOKEN_STAKE_DISCRIMINATOR,
+      ownerOffset: TOKEN_STAKE_OWNER_OFFSET,
+    },
+  ],
 }
 
 export default flashtradeIntegration

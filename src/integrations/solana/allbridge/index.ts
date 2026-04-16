@@ -8,6 +8,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
 } from '../../../types/index'
 import { applyPositionPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -17,7 +18,10 @@ const ALLBRIDGE_BRIDGE_PROGRAM_ID =
 const SYSTEM_PRECISION = 3
 const REWARD_SHIFT_BITS = 48n
 
-const USER_DEPOSIT_DISCRIMINATOR_B64 = accountDiscriminatorBase64('UserDeposit')
+const USER_DEPOSIT_DISCRIMINATOR = accountDiscriminator('UserDeposit')
+const USER_DEPOSIT_DISCRIMINATOR_B64 = Buffer.from(
+  USER_DEPOSIT_DISCRIMINATOR,
+).toString('base64')
 const POOL_DISCRIMINATOR_B64 = accountDiscriminatorBase64('Pool')
 
 const USER_DEPOSIT_SIZE = 88
@@ -50,12 +54,15 @@ export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
 export const PROGRAM_IDS = [ALLBRIDGE_BRIDGE_PROGRAM_ID] as const
 
-function accountDiscriminatorBase64(accountName: string): string {
+function accountDiscriminator(accountName: string): Uint8Array {
   return createHash('sha256')
     .update(`account:${accountName}`)
     .digest()
     .subarray(0, 8)
-    .toString('base64')
+}
+
+function accountDiscriminatorBase64(accountName: string): string {
+  return Buffer.from(accountDiscriminator(accountName)).toString('base64')
 }
 
 function readPubkey(data: Uint8Array, offset: number): string | null {
@@ -320,6 +327,15 @@ export const allbridgeIntegration: SolanaIntegration = {
 
     return positions
   },
+
+  getUsersFilter: (): UsersFilter[] => [
+    {
+      programId: ALLBRIDGE_BRIDGE_PROGRAM_ID,
+      discriminator: USER_DEPOSIT_DISCRIMINATOR,
+      ownerOffset: USER_DEPOSIT_OWNER_OFFSET,
+      dataSize: USER_DEPOSIT_SIZE,
+    },
+  ],
 }
 
 export default allbridgeIntegration

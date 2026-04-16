@@ -8,6 +8,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -290,6 +291,10 @@ export const saberIntegration: SolanaIntegration = {
 
     return positions
   },
+
+  // User positions are inferred from user-owned LP token accounts plus pool reserves.
+  // The current UsersFilter shape cannot model this ownership pattern.
+  getUsersFilter: (): UsersFilter[] => [],
 }
 
 export default saberIntegration

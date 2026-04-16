@@ -8,6 +8,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import clmmIdl from '../raydium/idls/amm_v3.json'
@@ -693,6 +694,10 @@ export const pancakeswapIntegration: SolanaIntegration = {
 
     return positions
   },
+
+  // Positions are discovered from user-owned token accounts and derived PDAs.
+  // There is no stable protocol account owner field for UsersFilter to scan.
+  getUsersFilter: (): UsersFilter[] => [],
 }
 
 export default pancakeswapIntegration

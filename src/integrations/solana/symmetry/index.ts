@@ -8,6 +8,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -743,6 +744,10 @@ export const symmetryIntegration: SolanaIntegration = {
 
     return positions as UserDefiPosition[]
   },
+
+  // Symmetry positions are discovered from user-owned SPL token accounts and derived vault PDAs.
+  // The current UsersFilter shape cannot derive user addresses for this ownership model.
+  getUsersFilter: (): UsersFilter[] => [],
 }
 
 export default symmetryIntegration

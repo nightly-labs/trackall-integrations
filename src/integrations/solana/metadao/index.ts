@@ -9,6 +9,7 @@ import type {
   StakingDefiPosition,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -56,15 +57,16 @@ export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
 
 export const PROGRAM_IDS = [LAUNCHPAD_V7_PROGRAM_ID] as const
 
-const FUNDING_RECORD_DISCRIMINATOR_B64 =
-  accountDiscriminatorBase64('FundingRecord')
+const FUNDING_RECORD_DISCRIMINATOR = accountDiscriminator('FundingRecord')
+const FUNDING_RECORD_DISCRIMINATOR_B64 = Buffer.from(
+  FUNDING_RECORD_DISCRIMINATOR,
+).toString('base64')
 
-function accountDiscriminatorBase64(accountName: string): string {
+function accountDiscriminator(accountName: string): Uint8Array {
   return createHash('sha256')
     .update(`account:${accountName}`)
     .digest()
     .subarray(0, 8)
-    .toString('base64')
 }
 
 function readPubkey(data: Uint8Array, offset: number): string | null {
@@ -506,6 +508,14 @@ export const metadaoIntegration: SolanaIntegration = {
 
     return positions
   },
+
+  getUsersFilter: (): UsersFilter[] => [
+    {
+      programId: LAUNCHPAD_V7_PROGRAM_ID,
+      discriminator: FUNDING_RECORD_DISCRIMINATOR,
+      ownerOffset: FUNDING_RECORD_FUNDER_OFFSET,
+    },
+  ],
 }
 
 export default metadaoIntegration

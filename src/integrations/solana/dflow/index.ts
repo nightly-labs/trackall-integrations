@@ -9,6 +9,7 @@ import type {
   TradingDefiPosition,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -302,6 +303,10 @@ export const dflowIntegration: SolanaIntegration = {
     applyPositionsPctUsdValueChange24(tokenSource, positions)
     return positions
   },
+
+  // DFlow positions are inferred from generic Token-2022 balances.
+  // There is no protocol-owned user account with a stable owner offset.
+  getUsersFilter: (): UsersFilter[] => [],
 }
 
 export default dflowIntegration

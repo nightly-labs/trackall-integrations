@@ -10,6 +10,7 @@ import type {
   TokenData,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -40,6 +41,8 @@ export const PROGRAM_IDS = [
 
 const TOKEN_OWNER_RECORD_V1 = 2
 const TOKEN_OWNER_RECORD_V2 = 17
+const TOKEN_OWNER_RECORD_V1_DISC = Uint8Array.from([TOKEN_OWNER_RECORD_V1])
+const TOKEN_OWNER_RECORD_V2_DISC = Uint8Array.from([TOKEN_OWNER_RECORD_V2])
 const REALM_V1 = 1
 const REALM_V2 = 16
 
@@ -441,6 +444,20 @@ export const realmsIntegration: SolanaIntegration = {
 
     return positions
   },
+
+  getUsersFilter: (): UsersFilter[] =>
+    PROGRAM_IDS.flatMap((programId) => [
+      {
+        programId,
+        discriminator: TOKEN_OWNER_RECORD_V1_DISC,
+        ownerOffset: TOR_OWNER_OFFSET,
+      },
+      {
+        programId,
+        discriminator: TOKEN_OWNER_RECORD_V2_DISC,
+        ownerOffset: TOR_OWNER_OFFSET,
+      },
+    ]),
 }
 
 export default realmsIntegration

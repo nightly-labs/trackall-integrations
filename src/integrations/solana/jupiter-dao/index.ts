@@ -7,6 +7,7 @@ import type {
   StakingDefiPosition,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -41,6 +42,7 @@ export const PROGRAM_IDS = [
 ] as const
 
 const ESCROW_DISCRIMINATOR_B64 = accountDiscriminatorBase64('Escrow')
+const ESCROW_DISCRIMINATOR = Buffer.from(ESCROW_DISCRIMINATOR_B64, 'base64')
 const PARTIAL_UNSTAKING_DISCRIMINATOR_B64 =
   accountDiscriminatorBase64('PartialUnstaking')
 
@@ -317,6 +319,14 @@ export const jupiterDaoIntegration: SolanaIntegration = {
 
     return positions
   },
+
+  getUsersFilter: (): UsersFilter[] => [
+    {
+      programId: LOCKED_VOTER_PROGRAM_ID.toBase58(),
+      discriminator: ESCROW_DISCRIMINATOR,
+      ownerOffset: ESCROW_OWNER_OFFSET,
+    },
+  ],
 }
 
 export default jupiterDaoIntegration

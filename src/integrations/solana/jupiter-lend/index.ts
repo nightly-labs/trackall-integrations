@@ -13,6 +13,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import lendingIdl from './idls/lending.json'
@@ -1262,6 +1263,10 @@ export const jupiterLendIntegration: SolanaIntegration = {
 
     return result
   },
+
+  // User exposure is discovered via token ownership and derived PDAs.
+  // There is no protocol-owned account with a stable owner offset.
+  getUsersFilter: (): UsersFilter[] => [],
 }
 
 export default jupiterLendIntegration

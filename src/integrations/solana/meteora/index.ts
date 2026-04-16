@@ -2,6 +2,7 @@ import {
   ClockLayout,
   createProgram,
   decodeAccount,
+  getAccountDiscriminator,
   getPriceOfBinByBinId,
   LBCLMM_PROGRAM_IDS,
   positionOwnerFilter,
@@ -27,8 +28,14 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
+
+const POSITION_V2_OWNER_OFFSET = 8 + 32
+const POSITION_V2_DISCRIMINATOR = Uint8Array.from(
+  getAccountDiscriminator('positionV2'),
+)
 
 type DecodedLbPair = {
   tokenXMint: PublicKey
@@ -309,6 +316,14 @@ export const meteoraIntegration: SolanaIntegration = {
 
     return result
   },
+
+  getUsersFilter: (): UsersFilter[] => [
+    {
+      programId: LBCLMM_PROGRAM_IDS['mainnet-beta'],
+      discriminator: POSITION_V2_DISCRIMINATOR,
+      ownerOffset: POSITION_V2_OWNER_OFFSET,
+    },
+  ],
 }
 
 export default meteoraIntegration

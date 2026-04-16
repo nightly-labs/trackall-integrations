@@ -34,6 +34,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -633,6 +634,10 @@ export const orcaIntegration: SolanaIntegration = {
 
     return positions
   },
+
+  // Orca positions are discovered via user-owned position NFT accounts and derived PDAs.
+  // The current UsersFilter shape cannot represent this ownership model.
+  getUsersFilter: (): UsersFilter[] => [],
 }
 
 export default orcaIntegration

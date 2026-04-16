@@ -11,6 +11,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -809,6 +810,10 @@ export const raydiumIntegration: SolanaIntegration = {
 
     return result
   },
+
+  // Positions are discovered from user-owned token accounts and derived PDAs.
+  // There is no stable protocol account owner field for UsersFilter to scan.
+  getUsersFilter: (): UsersFilter[] => [],
 }
 
 export default raydiumIntegration
