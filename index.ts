@@ -126,6 +126,8 @@ export type {
   SolanaPlugins,
   UserPositionsPlan,
   UsersFilter,
+  UsersFilterPlan,
+  UsersFilterSource,
 } from './src/types/solanaIntegration'
 export {
   createFetchAccounts,
