@@ -13,6 +13,7 @@ import type {
   TradingDefiPosition,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -300,6 +301,19 @@ export const snsIntegration: SolanaIntegration = {
 
     return positions
   },
+
+  getUsersFilter: (): UsersFilterSource => [
+    {
+      programId: NAME_OFFERS_ID.toBase58(),
+      discriminator: Uint8Array.from([Tag.ActiveOffer]),
+      ownerOffset: ACTIVE_OFFER_OWNER_OFFSET,
+    },
+    {
+      programId: NAME_OFFERS_ID.toBase58(),
+      discriminator: Uint8Array.from([Tag.CategoryOffer]),
+      ownerOffset: CATEGORY_OFFER_OWNER_OFFSET,
+    },
+  ],
 }
 
 export default snsIntegration

@@ -9,6 +9,7 @@ import type {
   StakingDefiPosition,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -349,6 +350,14 @@ export const sandglassIntegration: SolanaIntegration = {
 
     return result
   },
+
+  getUsersFilter: (): UsersFilterSource => [
+    {
+      programId: SANDGLASS_PROGRAM_ID,
+      ownerOffset: SANDGLASS_USER_ADDRESS_OFFSET,
+      dataSize: SANDGLASS_ACCOUNT_SIZE,
+    },
+  ],
 }
 
 export default sandglassIntegration

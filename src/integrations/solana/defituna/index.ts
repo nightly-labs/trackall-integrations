@@ -14,6 +14,7 @@ import type {
   TradingDefiPosition,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -27,36 +28,47 @@ const MINT_DECIMALS_OFFSET = 44
 const FIXED_POINT_SCALE = 1n << 60n
 const SECONDS_PER_YEAR = 31_536_000n
 
-const LENDING_POSITION_DISCRIMINATOR_B64 = accountDiscriminatorBase64(
+const LENDING_POSITION_DISCRIMINATOR = accountDiscriminator(
   tunaIdl as {
     accounts?: Array<{ name: string; discriminator?: number[] }>
   },
   'LendingPosition',
 )
-const TUNA_LP_POSITION_DISCRIMINATOR_B64 = accountDiscriminatorBase64(
+const TUNA_LP_POSITION_DISCRIMINATOR = accountDiscriminator(
   tunaIdl as {
     accounts?: Array<{ name: string; discriminator?: number[] }>
   },
   'TunaLpPosition',
 )
-const TUNA_SPOT_POSITION_DISCRIMINATOR_B64 = accountDiscriminatorBase64(
+const TUNA_SPOT_POSITION_DISCRIMINATOR = accountDiscriminator(
   tunaIdl as {
     accounts?: Array<{ name: string; discriminator?: number[] }>
   },
   'TunaSpotPosition',
 )
-const MARKET_DISCRIMINATOR_B64 = accountDiscriminatorBase64(
+const MARKET_DISCRIMINATOR = accountDiscriminator(
   tunaIdl as {
     accounts?: Array<{ name: string; discriminator?: number[] }>
   },
   'Market',
 )
-const VAULT_DISCRIMINATOR_B64 = accountDiscriminatorBase64(
+const VAULT_DISCRIMINATOR = accountDiscriminator(
   tunaIdl as {
     accounts?: Array<{ name: string; discriminator?: number[] }>
   },
   'Vault',
 )
+const LENDING_POSITION_DISCRIMINATOR_B64 = discriminatorBase64(
+  LENDING_POSITION_DISCRIMINATOR,
+)
+const TUNA_LP_POSITION_DISCRIMINATOR_B64 = discriminatorBase64(
+  TUNA_LP_POSITION_DISCRIMINATOR,
+)
+const TUNA_SPOT_POSITION_DISCRIMINATOR_B64 = discriminatorBase64(
+  TUNA_SPOT_POSITION_DISCRIMINATOR,
+)
+const MARKET_DISCRIMINATOR_B64 = discriminatorBase64(MARKET_DISCRIMINATOR)
+const VAULT_DISCRIMINATOR_B64 = discriminatorBase64(VAULT_DISCRIMINATOR)
 
 const LENDING_AUTHORITY_OFFSET = 11
 const LENDING_MINT_OFFSET = 43
@@ -174,10 +186,10 @@ interface MarketRaw {
 
 export const PROGRAM_IDS = [TUNA_PROGRAM_ID] as const
 
-function accountDiscriminatorBase64(
+function accountDiscriminator(
   idl: { accounts?: Array<{ name: string; discriminator?: number[] }> },
   accountName: string,
-) {
+): Uint8Array {
   const discriminator = idl.accounts?.find(
     (account) => account.name === accountName,
   )?.discriminator
@@ -186,6 +198,10 @@ function accountDiscriminatorBase64(
     throw new Error(`Missing discriminator for account "${accountName}"`)
   }
 
+  return Uint8Array.from(discriminator)
+}
+
+function discriminatorBase64(discriminator: Uint8Array): string {
   return Buffer.from(discriminator).toString('base64')
 }
 
@@ -1071,6 +1087,24 @@ export const defitunaIntegration: SolanaIntegration = {
     applyPositionsPctUsdValueChange24(tokenSource, positions)
     return positions
   },
+
+  getUsersFilter: (): UsersFilterSource => [
+    {
+      programId: TUNA_PROGRAM_ID,
+      discriminator: LENDING_POSITION_DISCRIMINATOR,
+      ownerOffset: LENDING_AUTHORITY_OFFSET,
+    },
+    {
+      programId: TUNA_PROGRAM_ID,
+      discriminator: TUNA_LP_POSITION_DISCRIMINATOR,
+      ownerOffset: LP_AUTHORITY_OFFSET,
+    },
+    {
+      programId: TUNA_PROGRAM_ID,
+      discriminator: TUNA_SPOT_POSITION_DISCRIMINATOR,
+      ownerOffset: SPOT_AUTHORITY_OFFSET,
+    },
+  ],
 }
 
 export default defitunaIntegration

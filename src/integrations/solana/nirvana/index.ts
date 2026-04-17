@@ -8,6 +8,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -23,6 +24,9 @@ const PERSONAL_ACCOUNT_DISCRIMINATOR_B64 = createHash('sha256')
   .digest()
   .subarray(0, 8)
   .toString('base64')
+const PERSONAL_ACCOUNT_DISCRIMINATOR = Uint8Array.from(
+  Buffer.from(PERSONAL_ACCOUNT_DISCRIMINATOR_B64, 'base64'),
+)
 
 const PUBKEY_LENGTH = 32
 const PERSONAL_ACCOUNT_DATA_SIZE = 272
@@ -227,6 +231,15 @@ export const nirvanaIntegration: SolanaIntegration = {
 
     return result
   },
+
+  getUsersFilter: (): UsersFilterSource => [
+    {
+      programId: NIRVANA_PROGRAM_ID,
+      discriminator: PERSONAL_ACCOUNT_DISCRIMINATOR,
+      ownerOffset: PERSONAL_OWNER_OFFSET,
+      dataSize: PERSONAL_ACCOUNT_DATA_SIZE,
+    },
+  ],
 }
 
 export default nirvanaIntegration

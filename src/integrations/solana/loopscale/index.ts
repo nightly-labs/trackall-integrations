@@ -9,6 +9,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -801,6 +802,29 @@ export const loopscaleIntegration: SolanaIntegration = {
     applyPositionsPctUsdValueChange24(tokenSource, result)
     return result
   },
+
+  getUsersFilter: (): UsersFilterSource => [
+    {
+      programId: LOOPSCALE_IDL_SOURCE_PROGRAM_ID,
+      discriminator: LOAN_DISCRIMINATOR,
+      ownerOffset: LOAN_BORROWER_OFFSET,
+    },
+    {
+      programId: LOOPSCALE_IDL_SOURCE_PROGRAM_ID,
+      discriminator: VAULT_STAKE_DISCRIMINATOR,
+      ownerOffset: VAULT_STAKE_USER_OFFSET,
+    },
+    {
+      programId: LOOPSCALE_IDL_SOURCE_PROGRAM_ID,
+      discriminator: STRATEGY_DISCRIMINATOR,
+      ownerOffset: STRATEGY_LENDER_OFFSET,
+    },
+    {
+      programId: LOOPSCALE_IDL_SOURCE_PROGRAM_ID,
+      discriminator: USER_REWARDS_INFO_DISCRIMINATOR,
+      ownerOffset: USER_REWARDS_INFO_USER_OFFSET,
+    },
+  ],
 }
 
 export default loopscaleIntegration

@@ -8,6 +8,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -430,6 +431,14 @@ export const carrotIntegration: SolanaIntegration = {
     applyPositionsPctUsdValueChange24(tokenSource, positions)
     return positions
   },
+
+  getUsersFilter: (): UsersFilterSource => [
+    {
+      programId: CLEND_PROGRAM_ID,
+      discriminator: CLEND_ACCOUNT_DISCRIMINATOR,
+      ownerOffset: CLEND_ACCOUNT_AUTHORITY_OFFSET,
+    },
+  ],
 }
 
 export default carrotIntegration

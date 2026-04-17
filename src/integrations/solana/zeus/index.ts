@@ -17,6 +17,7 @@ import type {
   StakingDefiPosition,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -612,6 +613,19 @@ export const zeusIntegration: SolanaIntegration = {
 
     return positions
   },
+
+  getUsersFilter: (): UsersFilterSource => [
+    {
+      programId: ZEUS_PROGRAM_ID,
+      discriminator: USER_POSITION_DISCRIMINATOR,
+      ownerOffset: OWNER_OFFSET_IN_USER_POSITION,
+    },
+    {
+      programId: ZEUS_PROGRAM_ID,
+      discriminator: REDEEM_REQUEST_DISCRIMINATOR,
+      ownerOffset: USER_OFFSET_IN_REDEEM_REQUEST,
+    },
+  ],
 }
 
 export default zeusIntegration

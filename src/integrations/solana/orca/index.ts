@@ -6,6 +6,7 @@ import type {
   WhirlpoolData,
 } from '@orca-so/whirlpools-sdk'
 import {
+  AccountName,
   collectFeesQuote,
   collectRewardsQuote,
   ORCA_WHIRLPOOL_PROGRAM_ID,
@@ -18,6 +19,7 @@ import {
   PositionBundleUtil,
   PriceMath,
   TickArrayUtil,
+  WHIRLPOOL_CODER,
 } from '@orca-so/whirlpools-sdk'
 import {
   TOKEN_2022_PROGRAM_ID,
@@ -34,6 +36,8 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
+  UsersFilterPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -55,7 +59,16 @@ export const PROGRAM_IDS = [
 ] as const
 
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
+const TOKEN_ACCOUNT_OWNER_OFFSET = 32
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
+const ONE_HOUR_IN_MS = 60 * 60 * 1000
+
+const POSITION_DISC_B64 = Buffer.from(
+  WHIRLPOOL_CODER.accountDiscriminator(AccountName.Position),
+).toString('base64')
+const POSITION_BUNDLE_DISC_B64 = Buffer.from(
+  WHIRLPOOL_CODER.accountDiscriminator(AccountName.PositionBundle),
+).toString('base64')
 
 function readPubkey(buf: Buffer, offset: number): string {
   return new PublicKey(buf.subarray(offset, offset + 32)).toBase58()
@@ -234,6 +247,46 @@ function collectCandidateMints(accounts: MaybeSolanaAccount[]): {
   }
 
   return { positionMints, bundleMints }
+}
+
+function buildTokenHolderUsersFiltersByMints(
+  positionMints: Iterable<string>,
+  bundleMints: Iterable<string>,
+): UsersFilter[] {
+  const tokenProgramId = TOKEN_PROGRAM_ID.toBase58()
+  const token2022ProgramId = TOKEN_2022_PROGRAM_ID.toBase58()
+  const filters: UsersFilter[] = []
+  const seen = new Set<string>()
+
+  function pushFilter(programId: string, mint: string): void {
+    let mintBytes: Uint8Array
+    try {
+      mintBytes = new PublicKey(mint).toBytes()
+    } catch {
+      return
+    }
+
+    const key = `${programId}:${mint}`
+    if (seen.has(key)) return
+    seen.add(key)
+
+    filters.push({
+      programId,
+      ownerOffset: TOKEN_ACCOUNT_OWNER_OFFSET,
+      memcmps: [{ offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: mintBytes }],
+    })
+  }
+
+  for (const mint of new Set(positionMints)) {
+    pushFilter(tokenProgramId, mint)
+    pushFilter(token2022ProgramId, mint)
+  }
+
+  for (const mint of new Set(bundleMints)) {
+    pushFilter(tokenProgramId, mint)
+  }
+
+  return filters
 }
 
 function buildRewardTokenTuple(
@@ -632,6 +685,61 @@ export const orcaIntegration: SolanaIntegration = {
     applyPositionsPctUsdValueChange24(tokenSource, positions)
 
     return positions
+  },
+
+  getUsersFilter: async function* (): UsersFilterPlan {
+    const orcaProgramId = ORCA_WHIRLPOOL_PROGRAM_ID.toBase58()
+    const positionAccounts = yield {
+      kind: 'getProgramAccounts' as const,
+      programId: orcaProgramId,
+      cacheTtlMs: ONE_HOUR_IN_MS,
+      filters: [
+        {
+          memcmp: {
+            offset: 0,
+            bytes: POSITION_DISC_B64,
+            encoding: 'base64',
+          },
+        },
+      ],
+    }
+
+    const positionMints = new Set<string>()
+    for (const [accountAddress, account] of Object.entries(positionAccounts)) {
+      if (!account.exists) continue
+      if (account.programAddress !== orcaProgramId) continue
+
+      const position = parsePosition(accountAddress, account)
+      if (!position) continue
+      positionMints.add(position.positionMint.toBase58())
+    }
+
+    const bundleAccounts = yield {
+      kind: 'getProgramAccounts' as const,
+      programId: orcaProgramId,
+      cacheTtlMs: ONE_HOUR_IN_MS,
+      filters: [
+        {
+          memcmp: {
+            offset: 0,
+            bytes: POSITION_BUNDLE_DISC_B64,
+            encoding: 'base64',
+          },
+        },
+      ],
+    }
+
+    const bundleMints = new Set<string>()
+    for (const [accountAddress, account] of Object.entries(bundleAccounts)) {
+      if (!account.exists) continue
+      if (account.programAddress !== orcaProgramId) continue
+
+      const bundle = parsePositionBundle(accountAddress, account)
+      if (!bundle) continue
+      bundleMints.add(bundle.positionBundleMint.toBase58())
+    }
+
+    return buildTokenHolderUsersFiltersByMints(positionMints, bundleMints)
   },
 }
 

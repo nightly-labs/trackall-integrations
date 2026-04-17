@@ -10,6 +10,7 @@ import type {
   StakingDefiPosition,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import bondsIdl from './idls/bonds.json'
@@ -60,6 +61,15 @@ const OPEN_OFFER_STATES = new Set([
 export const PROGRAM_IDS = [BONDS_PROGRAM_ID, BONDS_PROGRAM_V2_ID] as const
 
 const bondsCoder = new BorshCoder(bondsIdl as never)
+const BOND_TRADE_TRANSACTION_DISCRIMINATOR =
+  bondsCoder.accounts.accountDiscriminator('bondTradeTransactionV3')
+const BOND_OFFER_DISCRIMINATOR =
+  bondsCoder.accounts.accountDiscriminator('bondOfferV3')
+const USER_VAULT_DISCRIMINATOR =
+  bondsCoder.accounts.accountDiscriminator('userVault')
+const USER_VAULT_V2_DISCRIMINATOR = Uint8Array.from([
+  111, 224, 169, 186, 223, 215, 84, 49,
+])
 
 type LendingTokenType = 'nativeSol' | 'usdc' | 'banxSol'
 
@@ -1071,6 +1081,34 @@ export const banxIntegration: SolanaIntegration = {
     applyPositionsPctUsdValueChange24(tokenSource, positions)
     return positions
   },
+
+  getUsersFilter: (): UsersFilterSource => [
+    {
+      programId: BONDS_PROGRAM_ID,
+      discriminator: BOND_TRADE_TRANSACTION_DISCRIMINATOR,
+      ownerOffset: BTT_USER_OFFSET,
+    },
+    {
+      programId: BONDS_PROGRAM_ID,
+      discriminator: BOND_TRADE_TRANSACTION_DISCRIMINATOR,
+      ownerOffset: BTT_SELLER_OFFSET,
+    },
+    {
+      programId: BONDS_PROGRAM_ID,
+      discriminator: BOND_OFFER_DISCRIMINATOR,
+      ownerOffset: BOND_OFFER_ASSET_RECEIVER_OFFSET,
+    },
+    {
+      programId: BONDS_PROGRAM_ID,
+      discriminator: USER_VAULT_DISCRIMINATOR,
+      ownerOffset: USER_VAULT_USER_OFFSET,
+    },
+    {
+      programId: BONDS_PROGRAM_V2_ID,
+      discriminator: USER_VAULT_V2_DISCRIMINATOR,
+      ownerOffset: USER_VAULT_V2_USER_OFFSET,
+    },
+  ],
 }
 
 export default banxIntegration

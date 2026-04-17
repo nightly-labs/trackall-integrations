@@ -9,6 +9,8 @@ import type {
   TradingDefiPosition,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
+  UsersFilterPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -16,6 +18,7 @@ const PREDICTION_MARKETS_PROGRAM_ID =
   'pReDicTmksnPfkfiz33ndSdbe2dY43KYPg4U2dbvHvb'
 
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
+const TOKEN_ACCOUNT_OWNER_OFFSET = 32
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
 
 const MARKET_LEDGER_SETTLEMENT_MINT_OFFSET = 233
@@ -130,6 +133,30 @@ function sumUsdValues(values: Array<string | undefined>): string | undefined {
 
   if (present.length === 0) return undefined
   return present.reduce((sum, value) => sum + value, 0).toString()
+}
+
+function buildToken2022HolderUsersFiltersByMints(
+  mints: Iterable<string>,
+): UsersFilter[] {
+  const filters: UsersFilter[] = []
+  const token2022ProgramId = TOKEN_2022_PROGRAM_ID.toBase58()
+
+  for (const mint of new Set(mints)) {
+    let mintBytes: Uint8Array
+    try {
+      mintBytes = new PublicKey(mint).toBytes()
+    } catch {
+      continue
+    }
+
+    filters.push({
+      programId: token2022ProgramId,
+      ownerOffset: TOKEN_ACCOUNT_OWNER_OFFSET,
+      memcmps: [{ offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: mintBytes }],
+    })
+  }
+
+  return filters
 }
 
 export const dflowIntegration: SolanaIntegration = {
@@ -301,6 +328,24 @@ export const dflowIntegration: SolanaIntegration = {
 
     applyPositionsPctUsdValueChange24(tokenSource, positions)
     return positions
+  },
+
+  getUsersFilter: async function* (): UsersFilterPlan {
+    const predictionAccounts = yield {
+      kind: 'getProgramAccounts' as const,
+      programId: PREDICTION_MARKETS_PROGRAM_ID,
+      filters: [],
+    }
+
+    const outcomeMints = new Set<string>()
+    for (const account of Object.values(predictionAccounts)) {
+      const market = decodeMarketLedger(account)
+      if (!market) continue
+      outcomeMints.add(market.yesMint)
+      outcomeMints.add(market.noMint)
+    }
+
+    return buildToken2022HolderUsersFiltersByMints(outcomeMints)
   },
 }
 

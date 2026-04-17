@@ -11,6 +11,8 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
+  UsersFilterPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -44,10 +46,15 @@ function idlDiscriminator(
 const PERSONAL_POSITION_DISC = Buffer.from(
   idlDiscriminator(clmmIdl, 'PersonalPositionState'),
 )
+const PERSONAL_POSITION_DISC_B64 = PERSONAL_POSITION_DISC.toString('base64')
 const CP_POOL_DISC_B64 = Buffer.from(
   idlDiscriminator(cpIdl, 'PoolState'),
 ).toString('base64')
 const NFT_TOKEN_AMOUNT_RAW = 1n
+const TOKEN_ACCOUNT_MINT_OFFSET = 0
+const TOKEN_ACCOUNT_OWNER_OFFSET = 32
+const CP_LP_MINT_OFFSET = 136
+const AMM_V4_LP_MINT_OFFSET = 464
 
 // ─── BorshCoder for PersonalPositionState ────────────────────────────────────
 const clmmCoder = new BorshCoder(clmmIdl as never)
@@ -264,14 +271,43 @@ function tickToPrice(
 // ─── SPL token account reading ───────────────────────────────────────────────
 function readTokenAccountMint(data: Uint8Array): string | null {
   const buf = Buffer.from(data)
-  if (buf.length < 32) return null
-  return readPubkey(buf, 0)
+  if (buf.length < TOKEN_ACCOUNT_MINT_OFFSET + 32) return null
+  return readPubkey(buf, TOKEN_ACCOUNT_MINT_OFFSET)
 }
 
 function readTokenAccountAmount(data: Uint8Array): bigint | null {
   const buf = Buffer.from(data)
   if (buf.length < 72) return null
   return readU64LE(buf, 64)
+}
+
+export function buildTokenHolderUsersFiltersByMints(
+  mints: Iterable<string>,
+): UsersFilter[] {
+  const filters: UsersFilter[] = []
+  const tokenProgramIds = [
+    TOKEN_PROGRAM_ID.toBase58(),
+    TOKEN_2022_PROGRAM_ID.toBase58(),
+  ]
+
+  for (const mint of new Set(mints)) {
+    let mintBytes: Uint8Array
+    try {
+      mintBytes = new PublicKey(mint).toBytes()
+    } catch {
+      continue
+    }
+
+    for (const programId of tokenProgramIds) {
+      filters.push({
+        programId,
+        ownerOffset: TOKEN_ACCOUNT_OWNER_OFFSET,
+        memcmps: [{ offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: mintBytes }],
+      })
+    }
+  }
+
+  return filters
 }
 
 // ─── Integration ─────────────────────────────────────────────────────────────
@@ -348,9 +384,6 @@ export const raydiumIntegration: SolanaIntegration = {
       return []
 
     // ── Phase 1: Fetch CP pools matching user's LP mints ───────────────────
-    // lp_mint offset: 8 (disc) + 32 (amm_config) + 32 (pool_creator) + 32 (token_0_vault) + 32 (token_1_vault) = 136
-    const CP_LP_MINT_OFFSET = 136
-
     interface CpPoolMatch {
       poolAddress: string
       token0Mint: string
@@ -808,6 +841,78 @@ export const raydiumIntegration: SolanaIntegration = {
     applyPositionsPctUsdValueChange24(tokenSource, result)
 
     return result
+  },
+
+  getUsersFilter: async function* (): UsersFilterPlan {
+    const discoveredAccounts = yield [
+      {
+        kind: 'getProgramAccounts' as const,
+        programId: CP_PROGRAM_ID,
+        cacheTtlMs: ONE_HOUR_IN_MS,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: CP_POOL_DISC_B64,
+              encoding: 'base64' as const,
+            },
+          },
+        ],
+      },
+      {
+        kind: 'getProgramAccounts' as const,
+        programId: AMM_V4.toBase58(),
+        cacheTtlMs: ONE_HOUR_IN_MS,
+        filters: [{ dataSize: 752 }],
+      },
+      {
+        kind: 'getProgramAccounts' as const,
+        programId: CLMM_PROGRAM.toBase58(),
+        cacheTtlMs: ONE_HOUR_IN_MS,
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: PERSONAL_POSITION_DISC_B64,
+              encoding: 'base64' as const,
+            },
+          },
+        ],
+      },
+    ]
+
+    const discoveredMints = new Set<string>()
+
+    for (const account of Object.values(discoveredAccounts)) {
+      if (!account.exists) continue
+      const data = Buffer.from(account.data)
+
+      if (account.programAddress === CP_PROGRAM_ID) {
+        if (data.length < 413) continue
+        discoveredMints.add(decodeCpPool(data).lpMint)
+        continue
+      }
+
+      if (account.programAddress === AMM_V4.toBase58()) {
+        if (data.length < AMM_V4_LP_MINT_OFFSET + 32) continue
+        discoveredMints.add(readPubkey(data, AMM_V4_LP_MINT_OFFSET))
+        continue
+      }
+
+      if (account.programAddress !== CLMM_PROGRAM.toBase58()) continue
+
+      try {
+        const decoded = clmmCoder.accounts.decode(
+          'PersonalPositionState',
+          data,
+        ) as { nft_mint: PublicKey }
+        discoveredMints.add(decoded.nft_mint.toBase58())
+      } catch {
+        // skip decode failures
+      }
+    }
+
+    return buildTokenHolderUsersFiltersByMints(discoveredMints)
   },
 }
 

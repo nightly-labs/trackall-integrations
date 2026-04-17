@@ -8,6 +8,8 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
+  UsersFilterPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -15,6 +17,8 @@ import { ONE_HOUR_IN_MS } from '../../../utils/solana'
 const SABER_SWAP_PROGRAM_ID = 'SSwpkEEcbUqx4vtoEByFjSkhKdCT862DNVb52nZg1UZ'
 
 const SWAP_ACCOUNT_SIZE = 395
+const TOKEN_ACCOUNT_MINT_OFFSET = 0
+const TOKEN_ACCOUNT_OWNER_OFFSET = 32
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
 const MINT_SUPPLY_OFFSET = 36
 const MINT_DECIMALS_OFFSET = 44
@@ -134,6 +138,35 @@ function sumUsdValues(values: Array<string | undefined>): string | undefined {
 
   if (present.length === 0) return undefined
   return present.reduce((sum, value) => sum + value, 0).toString()
+}
+
+function buildTokenHolderUsersFiltersByMints(
+  mints: Iterable<string>,
+): UsersFilter[] {
+  const filters: UsersFilter[] = []
+  const tokenProgramIds = [
+    TOKEN_PROGRAM_ID.toBase58(),
+    TOKEN_2022_PROGRAM_ID.toBase58(),
+  ]
+
+  for (const mint of new Set(mints)) {
+    let mintBytes: Uint8Array
+    try {
+      mintBytes = new PublicKey(mint).toBytes()
+    } catch {
+      continue
+    }
+
+    for (const programId of tokenProgramIds) {
+      filters.push({
+        programId,
+        ownerOffset: TOKEN_ACCOUNT_OWNER_OFFSET,
+        memcmps: [{ offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: mintBytes }],
+      })
+    }
+  }
+
+  return filters
 }
 
 export const saberIntegration: SolanaIntegration = {
@@ -289,6 +322,24 @@ export const saberIntegration: SolanaIntegration = {
     applyPositionsPctUsdValueChange24(tokenSource, positions)
 
     return positions
+  },
+
+  getUsersFilter: async function* (): UsersFilterPlan {
+    const poolAccounts = yield {
+      kind: 'getProgramAccounts' as const,
+      programId: SABER_SWAP_PROGRAM_ID,
+      cacheTtlMs: ONE_HOUR_IN_MS,
+      filters: [{ dataSize: SWAP_ACCOUNT_SIZE }],
+    }
+
+    const discoveredPoolMints = new Set<string>()
+    for (const account of Object.values(poolAccounts)) {
+      const pool = parsePool(account)
+      if (!pool) continue
+      discoveredPoolMints.add(pool.poolMint)
+    }
+
+    return buildTokenHolderUsersFiltersByMints(discoveredPoolMints)
   },
 }
 

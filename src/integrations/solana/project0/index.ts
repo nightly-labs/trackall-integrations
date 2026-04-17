@@ -16,6 +16,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import marginfiIdl from './idls/marginfi_0.1.7.json'
@@ -37,6 +38,9 @@ const MARGINFI_ACCOUNT_DISC_B64 = accountDiscriminatorBase64(
     accounts?: Array<{ name: string; discriminator?: number[] }>
   },
   'MarginfiAccount',
+)
+const MARGINFI_ACCOUNT_DISC = Uint8Array.from(
+  Buffer.from(MARGINFI_ACCOUNT_DISC_B64, 'base64'),
 )
 
 const MARGINFI_ACCOUNT_AUTHORITY_OFFSET = 40
@@ -637,6 +641,14 @@ export const project0Integration: SolanaIntegration = {
 
     return positions
   },
+
+  getUsersFilter: (): UsersFilterSource => [
+    {
+      programId: MARGINFI_PROGRAM_ID,
+      discriminator: MARGINFI_ACCOUNT_DISC,
+      ownerOffset: MARGINFI_ACCOUNT_AUTHORITY_OFFSET,
+    },
+  ],
 }
 
 export default project0Integration

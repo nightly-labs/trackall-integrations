@@ -13,6 +13,8 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
+  UsersFilterPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import lendingIdl from './idls/lending.json'
@@ -83,6 +85,7 @@ const USER_BORROW_POSITION_DISC_B64 = accountDiscriminatorBase64(
 
 // SPL token account: amount at offset 64, mint at offset 0, owner at offset 32
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
+const TOKEN_ACCOUNT_OWNER_OFFSET = 32
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
 const TOKEN_MINT_SUPPLY_OFFSET = 36
 const DEFAULT_PUBKEY = PublicKey.default.toBase58()
@@ -468,6 +471,30 @@ export function deriveUserLiquidityPositionPdas(
 
 function toMintProtocolKey(mint: string, protocol: string): string {
   return `${mint}:${protocol}`
+}
+
+export function buildTokenHolderUsersFiltersByMints(
+  mints: Iterable<string>,
+): UsersFilter[] {
+  const filters: UsersFilter[] = []
+  const tokenProgramId = TOKEN_PROGRAM_ID.toBase58()
+
+  for (const mint of new Set(mints)) {
+    let mintBytes: Uint8Array
+    try {
+      mintBytes = new PublicKey(mint).toBytes()
+    } catch {
+      continue
+    }
+
+    filters.push({
+      programId: tokenProgramId,
+      ownerOffset: TOKEN_ACCOUNT_OWNER_OFFSET,
+      memcmps: [{ offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: mintBytes }],
+    })
+  }
+
+  return filters
 }
 
 export function buildVaultPositionLookupRequest(
@@ -1261,6 +1288,48 @@ export const jupiterLendIntegration: SolanaIntegration = {
     applyPositionsPctUsdValueChange24(tokenSource, result)
 
     return result
+  },
+
+  getUsersFilter: async function* (): UsersFilterPlan {
+    const lendingAccounts = yield {
+      kind: 'getProgramAccounts' as const,
+      programId: LENDING_PROGRAM_ID,
+      cacheTtlMs: ONE_HOUR_IN_MS,
+      filters: [
+        {
+          memcmp: {
+            offset: 0,
+            bytes: LENDING_DISC_B64,
+            encoding: 'base64',
+          },
+        },
+      ],
+    }
+
+    const discoveredMints = new Set<string>()
+    for (const account of Object.values(lendingAccounts)) {
+      if (!account.exists) continue
+      if (account.programAddress !== LENDING_PROGRAM_ID) continue
+
+      try {
+        const decoded = lendingCoder.accounts.decode(
+          'Lending',
+          Buffer.from(account.data),
+        ) as {
+          mint: PublicKey
+          f_token_mint: PublicKey
+        }
+
+        const lendingMint = decoded.mint.toBase58()
+        if (!isLendingPdaValid(lendingMint, account.address)) continue
+
+        discoveredMints.add(decoded.f_token_mint.toBase58())
+      } catch {
+        // skip accounts that fail to decode
+      }
+    }
+
+    return buildTokenHolderUsersFiltersByMints(discoveredMints)
   },
 }
 

@@ -1,20 +1,23 @@
 import { describe, expect, it } from 'bun:test'
 import { borrowPda } from '@jup-ag/lend'
-import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token'
+import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { Connection, PublicKey } from '@solana/web3.js'
 import type {
   GetProgramAccountsRequest,
   ProgramRequest,
   UserPositionsPlan,
+  UsersFilterPlan,
 } from '../../../types/index'
 import { runIntegrations, TokenPlugin } from '../../../types/index'
 import {
   fetchAccountsBatch,
   fetchProgramAccountsBatch,
 } from '../../../utils/solana'
+import lendingIdl from './idls/lending.json'
 import vaultsIdl from './idls/vaults.json'
 import {
   applyRateMagnifierToScale,
+  buildTokenHolderUsersFiltersByMints,
   buildVaultPositionLookupRequest,
   calculateEarnBaseSupplyRateScaled,
   calculateTokenReserveAnnualRatesScaled,
@@ -28,8 +31,9 @@ const solanaRpcUrl =
   process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
 const wallets = [testAddress]
 
-const { getUserPositions } = jupiterLendIntegration
+const { getUserPositions, getUsersFilter } = jupiterLendIntegration
 if (!getUserPositions) throw new Error('getUserPositions not implemented')
+if (!getUsersFilter) throw new Error('getUsersFilter not implemented')
 
 function isNumericString(value: string): boolean {
   return /^-?\d+(\.\d+)?$/.test(value)
@@ -62,6 +66,63 @@ describe('jupiter-lend integration', () => {
     ).toBe(true)
 
     await plan.return([])
+  })
+
+  it('starts users filter discovery from Jupiter lending accounts', async () => {
+    const plan = getUsersFilter() as UsersFilterPlan
+
+    const first = await plan.next()
+    if (first.done) throw new Error('Expected discovery request')
+    if (Array.isArray(first.value)) {
+      throw new Error('Expected a single discovery request')
+    }
+    if (first.value.kind !== 'getProgramAccounts') {
+      throw new Error('Expected getProgramAccounts request')
+    }
+
+    expect(first.value.kind).toBe('getProgramAccounts')
+    expect(first.value.programId).toBe(lendingIdl.address)
+    expect(first.value.filters).toHaveLength(1)
+    expect(first.value.filters[0]).toEqual({
+      memcmp: {
+        offset: 0,
+        bytes: Buffer.from(
+          lendingIdl.accounts.find((account) => account.name === 'Lending')
+            ?.discriminator ?? [],
+        ).toString('base64'),
+        encoding: 'base64',
+      },
+    })
+
+    const done = await plan.next({})
+    expect(done.done).toBe(true)
+    if (!done.done) throw new Error('Expected users filter plan to finish')
+    expect(Array.from(done.value)).toEqual([])
+  })
+
+  it('builds holder filters for discovered mints on both token programs', () => {
+    const mintA = 'So11111111111111111111111111111111111111112'
+    const mintB = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+
+    const filters = buildTokenHolderUsersFiltersByMints([mintA, mintB, mintA])
+    expect(filters).toHaveLength(4)
+
+    const pairs = new Set(
+      filters.map((filter) => {
+        const mintBytes = filter.memcmps?.[0]?.bytes
+        if (!mintBytes) throw new Error('Expected mint memcmp bytes')
+        return `${filter.programId}:${new PublicKey(mintBytes).toBase58()}`
+      }),
+    )
+
+    expect(pairs).toEqual(
+      new Set([
+        `${TOKEN_PROGRAM_ID.toBase58()}:${mintA}`,
+        `${TOKEN_2022_PROGRAM_ID.toBase58()}:${mintA}`,
+        `${TOKEN_PROGRAM_ID.toBase58()}:${mintB}`,
+        `${TOKEN_2022_PROGRAM_ID.toBase58()}:${mintB}`,
+      ]),
+    )
   })
 
   it('builds targeted vault position lookup request by position mint', () => {

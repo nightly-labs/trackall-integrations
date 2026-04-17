@@ -12,6 +12,7 @@ import type {
   TradingMarketPosition,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -71,6 +72,7 @@ function accountDiscriminatorBase64(
 }
 
 const POSITION_DISC_B64 = accountDiscriminatorBase64(wasabiIdl, 'Position')
+const POSITION_DISC = Uint8Array.from(Buffer.from(POSITION_DISC_B64, 'base64'))
 const BASE_POOL_DISC_B64 = accountDiscriminatorBase64(wasabiIdl, 'BasePool')
 
 function toBigInt(value: { toString(): string }): bigint {
@@ -431,6 +433,14 @@ export const wasabiIntegration: SolanaIntegration = {
 
     return result
   },
+
+  getUsersFilter: (): UsersFilterSource => [
+    {
+      programId: WASABI_PROGRAM_ID,
+      discriminator: POSITION_DISC,
+      ownerOffset: POSITION_OWNER_OFFSET,
+    },
+  ],
 }
 
 export default wasabiIntegration

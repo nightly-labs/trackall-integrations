@@ -7,6 +7,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -71,6 +72,12 @@ export const PROGRAM_IDS = [
 const BUNDLE_DISC_USER_B64 = discriminatorBase64('UserBundleAccount')
 const DRIFT_DISC_VAULT_DEPOSITOR_B64 = discriminatorBase64('VaultDepositor')
 const DRIFT_DISC_VAULT_B64 = discriminatorBase64('Vault')
+const BUNDLE_DISC_USER = Uint8Array.from(
+  Buffer.from(BUNDLE_DISC_USER_B64, 'base64'),
+)
+const DRIFT_DISC_VAULT_DEPOSITOR = Uint8Array.from(
+  Buffer.from(DRIFT_DISC_VAULT_DEPOSITOR_B64, 'base64'),
+)
 
 function discriminatorBase64(accountName: string) {
   return Buffer.from(
@@ -519,6 +526,24 @@ export const neutralIntegration: SolanaIntegration = {
 
     return positions
   },
+
+  getUsersFilter: (): UsersFilterSource => [
+    {
+      programId: BUNDLE_PROGRAM_ID_V1,
+      discriminator: BUNDLE_DISC_USER,
+      ownerOffset: 8,
+    },
+    {
+      programId: BUNDLE_PROGRAM_ID_V2,
+      discriminator: BUNDLE_DISC_USER,
+      ownerOffset: 8,
+    },
+    ...DRIFT_PROGRAM_IDS.map((programId) => ({
+      programId,
+      discriminator: DRIFT_DISC_VAULT_DEPOSITOR,
+      ownerOffset: DRIFT_DEPOSITOR_AUTHORITY_OFFSET,
+    })),
+  ],
 }
 
 export default neutralIntegration

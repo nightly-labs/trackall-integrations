@@ -235,6 +235,10 @@ export const diversifiIntegration: SolanaIntegration = {
     applyPositionsPctUsdValueChange24(tokenSource, positions)
     return positions as UserDefiPosition[]
   },
+
+  // Diversifi positions are inferred from generic SPL token ownership.
+  // There is no protocol-owned user account with a stable owner offset.
+  getUsersFilter: () => [],
 }
 
 export default diversifiIntegration

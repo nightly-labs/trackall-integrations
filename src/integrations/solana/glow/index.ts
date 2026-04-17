@@ -9,6 +9,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -28,6 +29,10 @@ export const PROGRAM_IDS = [
 const MARGIN_ACCOUNT_DISC_B64 = 'hdyt1bPTK+4='
 const TOKEN_CONFIG_DISC_B64 = 'XEn/K2szdWU='
 const MARGIN_POOL_DISC_B64 = 'jv8cIMSoqq8='
+const MARGIN_ACCOUNT_DISCRIMINATOR = Buffer.from(
+  MARGIN_ACCOUNT_DISC_B64,
+  'base64',
+)
 
 const OWNER_OFFSET = 16
 const AIRSPACE_OFFSET = 48
@@ -624,6 +629,14 @@ export const glowIntegration: SolanaIntegration = {
     applyPositionsPctUsdValueChange24(tokenSource, positions)
     return positions
   },
+
+  getUsersFilter: (): UsersFilterSource => [
+    {
+      programId: MARGIN_PROGRAM_ID,
+      discriminator: MARGIN_ACCOUNT_DISCRIMINATOR,
+      ownerOffset: OWNER_OFFSET,
+    },
+  ],
 }
 
 export default glowIntegration

@@ -7,6 +7,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -349,6 +350,14 @@ export const iloopIntegration: SolanaIntegration = {
     applyPositionsPctUsdValueChange24(tokenSource, positions)
     return positions
   },
+
+  getUsersFilter: (): UsersFilterSource => [
+    {
+      programId: ILOOP_PROGRAM_ID,
+      discriminator: OBLIGATION_DISCRIMINATOR,
+      ownerOffset: OBLIGATION_OWNER_OFFSET,
+    },
+  ],
 }
 
 export default iloopIntegration

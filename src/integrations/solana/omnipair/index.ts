@@ -10,6 +10,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -65,6 +66,9 @@ const PAIR_DISCRIMINATOR_B64 = accountDiscriminatorBase64(
 const USER_POSITION_DISCRIMINATOR_B64 = accountDiscriminatorBase64(
   omnipairIdl as OmnipairIdl,
   'UserPosition',
+)
+const USER_POSITION_DISCRIMINATOR = Uint8Array.from(
+  Buffer.from(USER_POSITION_DISCRIMINATOR_B64, 'base64'),
 )
 
 function accountDiscriminatorBase64(idl: OmnipairIdl, accountName: string) {
@@ -423,6 +427,14 @@ export const omnipairIntegration: SolanaIntegration = {
 
     return result
   },
+
+  getUsersFilter: (): UsersFilterSource => [
+    {
+      programId: OMNIPAIR_PROGRAM_ID,
+      discriminator: USER_POSITION_DISCRIMINATOR,
+      ownerOffset: 8,
+    },
+  ],
 }
 
 export default omnipairIntegration

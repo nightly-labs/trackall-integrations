@@ -8,6 +8,7 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -492,6 +493,13 @@ export const saveIntegration: SolanaIntegration = {
 
     return positions
   },
+
+  getUsersFilter: (): UsersFilterSource => [
+    {
+      programId: SAVE_PROGRAM_ID,
+      ownerOffset: OBLIGATION_OWNER_OFFSET,
+    },
+  ],
 }
 
 export default saveIntegration

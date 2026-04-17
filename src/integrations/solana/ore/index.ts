@@ -5,6 +5,7 @@ import type {
   StakingDefiPosition,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -19,6 +20,9 @@ const SOL_DECIMALS = 9
 const MINER_DISCRIMINATOR = 103
 const TREASURY_DISCRIMINATOR = 104
 const STAKE_DISCRIMINATOR = 108
+const MINER_DISCRIMINATOR_BYTES = Uint8Array.from([MINER_DISCRIMINATOR])
+const STAKE_DISCRIMINATOR_BYTES = Uint8Array.from([STAKE_DISCRIMINATOR])
+const AUTHORITY_OFFSET = 8
 
 // Miner account offsets (Steel framework, 8-byte account header)
 const MINER_DEPLOYED_OFFSET = 40 // [u64; 25]
@@ -368,6 +372,19 @@ export const oreIntegration: SolanaIntegration = {
 
     return result
   },
+
+  getUsersFilter: (): UsersFilterSource => [
+    {
+      programId: ORE_PROGRAM_ID.toBase58(),
+      discriminator: MINER_DISCRIMINATOR_BYTES,
+      ownerOffset: AUTHORITY_OFFSET,
+    },
+    {
+      programId: ORE_PROGRAM_ID.toBase58(),
+      discriminator: STAKE_DISCRIMINATOR_BYTES,
+      ownerOffset: AUTHORITY_OFFSET,
+    },
+  ],
 }
 
 export default oreIntegration

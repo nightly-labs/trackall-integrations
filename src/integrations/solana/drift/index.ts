@@ -26,20 +26,20 @@ import type {
   StakingDefiPosition,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
 export const testAddress = 'BxTExiVRt9EHe4b47ZDQLDGxee1hPexvkmaDFMLZTDvv'
 
 const DRIFT_PROGRAM_KEY = new PublicKey(DRIFT_PROGRAM_ID)
-const USER_DISCRIMINATOR_B64 = Buffer.from(
-  createHash('sha256').update('account:User').digest().subarray(0, 8),
-).toString('base64')
+const USER_DISCRIMINATOR = accountDiscriminator('User')
+const INSURANCE_FUND_STAKE_DISCRIMINATOR =
+  accountDiscriminator('InsuranceFundStake')
+const USER_DISCRIMINATOR_B64 =
+  Buffer.from(USER_DISCRIMINATOR).toString('base64')
 const INSURANCE_FUND_STAKE_DISCRIMINATOR_B64 = Buffer.from(
-  createHash('sha256')
-    .update('account:InsuranceFundStake')
-    .digest()
-    .subarray(0, 8),
+  INSURANCE_FUND_STAKE_DISCRIMINATOR,
 ).toString('base64')
 const USER_AUTHORITY_OFFSET = 8
 const RATE_PRECISION = 1_000_000n
@@ -49,6 +49,13 @@ const TOKEN_ACCOUNT_AMOUNT_BYTES = 8
 export const PROGRAM_IDS = [DRIFT_PROGRAM_ID] as const
 
 const driftAccountsCoder = new CustomBorshAccountsCoder(driftIdl as never)
+
+function accountDiscriminator(accountName: string): Uint8Array {
+  return createHash('sha256')
+    .update(`account:${accountName}`)
+    .digest()
+    .subarray(0, 8)
+}
 
 function bnToBigInt(value: { toString(): string }): bigint {
   return BigInt(value.toString())
@@ -527,6 +534,19 @@ export const driftIntegration: SolanaIntegration = {
     applyPositionsPctUsdValueChange24(tokenSource, result)
     return result
   },
+
+  getUsersFilter: (): UsersFilterSource => [
+    {
+      programId: DRIFT_PROGRAM_ID,
+      discriminator: USER_DISCRIMINATOR,
+      ownerOffset: USER_AUTHORITY_OFFSET,
+    },
+    {
+      programId: DRIFT_PROGRAM_ID,
+      discriminator: INSURANCE_FUND_STAKE_DISCRIMINATOR,
+      ownerOffset: USER_AUTHORITY_OFFSET,
+    },
+  ],
 }
 
 export default driftIntegration

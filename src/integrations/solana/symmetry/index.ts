@@ -8,6 +8,8 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
+  UsersFilter,
+  UsersFilterPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -18,6 +20,7 @@ const SYMMETRY_LEGACY_FUNDS_PROGRAM_ID =
   '2KehYt3KsEQR53jYcxjbQp2d2kCp4AkuQW68atufRwSr'
 
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
+const TOKEN_ACCOUNT_OWNER_OFFSET = 32
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
 
 const MINT_ACCOUNT_DECIMALS_OFFSET = 44
@@ -426,6 +429,42 @@ function estimateLegacyFundPriceUsdFromComponents(
   return weightedPriceSum / totalWeight
 }
 
+function isVaultPdaValid(mint: string, vaultAddress: string): boolean {
+  try {
+    const [derivedVaultAddress] = PublicKey.findProgramAddressSync(
+      [VAULT_PDA_SEED, new PublicKey(mint).toBuffer()],
+      new PublicKey(SYMMETRY_VAULTS_V3_PROGRAM_ID),
+    )
+    return derivedVaultAddress.toBase58() === vaultAddress
+  } catch {
+    return false
+  }
+}
+
+export function buildTokenHolderUsersFiltersByMints(
+  mints: Iterable<string>,
+): UsersFilter[] {
+  const tokenProgramId = TOKEN_PROGRAM_ID.toBase58()
+  const filters: UsersFilter[] = []
+
+  for (const mint of new Set(mints)) {
+    let mintBytes: Uint8Array
+    try {
+      mintBytes = new PublicKey(mint).toBytes()
+    } catch {
+      continue
+    }
+
+    filters.push({
+      programId: tokenProgramId,
+      ownerOffset: TOKEN_ACCOUNT_OWNER_OFFSET,
+      memcmps: [{ offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: mintBytes }],
+    })
+  }
+
+  return filters
+}
+
 export const symmetryIntegration: SolanaIntegration = {
   platformId: 'symmetry',
 
@@ -742,6 +781,34 @@ export const symmetryIntegration: SolanaIntegration = {
     applyPositionsPctUsdValueChange24(tokenSource, positions)
 
     return positions as UserDefiPosition[]
+  },
+
+  getUsersFilter: async function* (): UsersFilterPlan {
+    const vaultAccounts = yield {
+      kind: 'getProgramAccounts' as const,
+      programId: SYMMETRY_VAULTS_V3_PROGRAM_ID,
+      cacheTtlMs: ONE_HOUR_IN_MS,
+      filters: [],
+    }
+
+    const discoveredMints = new Set<string>()
+    for (const account of Object.values(vaultAccounts)) {
+      if (!account.exists) continue
+      if (account.programAddress !== SYMMETRY_VAULTS_V3_PROGRAM_ID) continue
+
+      const decodedVault = decodeVault(account.data)
+      if (!decodedVault) continue
+      if (decodedVault.supplyOutstandingRaw === 0n) continue
+      if (!isVaultPdaValid(decodedVault.mint, account.address)) continue
+
+      discoveredMints.add(decodedVault.mint)
+    }
+
+    for (const legacyFund of LEGACY_FUNDS) {
+      discoveredMints.add(legacyFund.mint)
+    }
+
+    return buildTokenHolderUsersFiltersByMints(discoveredMints)
   },
 }
 

@@ -6,6 +6,7 @@ import type {
   StakedAsset,
   StakingDefiPosition,
   UserPositionsPlan,
+  UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -30,6 +31,9 @@ export const PROGRAM_IDS = [STAKING_PROGRAM_ID.toBase58()] as const
 
 const POSITION_DATA_DISCRIMINATOR_B64 =
   accountDiscriminatorBase64('PositionData')
+const POSITION_DATA_DISCRIMINATOR = Uint8Array.from(
+  Buffer.from(POSITION_DATA_DISCRIMINATOR_B64, 'base64'),
+)
 
 type PositionState =
   | 'LOCKING'
@@ -415,6 +419,14 @@ export const pythStakingIntegration: SolanaIntegration = {
 
     return positions
   },
+
+  getUsersFilter: (): UsersFilterSource => [
+    {
+      programId: STAKING_PROGRAM_ID.toBase58(),
+      discriminator: POSITION_DATA_DISCRIMINATOR,
+      ownerOffset: POSITION_OWNER_OFFSET,
+    },
+  ],
 }
 
 export default pythStakingIntegration
