@@ -651,20 +651,20 @@ export const jupiterLendIntegration: SolanaIntegration = {
 
     // ── Phase 0: Discover all required datasets in parallel ──────────────────
     const discoveryRequests: ProgramRequest[] = [
-      {
-        kind: 'getProgramAccounts',
-        programId: LENDING_PROGRAM_ID,
-        cacheTtlMs: ONE_HOUR_IN_MS,
-        filters: [
-          {
-            memcmp: {
-              offset: 0,
-              bytes: LENDING_DISC_B64,
-              encoding: 'base64',
-            },
-          },
-        ],
-      },
+      // {
+      //   kind: 'getProgramAccounts',
+      //   programId: LENDING_PROGRAM_ID,
+      //   cacheTtlMs: ONE_HOUR_IN_MS,
+      //   filters: [
+      //     {
+      //       memcmp: {
+      //         offset: 0,
+      //         bytes: LENDING_DISC_B64,
+      //         encoding: 'base64',
+      //       },
+      //     },
+      //   ],
+      // },
       {
         kind: 'getTokenAccountsByOwner',
         owner: walletAddress,

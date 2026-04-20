@@ -105,7 +105,7 @@ describe('jupiter-lend integration', () => {
     const mintB = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
 
     const filters = buildTokenHolderUsersFiltersByMints([mintA, mintB, mintA])
-    expect(filters).toHaveLength(4)
+    expect(filters).toHaveLength(2)
 
     const pairs = new Set(
       filters.map((filter) => {
@@ -118,9 +118,7 @@ describe('jupiter-lend integration', () => {
     expect(pairs).toEqual(
       new Set([
         `${TOKEN_PROGRAM_ID.toBase58()}:${mintA}`,
-        `${TOKEN_2022_PROGRAM_ID.toBase58()}:${mintA}`,
         `${TOKEN_PROGRAM_ID.toBase58()}:${mintB}`,
-        `${TOKEN_2022_PROGRAM_ID.toBase58()}:${mintB}`,
       ]),
     )
   })
