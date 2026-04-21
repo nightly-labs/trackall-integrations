@@ -6,7 +6,7 @@ import type {
   WhirlpoolData,
 } from '@orca-so/whirlpools-sdk'
 import {
-  AccountName,
+  // AccountName,
   collectFeesQuote,
   collectRewardsQuote,
   ORCA_WHIRLPOOL_PROGRAM_ID,
@@ -19,7 +19,7 @@ import {
   PositionBundleUtil,
   PriceMath,
   TickArrayUtil,
-  WHIRLPOOL_CODER,
+  // WHIRLPOOL_CODER,
 } from '@orca-so/whirlpools-sdk'
 import {
   TOKEN_2022_PROGRAM_ID,
@@ -36,8 +36,8 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
-  UsersFilterPlan,
+  // UsersFilter,
+  // UsersFilterPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 
@@ -59,16 +59,16 @@ export const PROGRAM_IDS = [
 ] as const
 
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
-const TOKEN_ACCOUNT_OWNER_OFFSET = 32
+// const TOKEN_ACCOUNT_OWNER_OFFSET = 32
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
-const ONE_HOUR_IN_MS = 60 * 60 * 1000
+// const ONE_HOUR_IN_MS = 60 * 60 * 1000
 
-const POSITION_DISC_B64 = Buffer.from(
-  WHIRLPOOL_CODER.accountDiscriminator(AccountName.Position),
-).toString('base64')
-const POSITION_BUNDLE_DISC_B64 = Buffer.from(
-  WHIRLPOOL_CODER.accountDiscriminator(AccountName.PositionBundle),
-).toString('base64')
+// const POSITION_DISC_B64 = Buffer.from(
+//   WHIRLPOOL_CODER.accountDiscriminator(AccountName.Position),
+// ).toString('base64')
+// const POSITION_BUNDLE_DISC_B64 = Buffer.from(
+//   WHIRLPOOL_CODER.accountDiscriminator(AccountName.PositionBundle),
+// ).toString('base64')
 
 function readPubkey(buf: Buffer, offset: number): string {
   return new PublicKey(buf.subarray(offset, offset + 32)).toBase58()
@@ -249,45 +249,45 @@ function collectCandidateMints(accounts: MaybeSolanaAccount[]): {
   return { positionMints, bundleMints }
 }
 
-function buildTokenHolderUsersFiltersByMints(
-  positionMints: Iterable<string>,
-  bundleMints: Iterable<string>,
-): UsersFilter[] {
-  const tokenProgramId = TOKEN_PROGRAM_ID.toBase58()
-  const token2022ProgramId = TOKEN_2022_PROGRAM_ID.toBase58()
-  const filters: UsersFilter[] = []
-  const seen = new Set<string>()
-
-  function pushFilter(programId: string, mint: string): void {
-    let mintBytes: Uint8Array
-    try {
-      mintBytes = new PublicKey(mint).toBytes()
-    } catch {
-      return
-    }
-
-    const key = `${programId}:${mint}`
-    if (seen.has(key)) return
-    seen.add(key)
-
-    filters.push({
-      programId,
-      ownerOffset: TOKEN_ACCOUNT_OWNER_OFFSET,
-      memcmps: [{ offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: mintBytes }],
-    })
-  }
-
-  for (const mint of new Set(positionMints)) {
-    pushFilter(tokenProgramId, mint)
-    pushFilter(token2022ProgramId, mint)
-  }
-
-  for (const mint of new Set(bundleMints)) {
-    pushFilter(tokenProgramId, mint)
-  }
-
-  return filters
-}
+// function buildTokenHolderUsersFiltersByMints(
+//   positionMints: Iterable<string>,
+//   bundleMints: Iterable<string>,
+// ): UsersFilter[] {
+//   const tokenProgramId = TOKEN_PROGRAM_ID.toBase58()
+//   const token2022ProgramId = TOKEN_2022_PROGRAM_ID.toBase58()
+//   const filters: UsersFilter[] = []
+//   const seen = new Set<string>()
+//
+//   function pushFilter(programId: string, mint: string): void {
+//     let mintBytes: Uint8Array
+//     try {
+//       mintBytes = new PublicKey(mint).toBytes()
+//     } catch {
+//       return
+//     }
+//
+//     const key = `${programId}:${mint}`
+//     if (seen.has(key)) return
+//     seen.add(key)
+//
+//     filters.push({
+//       programId,
+//       ownerOffset: TOKEN_ACCOUNT_OWNER_OFFSET,
+//       memcmps: [{ offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: mintBytes }],
+//     })
+//   }
+//
+//   for (const mint of new Set(positionMints)) {
+//     pushFilter(tokenProgramId, mint)
+//     pushFilter(token2022ProgramId, mint)
+//   }
+//
+//   for (const mint of new Set(bundleMints)) {
+//     pushFilter(tokenProgramId, mint)
+//   }
+//
+//   return filters
+// }
 
 function buildRewardTokenTuple(
   whirlpool: WhirlpoolData,

@@ -8,8 +8,8 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
-  UsersFilterPlan,
+  // UsersFilter,
+  // UsersFilterPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -17,8 +17,8 @@ import { ONE_HOUR_IN_MS } from '../../../utils/solana'
 const SABER_SWAP_PROGRAM_ID = 'SSwpkEEcbUqx4vtoEByFjSkhKdCT862DNVb52nZg1UZ'
 
 const SWAP_ACCOUNT_SIZE = 395
-const TOKEN_ACCOUNT_MINT_OFFSET = 0
-const TOKEN_ACCOUNT_OWNER_OFFSET = 32
+// const TOKEN_ACCOUNT_MINT_OFFSET = 0
+// const TOKEN_ACCOUNT_OWNER_OFFSET = 32
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
 const MINT_SUPPLY_OFFSET = 36
 const MINT_DECIMALS_OFFSET = 44
@@ -140,34 +140,34 @@ function sumUsdValues(values: Array<string | undefined>): string | undefined {
   return present.reduce((sum, value) => sum + value, 0).toString()
 }
 
-function buildTokenHolderUsersFiltersByMints(
-  mints: Iterable<string>,
-): UsersFilter[] {
-  const filters: UsersFilter[] = []
-  const tokenProgramIds = [
-    TOKEN_PROGRAM_ID.toBase58(),
-    TOKEN_2022_PROGRAM_ID.toBase58(),
-  ]
-
-  for (const mint of new Set(mints)) {
-    let mintBytes: Uint8Array
-    try {
-      mintBytes = new PublicKey(mint).toBytes()
-    } catch {
-      continue
-    }
-
-    for (const programId of tokenProgramIds) {
-      filters.push({
-        programId,
-        ownerOffset: TOKEN_ACCOUNT_OWNER_OFFSET,
-        memcmps: [{ offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: mintBytes }],
-      })
-    }
-  }
-
-  return filters
-}
+// function buildTokenHolderUsersFiltersByMints(
+//   mints: Iterable<string>,
+// ): UsersFilter[] {
+//   const filters: UsersFilter[] = []
+//   const tokenProgramIds = [
+//     TOKEN_PROGRAM_ID.toBase58(),
+//     TOKEN_2022_PROGRAM_ID.toBase58(),
+//   ]
+//
+//   for (const mint of new Set(mints)) {
+//     let mintBytes: Uint8Array
+//     try {
+//       mintBytes = new PublicKey(mint).toBytes()
+//     } catch {
+//       continue
+//     }
+//
+//     for (const programId of tokenProgramIds) {
+//       filters.push({
+//         programId,
+//         ownerOffset: TOKEN_ACCOUNT_OWNER_OFFSET,
+//         memcmps: [{ offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: mintBytes }],
+//       })
+//     }
+//   }
+//
+//   return filters
+// }
 
 export const saberIntegration: SolanaIntegration = {
   platformId: 'saber',

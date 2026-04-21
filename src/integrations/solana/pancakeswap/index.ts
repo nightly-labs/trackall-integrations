@@ -8,8 +8,8 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
-  UsersFilterPlan,
+  // UsersFilter,
+  // UsersFilterPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import clmmIdl from '../raydium/idls/amm_v3.json'
@@ -26,7 +26,7 @@ export const PROGRAM_IDS = [
   TOKEN_PROGRAM_ID.toBase58(),
   TOKEN_2022_PROGRAM_ID.toBase58(),
 ] as const
-const ONE_HOUR_IN_MS = 60 * 60 * 1000
+// const ONE_HOUR_IN_MS = 60 * 60 * 1000
 
 function idlDiscriminator(
   idl: { accounts?: Array<{ name: string; discriminator?: number[] }> },
@@ -40,11 +40,11 @@ function idlDiscriminator(
 const PERSONAL_POSITION_DISC = Buffer.from(
   idlDiscriminator(clmmIdl, 'PersonalPositionState'),
 )
-const PERSONAL_POSITION_DISC_B64 = PERSONAL_POSITION_DISC.toString('base64')
+// const PERSONAL_POSITION_DISC_B64 = PERSONAL_POSITION_DISC.toString('base64')
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
-const TOKEN_ACCOUNT_OWNER_OFFSET = 32
+// const TOKEN_ACCOUNT_OWNER_OFFSET = 32
 const TOKEN_ACCOUNT_AMOUNT_OFFSET = 64
-const PERSONAL_POSITION_NFT_MINT_OFFSET = 9
+// const PERSONAL_POSITION_NFT_MINT_OFFSET = 9
 
 const clmmCoder = new BorshCoder(clmmIdl as never)
 
@@ -356,35 +356,35 @@ function sumUsdValues(values: PositionValue[]): string | undefined {
   return total.toString()
 }
 
-function buildTokenHolderUsersFiltersByMints(
-  mints: Iterable<string>,
-): UsersFilter[] {
-  const filters: UsersFilter[] = []
-  const tokenProgramId = TOKEN_PROGRAM_ID.toBase58()
-  const token2022ProgramId = TOKEN_2022_PROGRAM_ID.toBase58()
-
-  for (const mint of new Set(mints)) {
-    let mintBytes: Uint8Array
-    try {
-      mintBytes = new PublicKey(mint).toBytes()
-    } catch {
-      continue
-    }
-
-    filters.push({
-      programId: tokenProgramId,
-      ownerOffset: TOKEN_ACCOUNT_OWNER_OFFSET,
-      memcmps: [{ offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: mintBytes }],
-    })
-    filters.push({
-      programId: token2022ProgramId,
-      ownerOffset: TOKEN_ACCOUNT_OWNER_OFFSET,
-      memcmps: [{ offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: mintBytes }],
-    })
-  }
-
-  return filters
-}
+// function buildTokenHolderUsersFiltersByMints(
+//   mints: Iterable<string>,
+// ): UsersFilter[] {
+//   const filters: UsersFilter[] = []
+//   const tokenProgramId = TOKEN_PROGRAM_ID.toBase58()
+//   const token2022ProgramId = TOKEN_2022_PROGRAM_ID.toBase58()
+//
+//   for (const mint of new Set(mints)) {
+//     let mintBytes: Uint8Array
+//     try {
+//       mintBytes = new PublicKey(mint).toBytes()
+//     } catch {
+//       continue
+//     }
+//
+//     filters.push({
+//       programId: tokenProgramId,
+//       ownerOffset: TOKEN_ACCOUNT_OWNER_OFFSET,
+//       memcmps: [{ offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: mintBytes }],
+//     })
+//     filters.push({
+//       programId: token2022ProgramId,
+//       ownerOffset: TOKEN_ACCOUNT_OWNER_OFFSET,
+//       memcmps: [{ offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: mintBytes }],
+//     })
+//   }
+//
+//   return filters
+// }
 
 export const pancakeswapIntegration: SolanaIntegration = {
   platformId: 'pancakeswap',

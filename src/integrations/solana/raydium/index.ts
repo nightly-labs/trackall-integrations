@@ -11,8 +11,8 @@ import type {
   SolanaPlugins,
   UserDefiPosition,
   UserPositionsPlan,
-  UsersFilter,
-  UsersFilterPlan,
+  // UsersFilter,
+  // UsersFilterPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_HOUR_IN_MS } from '../../../utils/solana'
@@ -46,15 +46,15 @@ function idlDiscriminator(
 const PERSONAL_POSITION_DISC = Buffer.from(
   idlDiscriminator(clmmIdl, 'PersonalPositionState'),
 )
-const PERSONAL_POSITION_DISC_B64 = PERSONAL_POSITION_DISC.toString('base64')
+// const PERSONAL_POSITION_DISC_B64 = PERSONAL_POSITION_DISC.toString('base64')
 const CP_POOL_DISC_B64 = Buffer.from(
   idlDiscriminator(cpIdl, 'PoolState'),
 ).toString('base64')
 const NFT_TOKEN_AMOUNT_RAW = 1n
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
-const TOKEN_ACCOUNT_OWNER_OFFSET = 32
+// const TOKEN_ACCOUNT_OWNER_OFFSET = 32
 const CP_LP_MINT_OFFSET = 136
-const AMM_V4_LP_MINT_OFFSET = 464
+// const AMM_V4_LP_MINT_OFFSET = 464
 
 // ─── BorshCoder for PersonalPositionState ────────────────────────────────────
 const clmmCoder = new BorshCoder(clmmIdl as never)
@@ -281,34 +281,34 @@ function readTokenAccountAmount(data: Uint8Array): bigint | null {
   return readU64LE(buf, 64)
 }
 
-export function buildTokenHolderUsersFiltersByMints(
-  mints: Iterable<string>,
-): UsersFilter[] {
-  const filters: UsersFilter[] = []
-  const tokenProgramIds = [
-    TOKEN_PROGRAM_ID.toBase58(),
-    TOKEN_2022_PROGRAM_ID.toBase58(),
-  ]
-
-  for (const mint of new Set(mints)) {
-    let mintBytes: Uint8Array
-    try {
-      mintBytes = new PublicKey(mint).toBytes()
-    } catch {
-      continue
-    }
-
-    for (const programId of tokenProgramIds) {
-      filters.push({
-        programId,
-        ownerOffset: TOKEN_ACCOUNT_OWNER_OFFSET,
-        memcmps: [{ offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: mintBytes }],
-      })
-    }
-  }
-
-  return filters
-}
+// export function buildTokenHolderUsersFiltersByMints(
+//   mints: Iterable<string>,
+// ): UsersFilter[] {
+//   const filters: UsersFilter[] = []
+//   const tokenProgramIds = [
+//     TOKEN_PROGRAM_ID.toBase58(),
+//     TOKEN_2022_PROGRAM_ID.toBase58(),
+//   ]
+//
+//   for (const mint of new Set(mints)) {
+//     let mintBytes: Uint8Array
+//     try {
+//       mintBytes = new PublicKey(mint).toBytes()
+//     } catch {
+//       continue
+//     }
+//
+//     for (const programId of tokenProgramIds) {
+//       filters.push({
+//         programId,
+//         ownerOffset: TOKEN_ACCOUNT_OWNER_OFFSET,
+//         memcmps: [{ offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: mintBytes }],
+//       })
+//     }
+//   }
+//
+//   return filters
+// }
 
 // ─── Integration ─────────────────────────────────────────────────────────────
 
