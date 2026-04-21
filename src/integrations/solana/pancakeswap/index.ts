@@ -732,38 +732,38 @@ export const pancakeswapIntegration: SolanaIntegration = {
     return positions
   },
 
-  getUsersFilter: async function* (): UsersFilterPlan {
-    const positionAccounts = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: CLMM_PROGRAM.toBase58(),
-      cacheTtlMs: ONE_HOUR_IN_MS,
-      filters: [
-        {
-          memcmp: {
-            offset: 0,
-            bytes: PERSONAL_POSITION_DISC_B64,
-            encoding: 'base64',
-          },
-        },
-      ],
-    }
+  // getUsersFilter: async function* (): UsersFilterPlan {
+  //   const positionAccounts = yield {
+  //     kind: 'getProgramAccounts' as const,
+  //     programId: CLMM_PROGRAM.toBase58(),
+  //     cacheTtlMs: ONE_HOUR_IN_MS,
+  //     filters: [
+  //       {
+  //         memcmp: {
+  //           offset: 0,
+  //           bytes: PERSONAL_POSITION_DISC_B64,
+  //           encoding: 'base64',
+  //         },
+  //       },
+  //     ],
+  //   }
 
-    const discoveredPositionNftMints = new Set<string>()
-    for (const account of Object.values(positionAccounts)) {
-      if (!account.exists) continue
-      if (account.programAddress !== CLMM_PROGRAM.toBase58()) continue
+  //   const discoveredPositionNftMints = new Set<string>()
+  //   for (const account of Object.values(positionAccounts)) {
+  //     if (!account.exists) continue
+  //     if (account.programAddress !== CLMM_PROGRAM.toBase58()) continue
 
-      const buf = Buffer.from(account.data)
-      if (buf.length < PERSONAL_POSITION_NFT_MINT_OFFSET + 32) continue
-      if (!buf.subarray(0, 8).equals(PERSONAL_POSITION_DISC)) continue
+  //     const buf = Buffer.from(account.data)
+  //     if (buf.length < PERSONAL_POSITION_NFT_MINT_OFFSET + 32) continue
+  //     if (!buf.subarray(0, 8).equals(PERSONAL_POSITION_DISC)) continue
 
-      discoveredPositionNftMints.add(
-        readPubkey(buf, PERSONAL_POSITION_NFT_MINT_OFFSET),
-      )
-    }
+  //     discoveredPositionNftMints.add(
+  //       readPubkey(buf, PERSONAL_POSITION_NFT_MINT_OFFSET),
+  //     )
+  //   }
 
-    return buildTokenHolderUsersFiltersByMints(discoveredPositionNftMints)
-  },
+  //   return buildTokenHolderUsersFiltersByMints(discoveredPositionNftMints)
+  // },
 }
 
 export default pancakeswapIntegration

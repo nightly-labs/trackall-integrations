@@ -484,26 +484,26 @@ export const realmsIntegration: SolanaIntegration = {
     return positions
   },
 
-  getUsersFilter: async function* (): UsersFilterPlan {
-    const realmAccounts = yield PROGRAM_IDS.flatMap((programId) => [
-      buildRealmDiscoveryRequest(programId, REALM_V1),
-      buildRealmDiscoveryRequest(programId, REALM_V2),
-    ])
+  // getUsersFilter: async function* (): UsersFilterPlan {
+  //   const realmAccounts = yield PROGRAM_IDS.flatMap((programId) => [
+  //     buildRealmDiscoveryRequest(programId, REALM_V1),
+  //     buildRealmDiscoveryRequest(programId, REALM_V2),
+  //   ])
 
-    const discoveredProgramIds = new Set<string>()
-    for (const account of Object.values(realmAccounts)) {
-      if (!account.exists) continue
-      const decoded = decodeRealm(account.address, account.data)
-      if (!decoded) continue
-      discoveredProgramIds.add(account.programAddress)
-    }
+  //   const discoveredProgramIds = new Set<string>()
+  //   for (const account of Object.values(realmAccounts)) {
+  //     if (!account.exists) continue
+  //     const decoded = decodeRealm(account.address, account.data)
+  //     if (!decoded) continue
+  //     discoveredProgramIds.add(account.programAddress)
+  //   }
 
-    if (discoveredProgramIds.size === 0) {
-      return buildTokenOwnerRecordUsersFiltersForPrograms(PROGRAM_IDS)
-    }
+  //   if (discoveredProgramIds.size === 0) {
+  //     return buildTokenOwnerRecordUsersFiltersForPrograms(PROGRAM_IDS)
+  //   }
 
-    return buildTokenOwnerRecordUsersFiltersForPrograms(discoveredProgramIds)
-  },
+  //   return buildTokenOwnerRecordUsersFiltersForPrograms(discoveredProgramIds)
+  // },
 }
 
 export default realmsIntegration

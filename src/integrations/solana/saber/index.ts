@@ -324,23 +324,23 @@ export const saberIntegration: SolanaIntegration = {
     return positions
   },
 
-  getUsersFilter: async function* (): UsersFilterPlan {
-    const poolAccounts = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: SABER_SWAP_PROGRAM_ID,
-      cacheTtlMs: ONE_HOUR_IN_MS,
-      filters: [{ dataSize: SWAP_ACCOUNT_SIZE }],
-    }
+  // getUsersFilter: async function* (): UsersFilterPlan {
+  //   const poolAccounts = yield {
+  //     kind: 'getProgramAccounts' as const,
+  //     programId: SABER_SWAP_PROGRAM_ID,
+  //     cacheTtlMs: ONE_HOUR_IN_MS,
+  //     filters: [{ dataSize: SWAP_ACCOUNT_SIZE }],
+  //   }
 
-    const discoveredPoolMints = new Set<string>()
-    for (const account of Object.values(poolAccounts)) {
-      const pool = parsePool(account)
-      if (!pool) continue
-      discoveredPoolMints.add(pool.poolMint)
-    }
+  //   const discoveredPoolMints = new Set<string>()
+  //   for (const account of Object.values(poolAccounts)) {
+  //     const pool = parsePool(account)
+  //     if (!pool) continue
+  //     discoveredPoolMints.add(pool.poolMint)
+  //   }
 
-    return buildTokenHolderUsersFiltersByMints(discoveredPoolMints)
-  },
+  //   return buildTokenHolderUsersFiltersByMints(discoveredPoolMints)
+  // },
 }
 
 export default saberIntegration

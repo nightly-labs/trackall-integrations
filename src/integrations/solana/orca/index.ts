@@ -687,60 +687,60 @@ export const orcaIntegration: SolanaIntegration = {
     return positions
   },
 
-  getUsersFilter: async function* (): UsersFilterPlan {
-    const orcaProgramId = ORCA_WHIRLPOOL_PROGRAM_ID.toBase58()
-    const positionAccounts = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: orcaProgramId,
-      cacheTtlMs: ONE_HOUR_IN_MS,
-      filters: [
-        {
-          memcmp: {
-            offset: 0,
-            bytes: POSITION_DISC_B64,
-            encoding: 'base64',
-          },
-        },
-      ],
-    }
+  // getUsersFilter: async function* (): UsersFilterPlan {
+  // const orcaProgramId = ORCA_WHIRLPOOL_PROGRAM_ID.toBase58()
+  // const positionAccounts = yield {
+  //   kind: 'getProgramAccounts' as const,
+  //   programId: orcaProgramId,
+  //   cacheTtlMs: ONE_HOUR_IN_MS,
+  //   filters: [
+  //     {
+  //       memcmp: {
+  //         offset: 0,
+  //         bytes: POSITION_DISC_B64,
+  //         encoding: 'base64',
+  //       },
+  //     },
+  //   ],
+  // }
 
-    const positionMints = new Set<string>()
-    for (const [accountAddress, account] of Object.entries(positionAccounts)) {
-      if (!account.exists) continue
-      if (account.programAddress !== orcaProgramId) continue
+  // const positionMints = new Set<string>()
+  // for (const [accountAddress, account] of Object.entries(positionAccounts)) {
+  //   if (!account.exists) continue
+  //   if (account.programAddress !== orcaProgramId) continue
 
-      const position = parsePosition(accountAddress, account)
-      if (!position) continue
-      positionMints.add(position.positionMint.toBase58())
-    }
+  //   const position = parsePosition(accountAddress, account)
+  //   if (!position) continue
+  //   positionMints.add(position.positionMint.toBase58())
+  // }
 
-    const bundleAccounts = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: orcaProgramId,
-      cacheTtlMs: ONE_HOUR_IN_MS,
-      filters: [
-        {
-          memcmp: {
-            offset: 0,
-            bytes: POSITION_BUNDLE_DISC_B64,
-            encoding: 'base64',
-          },
-        },
-      ],
-    }
+  // const bundleAccounts = yield {
+  //   kind: 'getProgramAccounts' as const,
+  //   programId: orcaProgramId,
+  //   cacheTtlMs: ONE_HOUR_IN_MS,
+  //   filters: [
+  //     {
+  //       memcmp: {
+  //         offset: 0,
+  //         bytes: POSITION_BUNDLE_DISC_B64,
+  //         encoding: 'base64',
+  //       },
+  //     },
+  //   ],
+  // }
 
-    const bundleMints = new Set<string>()
-    for (const [accountAddress, account] of Object.entries(bundleAccounts)) {
-      if (!account.exists) continue
-      if (account.programAddress !== orcaProgramId) continue
+  // const bundleMints = new Set<string>()
+  // for (const [accountAddress, account] of Object.entries(bundleAccounts)) {
+  //   if (!account.exists) continue
+  //   if (account.programAddress !== orcaProgramId) continue
 
-      const bundle = parsePositionBundle(accountAddress, account)
-      if (!bundle) continue
-      bundleMints.add(bundle.positionBundleMint.toBase58())
-    }
+  //   const bundle = parsePositionBundle(accountAddress, account)
+  //   if (!bundle) continue
+  //   bundleMints.add(bundle.positionBundleMint.toBase58())
+  // }
 
-    return buildTokenHolderUsersFiltersByMints(positionMints, bundleMints)
-  },
+  // return buildTokenHolderUsersFiltersByMints(positionMints, bundleMints)
+  // },
 }
 
 export default orcaIntegration
