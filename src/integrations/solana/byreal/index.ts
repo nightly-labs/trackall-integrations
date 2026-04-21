@@ -537,7 +537,6 @@ export const byrealIntegration: SolanaIntegration = {
   },
 
   // Byreal position accounts are NFT-based and do not store a wallet pubkey.
-  // The current UsersFilter shape cannot derive user addresses for this pattern.
   getUsersFilter: (): UsersFilterSource => [],
 }
 
