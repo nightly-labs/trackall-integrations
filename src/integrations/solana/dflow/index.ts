@@ -330,23 +330,23 @@ export const dflowIntegration: SolanaIntegration = {
     return positions
   },
 
-  getUsersFilter: async function* (): UsersFilterPlan {
-    const predictionAccounts = yield {
-      kind: 'getProgramAccounts' as const,
-      programId: PREDICTION_MARKETS_PROGRAM_ID,
-      filters: [],
-    }
+  // getUsersFilter: async function* (): UsersFilterPlan {
+  //   const predictionAccounts = yield {
+  //     kind: 'getProgramAccounts' as const,
+  //     programId: PREDICTION_MARKETS_PROGRAM_ID,
+  //     filters: [],
+  //   }
 
-    const outcomeMints = new Set<string>()
-    for (const account of Object.values(predictionAccounts)) {
-      const market = decodeMarketLedger(account)
-      if (!market) continue
-      outcomeMints.add(market.yesMint)
-      outcomeMints.add(market.noMint)
-    }
+  //   const outcomeMints = new Set<string>()
+  //   for (const account of Object.values(predictionAccounts)) {
+  //     const market = decodeMarketLedger(account)
+  //     if (!market) continue
+  //     outcomeMints.add(market.yesMint)
+  //     outcomeMints.add(market.noMint)
+  //   }
 
-    return buildToken2022HolderUsersFiltersByMints(outcomeMints)
-  },
+  //   return buildToken2022HolderUsersFiltersByMints(outcomeMints)
+  // },
 }
 
 export default dflowIntegration
