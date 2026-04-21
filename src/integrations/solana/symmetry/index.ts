@@ -457,6 +457,7 @@ export function buildTokenHolderUsersFiltersByMints(
 
     filters.push({
       programId: tokenProgramId,
+      dataSize: 165,
       ownerOffset: TOKEN_ACCOUNT_OWNER_OFFSET,
       memcmps: [{ offset: TOKEN_ACCOUNT_MINT_OFFSET, bytes: mintBytes }],
     })
