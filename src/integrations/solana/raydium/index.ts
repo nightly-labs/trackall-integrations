@@ -15,7 +15,7 @@ import type {
   // UsersFilterPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
-import { ONE_HOUR_IN_MS } from '../../../utils/solana'
+import { ONE_HOUR_IN_MS, ONE_MINUTE_IN_MS } from '../../../utils/solana'
 import clmmIdl from './idls/amm_v3.json'
 import cpIdl from './idls/raydium_cp_swap.json'
 
@@ -336,11 +336,13 @@ export const raydiumIntegration: SolanaIntegration = {
         kind: 'getTokenAccountsByOwner' as const,
         owner: walletPubkey.toBase58(),
         programId: TOKEN_PROGRAM_ID.toBase58(),
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
       {
         kind: 'getTokenAccountsByOwner' as const,
         owner: walletPubkey.toBase58(),
         programId: TOKEN_2022_PROGRAM_ID.toBase58(),
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
     ]
 

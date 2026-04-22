@@ -17,6 +17,7 @@ import type {
   UsersFilterPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
+import { ONE_MINUTE_IN_MS } from '../../../utils/solana'
 import lendingIdl from './idls/lending.json'
 import vaultsIdl from './idls/vaults.json'
 
@@ -670,11 +671,13 @@ export const jupiterLendIntegration: SolanaIntegration = {
         kind: 'getTokenAccountsByOwner',
         owner: walletAddress,
         programId: TOKEN_PROGRAM_ID.toBase58(),
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
       {
         kind: 'getTokenAccountsByOwner',
         owner: walletAddress,
         programId: TOKEN_2022_PROGRAM_ID.toBase58(),
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
       {
         kind: 'getProgramAccounts',

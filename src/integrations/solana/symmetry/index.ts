@@ -12,7 +12,7 @@ import type {
   UsersFilterPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
-import { ONE_HOUR_IN_MS } from '../../../utils/solana'
+import { ONE_HOUR_IN_MS, ONE_MINUTE_IN_MS } from '../../../utils/solana'
 
 const SYMMETRY_VAULTS_V3_PROGRAM_ID =
   'BASKT7aKd8n7ibpUbwLP3Wiyxyi3yoiXsxBk4Hpumate'
@@ -489,6 +489,7 @@ export const symmetryIntegration: SolanaIntegration = {
         kind: 'getTokenAccountsByOwner' as const,
         owner: wallet.toBase58(),
         programId: TOKEN_PROGRAM_ID.toBase58(),
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
     ]
 

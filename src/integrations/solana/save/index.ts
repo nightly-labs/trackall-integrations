@@ -11,6 +11,7 @@ import type {
   UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
+import { ONE_MINUTE_IN_MS } from '../../../utils/solana'
 
 const SAVE_PROGRAM_ID = 'So1endDq2YkqhipRh3WViPa8hdiSpxWy6z3Z6tMCpAo'
 const DEFAULT_PUBLIC_KEY = '11111111111111111111111111111111'
@@ -316,11 +317,13 @@ export const saveIntegration: SolanaIntegration = {
         kind: 'getTokenAccountsByOwner' as const,
         owner: walletAddress,
         programId: TOKEN_PROGRAM_ID_STR,
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
       {
         kind: 'getTokenAccountsByOwner' as const,
         owner: walletAddress,
         programId: TOKEN_2022_PROGRAM_ID_STR,
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
     ]
 

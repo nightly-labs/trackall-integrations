@@ -10,6 +10,7 @@ import type {
   UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
+import { ONE_MINUTE_IN_MS } from '../../../utils/solana'
 
 const BYREAL_PROGRAM_ID = 'REALQqNEomY6cQGZJUGwywTBD2UmDT32rZcNnfxQ5N2'
 const TOKEN_ACCOUNT_MINT_OFFSET = 0
@@ -355,11 +356,13 @@ export const byrealIntegration: SolanaIntegration = {
         kind: 'getTokenAccountsByOwner' as const,
         owner: wallet.toBase58(),
         programId: TOKEN_PROGRAM_ID.toBase58(),
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
       {
         kind: 'getTokenAccountsByOwner' as const,
         owner: wallet.toBase58(),
         programId: TOKEN_2022_PROGRAM_ID.toBase58(),
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
     ]
 
