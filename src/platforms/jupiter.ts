@@ -4,6 +4,10 @@ const jupiterLendPlatform = {
   id: 'jupiter' as const,
   networks: ['solana'],
   name: 'Jupiter Lend',
+  location: {
+    latitude: 1.3521,
+    longitude: 103.8198,
+  },
   image: 'https://jup.ag/favicon.ico',
   description:
     'Jupiter Lend earn — supply assets and track borrow positions on Solana',

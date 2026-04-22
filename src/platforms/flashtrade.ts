@@ -4,6 +4,10 @@ const flashtradePlatform = {
   id: 'flashtrade' as const,
   networks: ['solana'],
   name: 'Flash Trade',
+  location: {
+    latitude: 1.3521,
+    longitude: 103.8198,
+  },
   image: 'https://www.flash.trade/favicon.ico',
   description: 'Perpetual futures exchange on Solana',
   tags: ['dex', 'defi'],

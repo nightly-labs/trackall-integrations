@@ -4,6 +4,10 @@ const metadaoPlatform = {
   id: 'metadao' as const,
   networks: ['solana'],
   name: 'MetaDAO',
+  location: {
+    latitude: 37.0902,
+    longitude: -95.7129,
+  },
   image: 'https://docs.metadao.fi/images/logo.png',
   description:
     'MetaDAO launchpad commitments and claimable allocations on Solana',

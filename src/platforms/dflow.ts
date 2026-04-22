@@ -4,6 +4,10 @@ const dflowPlatform = {
   id: 'dflow' as const,
   networks: ['solana'],
   name: 'DFlow',
+  location: {
+    latitude: 37.0902,
+    longitude: -95.7129,
+  },
   image: 'https://dflow.net/favicon/favicon.svg',
   description: 'DFlow prediction market outcome token positions on Solana',
   tags: ['defi'],

@@ -4,6 +4,10 @@ const allbridgePlatform = {
   id: 'allbridge' as const,
   networks: ['solana'],
   name: 'Allbridge Core',
+  location: {
+    latitude: 1.3521,
+    longitude: 103.8198,
+  },
   image: 'https://allbridge.io/assets/icons/core.svg',
   description: 'Allbridge Core stablecoin liquidity pools on Solana',
   tags: ['bridge', 'defi'],

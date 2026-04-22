@@ -4,6 +4,10 @@ const glowPlatform = {
   id: 'glow' as const,
   networks: ['solana'],
   name: 'Glow',
+  location: {
+    latitude: 37.0902,
+    longitude: -95.7129,
+  },
   image: 'https://app.glowfinance.xyz/favicon.ico',
   description: 'Glow margin account note balances on Solana',
   tags: ['lending', 'defi'],

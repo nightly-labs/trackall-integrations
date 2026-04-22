@@ -1,5 +1,12 @@
 import type { PlatformTag } from './platformTag'
 
+export interface PlatformLocation {
+  /** Headquarters or project-base latitude in decimal degrees. */
+  latitude: number
+  /** Headquarters or project-base longitude in decimal degrees. */
+  longitude: number
+}
+
 export interface PlatformLinks {
   /** Expected format: absolute URL (https://...). */
   website?: string
@@ -24,6 +31,8 @@ export interface Platform {
   networks: string[]
   /** Display name of the platform. */
   name: string
+  /** Optional headquarters or project-base coordinates in decimal degrees. */
+  location?: PlatformLocation
   /** Expected format: URL of the platform logo/image (https://... with image extension). */
   image: string
   /** Short text description suitable for UI display. */

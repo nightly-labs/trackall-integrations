@@ -4,6 +4,10 @@ const canopyPlatform = {
   id: 'canopy' as const,
   networks: ['movement'],
   name: 'Canopy',
+  location: {
+    latitude: 18.4207,
+    longitude: -64.64,
+  },
   image: 'https://app.canopyhub.xyz/canopy_512x512_light.svg',
   description:
     'Movement DeFi yield aggregation platform with lending and liquidity vaults',

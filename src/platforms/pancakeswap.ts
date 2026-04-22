@@ -4,6 +4,10 @@ const pancakeswapPlatform = {
   id: 'pancakeswap' as const,
   networks: ['solana'],
   name: 'PancakeSwap',
+  location: {
+    latitude: 35.8617,
+    longitude: 104.1954,
+  },
   image: 'https://icons.llama.fi/pancakeswap-amm-v3.jpg',
   description: 'PancakeSwap V3 concentrated liquidity pools on Solana',
   tags: ['dex', 'defi'],

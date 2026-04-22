@@ -4,6 +4,10 @@ const snsPlatform = {
   id: 'sns' as const,
   networks: ['solana'],
   name: 'SNS',
+  location: {
+    latitude: 1.3521,
+    longitude: 103.8198,
+  },
   image: 'https://www.sns.id/favicon-light.png',
   description: 'Solana Name Service domain offers marketplace',
   tags: ['defi', 'nft'],

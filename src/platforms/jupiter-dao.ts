@@ -4,6 +4,10 @@ const jupiterDaoPlatform = {
   id: 'jupiter-dao' as const,
   networks: ['solana'],
   name: 'Jupiter DAO',
+  location: {
+    latitude: 1.3521,
+    longitude: 103.8198,
+  },
   image: 'https://jup.ag/favicon.ico',
   description:
     'Stake JUP in Jupiter DAO, track locked governance positions and ASR rewards on Solana',

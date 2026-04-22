@@ -4,6 +4,10 @@ const orcaPlatform = {
   id: 'orca' as const,
   networks: ['solana'],
   name: 'Orca',
+  location: {
+    latitude: 36.2048,
+    longitude: 138.2529,
+  },
   image:
     'https://mintcdn.com/orca-ccf67c1f/K618mEucxJ6w73gh/logo/orca-logo.png?fit=max&auto=format&n=K618mEucxJ6w73gh&q=85&s=cec26ca4b233cefabd14c26dff7de6cb',
   description: 'Orca Whirlpools concentrated liquidity pools on Solana',
