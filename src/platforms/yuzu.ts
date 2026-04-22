@@ -4,6 +4,10 @@ const yuzuPlatform = {
   id: 'yuzu' as const,
   networks: ['movement'],
   name: 'Yuzu',
+  location: {
+    latitude: 37.0902,
+    longitude: -95.7129,
+  },
   image: 'https://www.yuzu.finance/fruit-logo.png',
   description: 'Yuzu CLMM on Movement',
   tags: [],

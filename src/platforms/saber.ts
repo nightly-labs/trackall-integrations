@@ -4,6 +4,10 @@ const saberPlatform = {
   id: 'saber' as const,
   networks: ['solana'],
   name: 'Saber',
+  location: {
+    latitude: 37.0902,
+    longitude: -95.7129,
+  },
   image: 'https://registry.saber.so/token-icons/sbr.svg',
   description: 'Saber StableSwap liquidity pools on Solana',
   tags: ['dex', 'defi', 'stablecoin'],

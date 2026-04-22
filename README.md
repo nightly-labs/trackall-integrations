@@ -85,6 +85,10 @@ const myPlatform = {
   id: 'my-platform' as const,
   networks: ['movement'],
   name: 'My Platform',
+  location: {
+    latitude: 1.3521,
+    longitude: 103.8198,
+  },
   image: 'https://example.com/logo.png',
   description: 'Short description',
   tags: ['lending'],

@@ -4,6 +4,10 @@ const loopscalePlatform = {
   id: 'loopscale' as const,
   networks: ['solana'],
   name: 'Loopscale',
+  location: {
+    latitude: 37.0902,
+    longitude: -95.7129,
+  },
   image:
     'https://bridgesplit-app.s3.us-east-1.amazonaws.com/logo/logo_new_blue.png',
   description:

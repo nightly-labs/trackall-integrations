@@ -4,6 +4,10 @@ const defitunaPlatform = {
   id: 'defituna' as const,
   networks: ['solana'],
   name: 'DefiTuna',
+  location: {
+    latitude: 38.9637,
+    longitude: 35.2433,
+  },
   image: 'https://github.com/DefiTuna.png',
   description:
     'DefiTuna lending, leveraged liquidity, and spot-margin exposure on Solana',

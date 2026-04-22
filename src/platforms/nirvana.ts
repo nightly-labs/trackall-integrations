@@ -4,6 +4,10 @@ const nirvanaPlatform = {
   id: 'nirvana' as const,
   networks: ['solana'],
   name: 'Nirvana',
+  location: {
+    latitude: 37.0902,
+    longitude: -95.7129,
+  },
   image: 'https://app.nirvana.finance/favicon.png',
   description: 'ANA staking and prANA rewards on Solana',
   tags: ['staking', 'governance'],

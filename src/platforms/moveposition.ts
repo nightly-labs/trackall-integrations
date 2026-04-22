@@ -4,6 +4,10 @@ const movepositionPlatform = {
   id: 'moveposition' as const,
   networks: ['movement'],
   name: 'MovePosition',
+  location: {
+    latitude: 18.4207,
+    longitude: -64.64,
+  },
   image: 'https://app.moveposition.xyz/favicon.svg',
   description: 'Next-gen omnichain lending protocol',
   tags: ['lending'],

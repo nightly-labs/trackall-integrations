@@ -4,6 +4,10 @@ const sandglassPlatform = {
   id: 'sandglass' as const,
   networks: ['solana'],
   name: 'Sandglass',
+  location: {
+    latitude: 36.2048,
+    longitude: 138.2529,
+  },
   image: 'https://sandglass.so/sandglass-image.png',
   description: 'Yield trading markets with PT, YT, and LP positions on Solana',
   tags: ['defi', 'staking'],

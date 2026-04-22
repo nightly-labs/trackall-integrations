@@ -4,6 +4,10 @@ const savePlatform = {
   id: 'save' as const,
   networks: ['solana'],
   name: 'Save',
+  location: {
+    latitude: 37.0902,
+    longitude: -95.7129,
+  },
   image: 'https://d22m18a7q7pf6d.cloudfront.net/favicon-32x32.png',
   description: 'Save lending markets: supplied collateral and borrowed assets',
   tags: ['lending'],

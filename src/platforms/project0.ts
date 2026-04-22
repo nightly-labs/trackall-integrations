@@ -4,6 +4,10 @@ const project0Platform = {
   id: 'project0' as const,
   networks: ['solana'],
   name: 'Project 0',
+  location: {
+    latitude: 37.0902,
+    longitude: -95.7129,
+  },
   image:
     'https://cdn.prod.website-files.com/68833aeb7ad4d7934f9c5fec/68c1632baf163875c13e167e_Project%200%20Favicon.png',
   description:

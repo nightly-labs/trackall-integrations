@@ -81,7 +81,11 @@ export type {
   AptosPlugins,
   AptosResource,
 } from './src/types/aptosIntegration'
-export type { Platform, PlatformLinks } from './src/types/platform'
+export type {
+  Platform,
+  PlatformLinks,
+  PlatformLocation,
+} from './src/types/platform'
 export type { PlatformTag } from './src/types/platformTag'
 export type {
   BaseDefiPosition,

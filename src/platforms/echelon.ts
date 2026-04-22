@@ -4,6 +4,10 @@ const echelonPlatform = {
   id: 'echelon' as const,
   networks: ['movement'],
   name: 'Echelon',
+  location: {
+    latitude: 37.0902,
+    longitude: -95.7129,
+  },
   image: 'https://app.echelon.market/apple-touch-icon.png',
   description: 'Echelon non-custodial lending protocol on Movement',
   tags: ['lending'],
