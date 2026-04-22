@@ -13,6 +13,7 @@ import type {
   // UsersFilterPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
+import { ONE_MINUTE_IN_MS } from '../../../utils/solana'
 
 const PREDICTION_MARKETS_PROGRAM_ID =
   'pReDicTmksnPfkfiz33ndSdbe2dY43KYPg4U2dbvHvb'
@@ -179,6 +180,7 @@ export const dflowIntegration: SolanaIntegration = {
       kind: 'getTokenAccountsByOwner' as const,
       owner: address,
       programId: TOKEN_2022_PROGRAM_ID.toBase58(),
+      cacheTtlMs: ONE_MINUTE_IN_MS,
     }
 
     const balancesByMint = new Map<string, bigint>()

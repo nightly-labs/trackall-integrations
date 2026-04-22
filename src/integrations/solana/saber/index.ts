@@ -12,7 +12,7 @@ import type {
   // UsersFilterPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
-import { ONE_HOUR_IN_MS } from '../../../utils/solana'
+import { ONE_HOUR_IN_MS, ONE_MINUTE_IN_MS } from '../../../utils/solana'
 
 const SABER_SWAP_PROGRAM_ID = 'SSwpkEEcbUqx4vtoEByFjSkhKdCT862DNVb52nZg1UZ'
 
@@ -191,11 +191,13 @@ export const saberIntegration: SolanaIntegration = {
         kind: 'getTokenAccountsByOwner' as const,
         owner: wallet.toBase58(),
         programId: TOKEN_PROGRAM_ID.toBase58(),
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
       {
         kind: 'getTokenAccountsByOwner' as const,
         owner: wallet.toBase58(),
         programId: TOKEN_2022_PROGRAM_ID.toBase58(),
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
       {
         kind: 'getProgramAccounts' as const,

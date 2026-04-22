@@ -9,7 +9,7 @@ import type {
   UserPositionsPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
-import { ONE_HOUR_IN_MS } from '../../../utils/solana'
+import { ONE_HOUR_IN_MS, ONE_MINUTE_IN_MS } from '../../../utils/solana'
 
 const DIVERSIFI_BASKET_PROGRAM_ID =
   '3vyr9DRfMZb2KvUQdnps7YG3PY38XdguLBQaJ2DFkSxk'
@@ -145,6 +145,7 @@ export const diversifiIntegration: SolanaIntegration = {
         kind: 'getTokenAccountsByOwner' as const,
         owner: wallet.toBase58(),
         programId: TOKEN_PROGRAM_ID,
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
     ]
 

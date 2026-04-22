@@ -46,6 +46,7 @@ import type {
   UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
+import { ONE_MINUTE_IN_MS } from '../../../utils/solana'
 
 export const testAddress = '93PSyNrS7zBhrXaHHfU1ZtfegcKq5SaCYc35ZwPVrK3K'
 
@@ -869,11 +870,13 @@ export const kaminoIntegration: SolanaIntegration = {
         kind: 'getTokenAccountsByOwner' as const,
         owner: address,
         programId: TOKEN_PROGRAM_ID.toBase58(),
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
       {
         kind: 'getTokenAccountsByOwner' as const,
         owner: address,
         programId: TOKEN_2022_PROGRAM_ID.toBase58(),
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
     ]
 

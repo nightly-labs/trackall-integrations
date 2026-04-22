@@ -12,6 +12,7 @@ import type {
   // UsersFilterPlan,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
+import { ONE_MINUTE_IN_MS } from '../../../utils/solana'
 import clmmIdl from '../raydium/idls/amm_v3.json'
 
 const PANCAKESWAP_CLMM_PROGRAM_ID =
@@ -407,11 +408,13 @@ export const pancakeswapIntegration: SolanaIntegration = {
         kind: 'getTokenAccountsByOwner' as const,
         owner: address,
         programId: TOKEN_PROGRAM_ID.toBase58(),
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
       {
         kind: 'getTokenAccountsByOwner' as const,
         owner: address,
         programId: TOKEN_2022_PROGRAM_ID.toBase58(),
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
     ]
 

@@ -12,6 +12,7 @@ import { runIntegrations, TokenPlugin } from '../../../types/index'
 import {
   fetchAccountsBatch,
   fetchProgramAccountsBatch,
+  ONE_MINUTE_IN_MS,
 } from '../../../utils/solana'
 import lendingIdl from './idls/lending.json'
 import vaultsIdl from './idls/vaults.json'
@@ -55,14 +56,20 @@ describe('jupiter-lend integration', () => {
         req.kind === 'getProgramAccounts' &&
         req.programId === vaultsIdl.address,
     )
+    const tokenOwnerRequests = requests.filter(
+      (
+        req,
+      ): req is Extract<ProgramRequest, { kind: 'getTokenAccountsByOwner' }> =>
+        req.kind === 'getTokenAccountsByOwner',
+    )
 
     expect(vaultProgramRequests).toHaveLength(3)
+    expect(tokenOwnerRequests).toHaveLength(2)
+    expect(new Set(tokenOwnerRequests.map((req) => req.programId))).toEqual(
+      new Set([TOKEN_PROGRAM_ID.toBase58(), TOKEN_2022_PROGRAM_ID.toBase58()]),
+    )
     expect(
-      requests.some(
-        (req) =>
-          req.kind === 'getTokenAccountsByOwner' &&
-          req.programId === TOKEN_2022_PROGRAM_ID.toBase58(),
-      ),
+      tokenOwnerRequests.every((req) => req.cacheTtlMs === ONE_MINUTE_IN_MS),
     ).toBe(true)
 
     await plan.return([])

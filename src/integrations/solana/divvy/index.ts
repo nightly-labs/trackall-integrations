@@ -14,7 +14,7 @@ import type {
   UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
-import { ONE_HOUR_IN_MS } from '../../../utils/solana'
+import { ONE_HOUR_IN_MS, ONE_MINUTE_IN_MS } from '../../../utils/solana'
 
 const DIVVY_HOUSE_PROGRAM_ID = 'dvyFwAPniptQNb1ey4eM12L8iLHrzdiDsPPDndd6xAR'
 const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
@@ -229,11 +229,13 @@ export const divvyIntegration: SolanaIntegration = {
         kind: 'getTokenAccountsByOwner',
         owner: address,
         programId: TOKEN_PROGRAM_ID,
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
       {
         kind: 'getTokenAccountsByOwner',
         owner: address,
         programId: TOKEN_2022_PROGRAM_ID,
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
     ]
 

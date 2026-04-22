@@ -22,6 +22,7 @@ import type {
   UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
+import { ONE_MINUTE_IN_MS } from '../../../utils/solana'
 import gmsolLiquidityProviderIdl from './idls/gmsol_liquidity_provider.json'
 import gmsolStoreIdl from './idls/gmsol_store.json'
 
@@ -406,11 +407,13 @@ export const gmtradeIntegration: SolanaIntegration = {
         kind: 'getTokenAccountsByOwner' as const,
         owner: address,
         programId: TOKEN_PROGRAM_ID.toBase58(),
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
       {
         kind: 'getTokenAccountsByOwner' as const,
         owner: address,
         programId: TOKEN_2022_PROGRAM_ID.toBase58(),
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
     ]
 

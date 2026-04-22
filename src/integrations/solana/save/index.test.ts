@@ -10,6 +10,7 @@ import { runIntegrations, TokenPlugin } from '../../../types/index'
 import {
   fetchAccountsBatch,
   fetchProgramAccountsBatch,
+  ONE_MINUTE_IN_MS,
 } from '../../../utils/solana'
 import { saveIntegration, testAddress } from './index'
 
@@ -118,6 +119,9 @@ describe('save integration', () => {
     expect(new Set(tokenRequests.map((request) => request.programId))).toEqual(
       new Set([TOKEN_PROGRAM_ID.toBase58(), TOKEN_2022_PROGRAM_ID.toBase58()]),
     )
+    expect(
+      tokenRequests.every((request) => request.cacheTtlMs === ONE_MINUTE_IN_MS),
+    ).toBe(true)
 
     await plan.return([])
   })

@@ -12,7 +12,7 @@ import type {
   UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
-import { ONE_HOUR_IN_MS } from '../../../utils/solana'
+import { ONE_HOUR_IN_MS, ONE_MINUTE_IN_MS } from '../../../utils/solana'
 
 const STABLE_SWAP_PROGRAM_ID = 'swapNyd8XiQwJ6ianp9snpu4brUqFxadzvHebnAXjJZ'
 const WEIGHTED_SWAP_PROGRAM_ID = 'swapFpHZwjELNnjvThjajtiVmkz3yPQEHjLtka2fwHW'
@@ -300,11 +300,13 @@ export const stabbleIntegration: SolanaIntegration = {
         kind: 'getTokenAccountsByOwner' as const,
         owner: wallet.toBase58(),
         programId: TOKEN_PROGRAM_ID.toBase58(),
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
       {
         kind: 'getTokenAccountsByOwner' as const,
         owner: wallet.toBase58(),
         programId: TOKEN_2022_PROGRAM_ID.toBase58(),
+        cacheTtlMs: ONE_MINUTE_IN_MS,
       },
       {
         kind: 'getProgramAccounts' as const,
