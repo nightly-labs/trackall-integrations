@@ -1,7 +1,8 @@
-import { createHash } from 'node:crypto'
 import { expect, it } from 'bun:test'
+import { createHash } from 'node:crypto'
 import { PublicKey } from '@solana/web3.js'
 import { testIntegration } from '../../../test/solana-integration'
+import { TokenPlugin } from '../../../types/index'
 import { metadaoIntegration, testAddress } from '.'
 
 const LAUNCHPAD_V7_PROGRAM_ID = 'moontUzsdepotRGe5xsfip7vLPTJnVuafqdUWexVnPM'
@@ -120,11 +121,17 @@ function existingAccount(address: string, data: Buffer) {
   }
 }
 
+function missingAccount(address: string) {
+  return {
+    exists: false as const,
+    address,
+  }
+}
+
 const plugins = {
-  tokens: {
-    get: () => undefined,
-  },
-} as any
+  endpoint: '',
+  tokens: new TokenPlugin(),
+}
 
 it('returns only funding records for live launches', async () => {
   const owner = testAddress
@@ -136,15 +143,17 @@ it('returns only funding records for live launches', async () => {
   const quoteMint = pubkey(6)
   const generator = metadaoIntegration.getUserPositions?.(owner, plugins)
 
-  expect(generator).toBeDefined()
+  if (!generator) {
+    throw new Error('Expected MetaDAO getUserPositions to be defined')
+  }
 
-  const fundingRecordRequest = await generator!.next()
+  const fundingRecordRequest = await generator.next()
   expect(fundingRecordRequest.value).toMatchObject({
     kind: 'getProgramAccounts',
     programId: LAUNCHPAD_V7_PROGRAM_ID,
   })
 
-  const launchRequest = await generator!.next({
+  const launchRequest = await generator.next({
     [liveFundingRecord]: existingAccount(
       liveFundingRecord,
       fundingRecordData({
@@ -167,7 +176,7 @@ it('returns only funding records for live launches', async () => {
 
   expect(launchRequest.value).toEqual([liveLaunch, completeLaunch])
 
-  const mintRequest = await generator!.next({
+  const mintRequest = await generator.next({
     [liveLaunch]: existingAccount(
       liveLaunch,
       launchData({ state: 1, baseMint, quoteMint }),
@@ -180,14 +189,17 @@ it('returns only funding records for live launches', async () => {
 
   expect(mintRequest.value).toEqual([baseMint, quoteMint])
 
-  const result = await generator!.next({
-    [baseMint]: { exists: false },
-    [quoteMint]: { exists: false },
+  const result = await generator.next({
+    [baseMint]: missingAccount(baseMint),
+    [quoteMint]: missingAccount(quoteMint),
   })
 
-  expect(result.done).toBe(true)
+  if (!result.done) {
+    throw new Error('Expected MetaDAO getUserPositions to finish')
+  }
+
   expect(result.value).toHaveLength(1)
-  expect(result.value[0].meta.launchpad).toMatchObject({
+  expect(result.value[0]?.meta?.launchpad).toMatchObject({
     launch: liveLaunch,
     fundingRecord: liveFundingRecord,
     state: 'live',
@@ -200,11 +212,13 @@ it('returns no positions and skips mint fetches when no funding records are live
   const fundingRecord = pubkey(10)
   const generator = metadaoIntegration.getUserPositions?.(owner, plugins)
 
-  expect(generator).toBeDefined()
+  if (!generator) {
+    throw new Error('Expected MetaDAO getUserPositions to be defined')
+  }
 
-  await generator!.next()
+  await generator.next()
 
-  const launchRequest = await generator!.next({
+  const launchRequest = await generator.next({
     [fundingRecord]: existingAccount(
       fundingRecord,
       fundingRecordData({
@@ -218,14 +232,17 @@ it('returns no positions and skips mint fetches when no funding records are live
 
   expect(launchRequest.value).toEqual([completeLaunch])
 
-  const result = await generator!.next({
+  const result = await generator.next({
     [completeLaunch]: existingAccount(
       completeLaunch,
       launchData({ state: 3, baseMint: pubkey(11), quoteMint: pubkey(12) }),
     ),
   })
 
-  expect(result.done).toBe(true)
+  if (!result.done) {
+    throw new Error('Expected MetaDAO getUserPositions to finish')
+  }
+
   expect(result.value).toEqual([])
 })
 
