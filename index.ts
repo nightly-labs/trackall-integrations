@@ -57,6 +57,16 @@ export const solanaIndexedPrograms = [
     ),
   ),
 ]
+export const solanaIndexedProgramsByPlatformId = Object.fromEntries(
+  solanaModules.map((entry) => {
+    const integration = entry.module.default as SolanaIntegration
+
+    return [
+      integration.platformId,
+      [...new Set(getProgramIdsFromModule(entry.name, entry.module))],
+    ]
+  }),
+)
 
 export type { PlatformId } from './src/platforms/index'
 export { platforms } from './src/platforms/index'
