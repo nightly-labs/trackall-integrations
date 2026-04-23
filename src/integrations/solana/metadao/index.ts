@@ -31,6 +31,7 @@ const LAUNCH_STATE_LABELS = [
   'complete',
   'refunding',
 ] as const
+const LIVE_LAUNCH_STATE = 1
 
 type FundingRecord = {
   address: string
@@ -53,7 +54,7 @@ type LaunchRecord = {
   unixTimestampCompleted: bigint | null
 }
 
-export const testAddress = 'tEsT1vjsJeKHw9GH5HpnQszn2LWmjR6q1AVCDCj51nd'
+export const testAddress = 'DGSW2tbP5r5KfYyWfiEyNU3rwNX2Atc7maktu8WjGyp6'
 
 export const PROGRAM_IDS = [LAUNCHPAD_V7_PROGRAM_ID] as const
 
@@ -329,12 +330,18 @@ export const metadaoIntegration: SolanaIntegration = {
 
     if (launches.size === 0) return []
 
+    const liveFundingRecords = fundingRecords.filter((record) => {
+      return launches.get(record.launch)?.state === LIVE_LAUNCH_STATE
+    })
+
+    if (liveFundingRecords.length === 0) return []
+
     const mintAddresses = [
       ...new Set(
-        [...launches.values()].flatMap((launch) => [
-          launch.baseMint,
-          launch.quoteMint,
-        ]),
+        liveFundingRecords.flatMap((record) => {
+          const launch = launches.get(record.launch)
+          return launch ? [launch.baseMint, launch.quoteMint] : []
+        }),
       ),
     ]
 
@@ -351,7 +358,7 @@ export const metadaoIntegration: SolanaIntegration = {
 
     const positions: UserDefiPosition[] = []
 
-    for (const fundingRecord of fundingRecords) {
+    for (const fundingRecord of liveFundingRecords) {
       const launch = launches.get(fundingRecord.launch)
       if (!launch) continue
 
