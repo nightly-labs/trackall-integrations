@@ -45,6 +45,7 @@ const FOUR_DECIMALS = 10_000n
 const RATE_OUTPUT_DECIMALS = 100_000_000_000_000_000n // 1e17
 const RATE_SCALE = 1_000_000_000_000n // 1e12
 const RATE_SCALE_DECIMALS = 12
+const RATE_PERCENT_MULTIPLIER = 100n
 const RATE_SCALE_PER_BPS = RATE_SCALE / FOUR_DECIMALS // 1e8
 
 const lendingCoder = new BorshCoder(lendingIdl as never)
@@ -239,11 +240,12 @@ export function denormalizeVaultAmount(
   return amount / 10n ** BigInt(delta)
 }
 
-function formatScaledRate(rateScaled: bigint): string {
+export function formatScaledRate(rateScaled: bigint): string {
   const negative = rateScaled < 0n
   const absValue = negative ? -rateScaled : rateScaled
-  const integerPart = absValue / RATE_SCALE
-  const fractionalPart = absValue % RATE_SCALE
+  const scaledPercent = absValue * RATE_PERCENT_MULTIPLIER
+  const integerPart = scaledPercent / RATE_SCALE
+  const fractionalPart = scaledPercent % RATE_SCALE
 
   if (fractionalPart === 0n) {
     return `${negative ? '-' : ''}${integerPart}`
