@@ -47,6 +47,11 @@ import type {
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_MINUTE_IN_MS } from '../../../utils/solana'
+import {
+  getKaminoVaultMetricsUrl,
+  parseKaminoStrategyApyMap,
+  parseKaminoVaultApyMap,
+} from './apy'
 
 export const testAddress = '93PSyNrS7zBhrXaHHfU1ZtfegcKq5SaCYc35ZwPVrK3K'
 
@@ -77,10 +82,6 @@ const KAMINO_API_BASE_URL = 'https://api.kamino.finance'
 const KAMINO_KVAULTS_LIST_URL = `${KAMINO_API_BASE_URL}/kvaults/vaults`
 const KAMINO_STRATEGIES_METRICS_URL = `${KAMINO_API_BASE_URL}/strategies/metrics?env=mainnet-beta&status=LIVE`
 const KAMINO_APY_CACHE_TTL_MS = 60 * 60 * 1000
-
-function getKaminoVaultMetricsUrl(vaultAddress: string): string {
-  return `${KAMINO_API_BASE_URL}/kvaults/vaults/${vaultAddress}/metrics`
-}
 
 interface KlendDeposit {
   depositReserve: string
@@ -244,23 +245,6 @@ function toNonEmptyString(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined
 }
 
-function toValidApyString(value: unknown): string | undefined {
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) return undefined
-    return value.toString()
-  }
-
-  if (typeof value === 'string') {
-    const trimmed = value.trim()
-    if (trimmed.length === 0) return undefined
-    const parsed = Number(trimmed)
-    if (!Number.isFinite(parsed)) return undefined
-    return trimmed
-  }
-
-  return undefined
-}
-
 function decodeHttpJsonRow(
   account: MaybeSolanaAccount | undefined,
 ): unknown | undefined {
@@ -336,51 +320,6 @@ function parseKaminoVaultCatalog(rows: unknown[]): {
   }
 
   return { farmToVault, vaultAddresses }
-}
-
-function parseKaminoVaultApyMap(
-  rowsByUrl: Map<string, unknown[]>,
-  vaultAddresses: Iterable<string>,
-): Map<string, string> {
-  const apyByVaultAddress = new Map<string, string>()
-
-  for (const vaultAddress of vaultAddresses) {
-    const row = rowsByUrl.get(getKaminoVaultMetricsUrl(vaultAddress))?.[0]
-    const metrics = toRecord(row)
-    if (!metrics) continue
-
-    const apy =
-      toValidApyString(metrics.apy) ?? toValidApyString(metrics.apyActual)
-    if (apy === undefined) continue
-
-    apyByVaultAddress.set(vaultAddress, apy)
-  }
-
-  return apyByVaultAddress
-}
-
-function parseKaminoStrategyApyMap(rows: unknown[]): Map<string, string> {
-  const apyByStrategy = new Map<string, string>()
-
-  for (const row of rows) {
-    const record = toRecord(row)
-    if (!record) continue
-
-    const strategyAddress = toNonEmptyString(record.strategy)
-    if (!strategyAddress) continue
-
-    const apyRecord = toRecord(record.apy)
-    const kaminoApyRecord = toRecord(record.kaminoApy)
-    const apy =
-      toValidApyString(toRecord(kaminoApyRecord?.vault)?.apy7d) ??
-      toValidApyString(kaminoApyRecord?.totalApy) ??
-      toValidApyString(apyRecord?.totalApy)
-    if (apy === undefined) continue
-
-    apyByStrategy.set(strategyAddress, apy)
-  }
-
-  return apyByStrategy
 }
 
 function toBigInt(value: unknown): bigint {

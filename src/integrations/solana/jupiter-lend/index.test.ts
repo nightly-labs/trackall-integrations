@@ -24,6 +24,7 @@ import {
   calculateTokenReserveAnnualRatesScaled,
   denormalizeVaultAmount,
   deriveUserLiquidityPositionPdas,
+  formatScaledRate,
   jupiterLendIntegration,
   testAddress,
 } from './index'
@@ -214,6 +215,13 @@ describe('jupiter-lend integration', () => {
   it('applies vault rate magnifiers as signed annual bps deltas', () => {
     expect(applyRateMagnifierToScale(60000000000n, 150)).toBe(75000000000n) // 0.06 + 0.015
     expect(applyRateMagnifierToScale(60000000000n, -200)).toBe(40000000000n) // 0.06 - 0.02
+  })
+
+  it('formats scaled annual rates as percentage strings', () => {
+    expect(formatScaledRate(400000000000n)).toBe('40')
+    expect(formatScaledRate(225000000000n)).toBe('22.5')
+    expect(formatScaledRate(0n)).toBe('0')
+    expect(formatScaledRate(-400000000000n)).toBe('-40')
   })
 
   it('derives earn base supply rate using with-interest value ratio', () => {
