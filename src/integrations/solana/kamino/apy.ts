@@ -14,9 +14,7 @@ function toNonEmptyString(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined
 }
 
-function parseDecimalString(
-  value: string,
-):
+function parseDecimalString(value: string):
   | {
       negative: boolean
       digits: string
@@ -115,7 +113,9 @@ export function parseKaminoVaultApyMap(
   return apyByVaultAddress
 }
 
-export function parseKaminoStrategyApyMap(rows: unknown[]): Map<string, string> {
+export function parseKaminoStrategyApyMap(
+  rows: unknown[],
+): Map<string, string> {
   const apyByStrategy = new Map<string, string>()
 
   for (const row of rows) {

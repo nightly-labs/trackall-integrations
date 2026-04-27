@@ -25,7 +25,9 @@ describe('kamino apy normalization', () => {
     expect(normalizeKaminoApyToPercentage('')).toBeUndefined()
     expect(normalizeKaminoApyToPercentage('abc')).toBeUndefined()
     expect(normalizeKaminoApyToPercentage(Number.NaN)).toBeUndefined()
-    expect(normalizeKaminoApyToPercentage(Number.POSITIVE_INFINITY)).toBeUndefined()
+    expect(
+      normalizeKaminoApyToPercentage(Number.POSITIVE_INFINITY),
+    ).toBeUndefined()
     expect(normalizeKaminoApyToPercentage(undefined)).toBeUndefined()
   })
 
