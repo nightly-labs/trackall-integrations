@@ -48,7 +48,10 @@ import type {
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
 import { ONE_MINUTE_IN_MS } from '../../../utils/solana'
 import {
+  getKaminoMarketReservesMetricsUrl,
   getKaminoVaultMetricsUrl,
+  type KaminoReserveMetrics,
+  parseKaminoMarketReserveMetrics,
   parseKaminoStrategyApyMap,
   parseKaminoVaultApyMap,
 } from './apy'
@@ -97,6 +100,7 @@ interface KlendBorrow {
 
 interface KlendObligationDecoded {
   owner: string
+  lendingMarket: string
   deposits: KlendDeposit[]
   borrows: KlendBorrow[]
   depositedValueSf: bigint
@@ -129,6 +133,7 @@ interface PublicKeyLike {
 
 interface KlendObligationWire {
   owner: PublicKeyLike
+  lendingMarket: PublicKeyLike
   deposits: Array<{
     depositReserve: string
     depositedAmount: unknown
@@ -510,6 +515,33 @@ function sumUsdValues(values: Array<string | undefined>): string | undefined {
   return total.toString()
 }
 
+function weightedSupplyApyPct(
+  legs: Array<{ usdValue: string | undefined; ratePct: string | undefined }>,
+  equityUsd: string | undefined,
+): string | undefined {
+  if (equityUsd === undefined) return undefined
+  const equity = Number(equityUsd)
+  if (!Number.isFinite(equity) || equity === 0) return undefined
+
+  let interestPctUsd = 0
+  let anyRate = false
+
+  for (const leg of legs) {
+    if (leg.usdValue === undefined || leg.ratePct === undefined) continue
+    const usd = Number(leg.usdValue)
+    const rate = Number(leg.ratePct)
+    if (!Number.isFinite(usd) || !Number.isFinite(rate)) continue
+    interestPctUsd += usd * rate
+    anyRate = true
+  }
+
+  if (!anyRate) return undefined
+
+  const apy = interestPctUsd / Math.abs(equity)
+  if (!Number.isFinite(apy)) return undefined
+  return apy.toString()
+}
+
 function decodeKlendObligation(
   accountData: Uint8Array,
 ): KlendObligationDecoded {
@@ -539,6 +571,7 @@ function decodeKlendObligation(
 
   return {
     owner: decoded.owner.toString(),
+    lendingMarket: decoded.lendingMarket.toString(),
     deposits,
     borrows,
     depositedValueSf: toBigInt(decoded.depositedValueSf),
@@ -914,6 +947,7 @@ export const kaminoIntegration: SolanaIntegration = {
     const reserveAddressSet = new Set<string>()
     const reserveByAddress = new Map<string, KlendReserveDecoded>()
     const obligationDepositReserveSet = new Set<string>()
+    const lendingMarketSet = new Set<string>()
     const farmAddressSet = new Set<string>()
     const farmStrategyAddressSet = new Set<string>()
     const farmsUserStates = new Map<string, FarmsUserStateAggregate>()
@@ -949,6 +983,9 @@ export const kaminoIntegration: SolanaIntegration = {
           }
 
           obligations.push(obligation)
+          if (obligation.lendingMarket !== DEFAULT_PUBKEY) {
+            lendingMarketSet.add(obligation.lendingMarket)
+          }
           for (const d of obligation.deposits) {
             reserveAddressSet.add(d.depositReserve)
             obligationDepositReserveSet.add(d.depositReserve)
@@ -1303,6 +1340,30 @@ export const kaminoIntegration: SolanaIntegration = {
     const farmsPositions: UserDefiPosition[] = []
     const collateralOnlySupplied: LendingSuppliedAsset[] = []
 
+    const lendingMarketAddresses = [...lendingMarketSet]
+    const reserveMetricsRequests: ProgramRequest[] = lendingMarketAddresses.map(
+      (marketAddress) => ({
+        kind: 'getHttpJson' as const,
+        url: getKaminoMarketReservesMetricsUrl(marketAddress),
+        cacheTtlMs: KAMINO_APY_CACHE_TTL_MS,
+      }),
+    )
+    const reserveMetricsMap =
+      reserveMetricsRequests.length > 0 ? yield reserveMetricsRequests : {}
+    const reserveMetricsRowsByUrl = groupHttpJsonRowsByUrl(reserveMetricsMap)
+    const reserveMetricsByAddress = new Map<string, KaminoReserveMetrics>()
+    for (const marketAddress of lendingMarketAddresses) {
+      const rows =
+        reserveMetricsRowsByUrl.get(
+          getKaminoMarketReservesMetricsUrl(marketAddress),
+        ) ?? []
+      for (const [reserveAddress, metrics] of parseKaminoMarketReserveMetrics(
+        rows,
+      ).entries()) {
+        reserveMetricsByAddress.set(reserveAddress, metrics)
+      }
+    }
+
     for (const obligation of obligations) {
       const supplied: LendingSuppliedAsset[] = []
       const borrowed: LendingBorrowedAsset[] = []
@@ -1316,6 +1377,7 @@ export const kaminoIntegration: SolanaIntegration = {
           reserve,
         )
         const token = tokens.get(reserve.liquidityMint)
+        const metrics = reserveMetricsByAddress.get(deposit.depositReserve)
 
         supplied.push({
           amount: {
@@ -1327,6 +1389,12 @@ export const kaminoIntegration: SolanaIntegration = {
           ...(token?.priceUsd !== undefined && {
             priceUsd: token.priceUsd.toString(),
           }),
+          ...(metrics?.supplyApyPct !== undefined && {
+            supplyRate: metrics.supplyApyPct,
+          }),
+          ...(metrics?.maxLtv !== undefined && {
+            collateralFactor: metrics.maxLtv,
+          }),
         })
       }
 
@@ -1336,6 +1404,7 @@ export const kaminoIntegration: SolanaIntegration = {
 
         const amountRaw = sfToLamports(debt.borrowedAmountSf)
         const token = tokens.get(reserve.liquidityMint)
+        const metrics = reserveMetricsByAddress.get(debt.borrowReserve)
 
         borrowed.push({
           amount: {
@@ -1346,6 +1415,9 @@ export const kaminoIntegration: SolanaIntegration = {
           usdValue: sfToDecimalString(debt.marketValueSf),
           ...(token?.priceUsd !== undefined && {
             priceUsd: token.priceUsd.toString(),
+          }),
+          ...(metrics?.borrowApyPct !== undefined && {
+            borrowRate: metrics.borrowApyPct,
           }),
         })
       }
@@ -1361,6 +1433,17 @@ export const kaminoIntegration: SolanaIntegration = {
         ...(supplied.length > 0 && { supplied }),
         ...(borrowed.length > 0 && { borrowed }),
         usdValue: sfToDecimalString(netValueSf),
+      }
+
+      if (borrowed.length === 0) {
+        const apy = weightedSupplyApyPct(
+          supplied.map((leg) => ({
+            usdValue: leg.usdValue,
+            ratePct: leg.supplyRate,
+          })),
+          position.usdValue,
+        )
+        if (apy !== undefined) position.apy = apy
       }
 
       if (obligation.borrowFactorAdjustedDebtValueSf > 0n) {
@@ -1393,6 +1476,7 @@ export const kaminoIntegration: SolanaIntegration = {
         reserve.liquidityDecimals,
         token?.priceUsd,
       )
+      const metrics = reserveMetricsByAddress.get(reserveAddress)
       collateralOnlySupplied.push({
         amount: {
           token: reserve.liquidityMint,
@@ -1403,6 +1487,12 @@ export const kaminoIntegration: SolanaIntegration = {
         ...(token?.priceUsd !== undefined && {
           priceUsd: token.priceUsd.toString(),
         }),
+        ...(metrics?.supplyApyPct !== undefined && {
+          supplyRate: metrics.supplyApyPct,
+        }),
+        ...(metrics?.maxLtv !== undefined && {
+          collateralFactor: metrics.maxLtv,
+        }),
       })
     }
 
@@ -1410,11 +1500,19 @@ export const kaminoIntegration: SolanaIntegration = {
       const usdValue = sumUsdValues(
         collateralOnlySupplied.map((asset) => asset.usdValue),
       )
+      const apy = weightedSupplyApyPct(
+        collateralOnlySupplied.map((leg) => ({
+          usdValue: leg.usdValue,
+          ratePct: leg.supplyRate,
+        })),
+        usdValue,
+      )
       lendingPositions.push({
         platformId: 'kamino',
         positionKind: 'lending',
         supplied: collateralOnlySupplied,
         ...(usdValue !== undefined && { usdValue }),
+        ...(apy !== undefined && { apy }),
       })
     }
 

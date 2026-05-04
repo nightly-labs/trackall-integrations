@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   getKaminoVaultMetricsUrl,
   normalizeKaminoApyToPercentage,
+  parseKaminoMarketReserveMetrics,
   parseKaminoStrategyApyMap,
   parseKaminoVaultApyMap,
 } from './apy'
@@ -83,5 +84,49 @@ describe('kamino apy normalization', () => {
     expect(apyByStrategy.get('strategy-kamino-total-fallback')).toBe('4.5')
     expect(apyByStrategy.get('strategy-apy-total-fallback')).toBe('11')
     expect(apyByStrategy.has('strategy-invalid')).toBe(false)
+  })
+
+  it('parses market reserve metrics into per-reserve APYs and LTV', () => {
+    const map = parseKaminoMarketReserveMetrics([
+      {
+        reserve: 'reserve-usdc',
+        liquidityToken: 'USDC',
+        maxLtv: '0.8',
+        supplyApy: '0.0500664844260712',
+        borrowAPY: 'ignored-wrong-case',
+        borrowApy: '0.0700664844260712',
+      },
+      {
+        reserve: 'reserve-supply-only',
+        supplyApy: '0.01',
+      },
+      {
+        reserve: 'reserve-borrow-only',
+        borrowApy: '0.02',
+        maxLtv: '0',
+      },
+      {
+        reserve: 'reserve-no-rates',
+        liquidityToken: 'XYZ',
+      },
+      {
+        reserve: '',
+        supplyApy: '0.05',
+      },
+    ])
+
+    expect(map.get('reserve-usdc')).toEqual({
+      supplyApyPct: '5.00664844260712',
+      borrowApyPct: '7.00664844260712',
+      maxLtv: '0.8',
+    })
+    expect(map.get('reserve-supply-only')).toEqual({ supplyApyPct: '1' })
+    // maxLtv "0" is non-empty, so it's preserved.
+    expect(map.get('reserve-borrow-only')).toEqual({
+      borrowApyPct: '2',
+      maxLtv: '0',
+    })
+    expect(map.has('reserve-no-rates')).toBe(false)
+    expect(map.has('')).toBe(false)
   })
 })
