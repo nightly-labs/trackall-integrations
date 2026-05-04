@@ -29,6 +29,7 @@ export interface TokenData {
 
 export type TokensMap = Map<SolanaAddress, TokenData>
 type TokenMarketData = { priceUsd: number; pctPriceChange24h?: number }
+type TokenCacheRow = { token_address: string; token_data: string }
 
 export class TokenPlugin {
   private map: TokensMap = new Map()
@@ -85,33 +86,7 @@ export class TokenPlugin {
   async load(): Promise<void> {
     this.map.clear()
 
-    let rows: Array<{ token_address: string; token_data: string }> = []
-    try {
-      rows = this.db
-        .query('SELECT token_address, token_data FROM tokens')
-        .all() as Array<{
-        token_address: string
-        token_data: string
-      }>
-    } catch {
-      // Backward compatibility for older schema name if present
-      try {
-        const legacyRows = this.db
-          .query('SELECT mint_address, data FROM tokens')
-          .all() as Array<{
-          mint_address: string
-          data: string
-        }>
-        rows = legacyRows.map((row) => ({
-          token_address: row.mint_address,
-          token_data: row.data,
-        }))
-      } catch {
-        // Table missing or unreadable — start with empty cache
-      }
-    }
-
-    for (const { token_address, token_data } of rows) {
+    for (const { token_address, token_data } of this.readCacheRows()) {
       try {
         const tokenData = JSON.parse(token_data) as TokenData
         if (tokenData?.mintAddress) {
@@ -121,6 +96,49 @@ export class TokenPlugin {
         // Invalid row payload — skip this token and continue
       }
     }
+  }
+
+  /** Refresh price fields from sqlite without discarding in-memory metadata. */
+  async refreshPricesFromCache(): Promise<number> {
+    let pricedTokenCount = 0
+
+    for (const { token_address, token_data } of this.readCacheRows()) {
+      try {
+        const cachedToken = JSON.parse(token_data) as TokenData
+        if (!cachedToken?.mintAddress) continue
+
+        const cachedPriceUsd = cachedToken.priceUsd
+        const hasValidPrice =
+          typeof cachedPriceUsd === 'number' && Number.isFinite(cachedPriceUsd)
+        if (hasValidPrice) pricedTokenCount += 1
+
+        const token = this.map.get(token_address)
+        if (token == null) {
+          this.map.set(token_address, cachedToken)
+          continue
+        }
+
+        if (hasValidPrice) {
+          token.priceUsd = cachedPriceUsd
+        } else {
+          delete token.priceUsd
+        }
+
+        const cachedPctPriceChange24h = cachedToken.pctPriceChange24h
+        if (
+          typeof cachedPctPriceChange24h === 'number' &&
+          Number.isFinite(cachedPctPriceChange24h)
+        ) {
+          token.pctPriceChange24h = cachedPctPriceChange24h
+        } else {
+          delete token.pctPriceChange24h
+        }
+      } catch {
+        // Invalid row payload — skip this token and continue
+      }
+    }
+
+    return pricedTokenCount
   }
 
   /** Persist selected token(s) from in-memory cache to sqlite. If no mint list is provided, persists current full map. */
@@ -193,5 +211,30 @@ export class TokenPlugin {
   /** Read-only view of the full in-memory map. */
   get tokens(): ReadonlyMap<SolanaAddress, TokenData> {
     return this.map
+  }
+
+  private readCacheRows(): TokenCacheRow[] {
+    try {
+      return this.db
+        .query('SELECT token_address, token_data FROM tokens')
+        .all() as TokenCacheRow[]
+    } catch {
+      // Backward compatibility for older schema name if present
+      try {
+        const legacyRows = this.db
+          .query('SELECT mint_address, data FROM tokens')
+          .all() as Array<{
+          mint_address: string
+          data: string
+        }>
+        return legacyRows.map((row) => ({
+          token_address: row.mint_address,
+          token_data: row.data,
+        }))
+      } catch {
+        // Table missing or unreadable — start with empty cache
+        return []
+      }
+    }
   }
 }

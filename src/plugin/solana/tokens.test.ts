@@ -184,5 +184,101 @@ describe('TokenPlugin', () => {
 
       closeAndDeleteDb(plugin, dbPath)
     })
+
+    it('refreshes price fields from sqlite without replacing existing metadata', async () => {
+      const dbPath = testDbPath('tokens-refresh-prices')
+      const writer = new TokenPlugin(dbPath)
+      const worker = new TokenPlugin(dbPath)
+
+      writer.set('TokenA', {
+        mintAddress: 'TokenA',
+        decimals: 6,
+        name: 'Writer Token',
+        priceUsd: 1,
+        pctPriceChange24h: 5,
+      })
+      await writer.save()
+
+      worker.set('TokenA', {
+        mintAddress: 'TokenA',
+        decimals: 6,
+        name: 'Worker Token',
+        priceUsd: 0.5,
+        pctPriceChange24h: -1,
+      })
+
+      writer.updatePrices(
+        new Map([['TokenA', { priceUsd: 2.5, pctPriceChange24h: 1.25 }]]),
+      )
+      await writer.save(['TokenA'])
+
+      const pricedTokenCount = await worker.refreshPricesFromCache()
+
+      expect(pricedTokenCount).toBe(1)
+      expect(worker.get('TokenA')).toEqual({
+        mintAddress: 'TokenA',
+        decimals: 6,
+        name: 'Worker Token',
+        priceUsd: 2.5,
+        pctPriceChange24h: 1.25,
+      })
+
+      closeTokenPluginDb(writer)
+      closeAndDeleteDb(worker, dbPath)
+    })
+
+    it('clears stale cached 24h price change when sqlite omits it', async () => {
+      const dbPath = testDbPath('tokens-refresh-clears-pct')
+      const writer = new TokenPlugin(dbPath)
+      const worker = new TokenPlugin(dbPath)
+
+      writer.set('TokenA', {
+        mintAddress: 'TokenA',
+        decimals: 6,
+        priceUsd: 3,
+      })
+      await writer.save()
+
+      worker.set('TokenA', {
+        mintAddress: 'TokenA',
+        decimals: 6,
+        priceUsd: 1,
+        pctPriceChange24h: 9,
+      })
+
+      const pricedTokenCount = await worker.refreshPricesFromCache()
+
+      expect(pricedTokenCount).toBe(1)
+      expect(worker.get('TokenA')?.priceUsd).toBe(3)
+      expect(worker.get('TokenA')?.pctPriceChange24h).toBeUndefined()
+
+      closeTokenPluginDb(writer)
+      closeAndDeleteDb(worker, dbPath)
+    })
+
+    it('loads newly cached token rows while refreshing prices', async () => {
+      const dbPath = testDbPath('tokens-refresh-loads-new')
+      const writer = new TokenPlugin(dbPath)
+      const worker = new TokenPlugin(dbPath)
+
+      const token: TokenData = {
+        mintAddress: 'TokenA',
+        decimals: 9,
+        name: 'New Token',
+        priceUsd: 4,
+        pctPriceChange24h: -0.5,
+      }
+
+      writer.set(token.mintAddress, token)
+      await writer.save()
+
+      const pricedTokenCount = await worker.refreshPricesFromCache()
+
+      expect(pricedTokenCount).toBe(1)
+      expect(worker.get(token.mintAddress)).toEqual(token)
+
+      closeTokenPluginDb(writer)
+      closeAndDeleteDb(worker, dbPath)
+    })
   })
 })
