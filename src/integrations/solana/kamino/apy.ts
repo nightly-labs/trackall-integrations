@@ -91,6 +91,52 @@ export function getKaminoVaultMetricsUrl(vaultAddress: string): string {
   return `${KAMINO_API_BASE_URL}/kvaults/vaults/${vaultAddress}/metrics`
 }
 
+export function getKaminoMarketReservesMetricsUrl(
+  marketAddress: string,
+): string {
+  return `${KAMINO_API_BASE_URL}/kamino-market/${marketAddress}/reserves/metrics`
+}
+
+export interface KaminoReserveMetrics {
+  supplyApyPct?: string
+  borrowApyPct?: string
+  maxLtv?: string
+}
+
+export function parseKaminoMarketReserveMetrics(
+  rows: unknown[],
+): Map<string, KaminoReserveMetrics> {
+  const metricsByReserve = new Map<string, KaminoReserveMetrics>()
+
+  for (const row of rows) {
+    const record = toRecord(row)
+    if (!record) continue
+
+    const reserveAddress = toNonEmptyString(record.reserve)
+    if (!reserveAddress) continue
+
+    const supplyApyPct = normalizeKaminoApyToPercentage(record.supplyApy)
+    const borrowApyPct = normalizeKaminoApyToPercentage(record.borrowApy)
+    const maxLtv = toNonEmptyString(record.maxLtv)
+
+    if (
+      supplyApyPct === undefined &&
+      borrowApyPct === undefined &&
+      maxLtv === undefined
+    ) {
+      continue
+    }
+
+    metricsByReserve.set(reserveAddress, {
+      ...(supplyApyPct !== undefined && { supplyApyPct }),
+      ...(borrowApyPct !== undefined && { borrowApyPct }),
+      ...(maxLtv !== undefined && { maxLtv }),
+    })
+  }
+
+  return metricsByReserve
+}
+
 export function parseKaminoVaultApyMap(
   rowsByUrl: Map<string, unknown[]>,
   vaultAddresses: Iterable<string>,
