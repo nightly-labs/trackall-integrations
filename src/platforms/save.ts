@@ -4,6 +4,7 @@ const savePlatform = {
   id: 'save' as const,
   networks: ['solana'],
   name: 'Save',
+  ticker: 'SAVE',
   location: {
     latitude: 37.0902,
     longitude: -95.7129,

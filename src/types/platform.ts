@@ -31,6 +31,8 @@ export interface Platform {
   networks: string[]
   /** Display name of the platform. */
   name: string
+  /** Optional platform ticker/symbol for UI display or lookup. */
+  ticker?: string
   /** Optional headquarters or project-base coordinates in decimal degrees. */
   location?: PlatformLocation
   /** Expected format: URL of the platform logo/image (https://... with image extension). */

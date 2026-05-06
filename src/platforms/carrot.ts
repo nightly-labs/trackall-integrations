@@ -4,6 +4,7 @@ const carrotPlatform = {
   id: 'carrot' as const,
   networks: ['solana'],
   name: 'Carrot',
+  ticker: 'CRT',
   location: {
     latitude: 37.0902,
     longitude: -95.7129,

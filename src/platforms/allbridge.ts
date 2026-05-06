@@ -4,6 +4,7 @@ const allbridgePlatform = {
   id: 'allbridge' as const,
   networks: ['solana'],
   name: 'Allbridge Core',
+  ticker: 'ABR0',
   location: {
     latitude: 1.3521,
     longitude: 103.8198,

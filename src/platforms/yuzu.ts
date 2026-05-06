@@ -4,6 +4,7 @@ const yuzuPlatform = {
   id: 'yuzu' as const,
   networks: ['movement'],
   name: 'Yuzu',
+  ticker: 'YUZU',
   location: {
     latitude: 37.0902,
     longitude: -95.7129,

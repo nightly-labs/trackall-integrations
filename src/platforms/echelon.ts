@@ -4,6 +4,7 @@ const echelonPlatform = {
   id: 'echelon' as const,
   networks: ['movement'],
   name: 'Echelon',
+  ticker: 'ELON',
   location: {
     latitude: 37.0902,
     longitude: -95.7129,

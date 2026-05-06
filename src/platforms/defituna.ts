@@ -4,6 +4,7 @@ const defitunaPlatform = {
   id: 'defituna' as const,
   networks: ['solana'],
   name: 'DefiTuna',
+  ticker: 'TUNA',
   location: {
     latitude: 38.9637,
     longitude: 35.2433,

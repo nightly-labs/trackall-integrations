@@ -4,6 +4,7 @@ const meteoraPlatform = {
   id: 'meteora' as const,
   networks: ['solana'],
   name: 'Meteora',
+  ticker: 'MET',
   location: {
     latitude: 1.3521,
     longitude: 103.8198,

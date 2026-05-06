@@ -4,6 +4,7 @@ const banxPlatform = {
   id: 'banx' as const,
   networks: ['solana'],
   name: 'BANX',
+  ticker: 'BANX',
   location: {
     latitude: 37.0902,
     longitude: -95.7129,

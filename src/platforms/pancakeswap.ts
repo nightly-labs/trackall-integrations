@@ -4,6 +4,7 @@ const pancakeswapPlatform = {
   id: 'pancakeswap' as const,
   networks: ['solana'],
   name: 'PancakeSwap',
+  ticker: 'CAKE',
   location: {
     latitude: 35.8617,
     longitude: 104.1954,

@@ -4,6 +4,7 @@ const divvyPlatform = {
   id: 'divvy' as const,
   networks: ['solana'],
   name: 'Divvy',
+  ticker: 'DVY',
   location: {
     latitude: 9.7489,
     longitude: -83.7534,
