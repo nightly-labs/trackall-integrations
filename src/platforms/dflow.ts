@@ -11,6 +11,7 @@ const dflowPlatform = {
   image: 'https://dflow.net/favicon/favicon.svg',
   description: 'DFlow prediction market outcome token positions on Solana',
   tags: ['defi'],
+  defiLlamaId: 'dflow',
   links: {
     website: 'https://dflow.net/prediction',
     documentation: 'https://pond.dflow.net/introduction',

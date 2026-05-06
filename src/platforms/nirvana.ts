@@ -12,6 +12,7 @@ const nirvanaPlatform = {
   image: 'https://app.nirvana.finance/favicon.png',
   description: 'ANA staking and prANA rewards on Solana',
   tags: ['staking', 'governance'],
+  defiLlamaId: 'nirvana',
   links: {
     website: 'https://app.nirvana.finance',
   },

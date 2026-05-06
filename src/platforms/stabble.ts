@@ -14,6 +14,7 @@ const stabblePlatform = {
   description:
     'Stabble weighted and composable stable liquidity pools on Solana',
   tags: ['dex', 'defi'],
+  defiLlamaId: 'stabble',
   links: {
     website: 'https://app.stabble.org/',
     documentation: 'https://docs.stabble.org/',
