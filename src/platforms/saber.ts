@@ -4,6 +4,7 @@ const saberPlatform = {
   id: 'saber' as const,
   networks: ['solana'],
   name: 'Saber',
+  ticker: 'SBR',
   location: {
     latitude: 37.0902,
     longitude: -95.7129,

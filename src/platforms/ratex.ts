@@ -4,6 +4,7 @@ const ratexPlatform = {
   id: 'ratex' as const,
   networks: ['solana'],
   name: 'Rate-X',
+  ticker: 'RTX',
   location: {
     latitude: 55.3781,
     longitude: -3.436,

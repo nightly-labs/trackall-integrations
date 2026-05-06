@@ -4,6 +4,7 @@ const orcaPlatform = {
   id: 'orca' as const,
   networks: ['solana'],
   name: 'Orca',
+  ticker: 'ORCA',
   location: {
     latitude: 36.2048,
     longitude: 138.2529,

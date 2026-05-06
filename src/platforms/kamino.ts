@@ -4,6 +4,7 @@ const kaminoPlatform = {
   id: 'kamino' as const,
   networks: ['solana'],
   name: 'Kamino',
+  ticker: 'KMNO',
   location: {
     latitude: 37.0902,
     longitude: -95.7129,

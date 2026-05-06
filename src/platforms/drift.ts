@@ -4,6 +4,7 @@ const driftPlatform = {
   id: 'drift' as const,
   networks: ['solana'],
   name: 'Drift',
+  ticker: 'DRIFT',
   location: {
     latitude: 1.3521,
     longitude: 103.8198,

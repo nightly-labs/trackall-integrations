@@ -4,6 +4,7 @@ const raydiumPlatform = {
   id: 'raydium' as const,
   networks: ['solana'],
   name: 'Raydium',
+  ticker: 'RAY',
   location: {
     latitude: 1.3521,
     longitude: 103.8198,

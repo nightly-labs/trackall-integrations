@@ -4,6 +4,7 @@ const stabblePlatform = {
   id: 'stabble' as const,
   networks: ['solana'],
   name: 'Stabble',
+  ticker: 'STB',
   location: {
     latitude: 23.4241,
     longitude: 53.8478,

@@ -4,6 +4,7 @@ const snsPlatform = {
   id: 'sns' as const,
   networks: ['solana'],
   name: 'SNS',
+  ticker: 'SNS',
   location: {
     latitude: 1.3521,
     longitude: 103.8198,

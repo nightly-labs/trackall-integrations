@@ -4,6 +4,7 @@ const pythStakingPlatform = {
   id: 'pyth-staking' as const,
   networks: ['solana'],
   name: 'Pyth Staking',
+  ticker: 'PYTH',
   location: {
     latitude: 46.8182,
     longitude: 8.2275,

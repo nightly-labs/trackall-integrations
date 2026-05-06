@@ -4,6 +4,7 @@ const jupiterDaoPlatform = {
   id: 'jupiter-dao' as const,
   networks: ['solana'],
   name: 'Jupiter DAO',
+  ticker: 'JUP',
   location: {
     latitude: 1.3521,
     longitude: 103.8198,

@@ -4,6 +4,7 @@ const metadaoPlatform = {
   id: 'metadao' as const,
   networks: ['solana'],
   name: 'MetaDAO',
+  ticker: 'META',
   location: {
     latitude: 37.0902,
     longitude: -95.7129,

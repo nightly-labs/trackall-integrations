@@ -4,6 +4,7 @@ const omnipairPlatform = {
   id: 'omnipair' as const,
   networks: ['solana'],
   name: 'Omnipair',
+  ticker: 'OMFG',
   location: {
     latitude: 23.4241,
     longitude: 53.8478,

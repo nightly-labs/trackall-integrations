@@ -4,6 +4,7 @@ const flashtradePlatform = {
   id: 'flashtrade' as const,
   networks: ['solana'],
   name: 'Flash Trade',
+  ticker: 'FAF',
   location: {
     latitude: 1.3521,
     longitude: 103.8198,

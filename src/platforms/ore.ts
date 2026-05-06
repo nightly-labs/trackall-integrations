@@ -4,6 +4,7 @@ const orePlatform = {
   id: 'ore' as const,
   networks: ['solana'],
   name: 'ORE',
+  ticker: 'ORE',
   location: {
     latitude: 37.0902,
     longitude: -95.7129,
