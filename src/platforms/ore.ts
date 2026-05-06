@@ -15,7 +15,7 @@ const orePlatform = {
   links: {
     website: 'https://ore.fyi',
   },
-  defiLlamaId: 'ore',
+  defiLlamaId: 'ore-protocol',
 } satisfies Platform
 
 export default orePlatform

@@ -13,6 +13,7 @@ const metadaoPlatform = {
   description:
     'MetaDAO launchpad commitments and claimable allocations on Solana',
   tags: ['defi', 'governance', 'staking'],
+  defiLlamaId: 'metadao',
   links: {
     website: 'https://www.metadao.fi',
     documentation: 'https://docs.metadao.fi',

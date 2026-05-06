@@ -11,6 +11,7 @@ const wasabiPlatform = {
   image: 'https://app.wasabi.xyz/static/favicon/favicon.svg',
   description: 'Wasabi leveraged trading positions on Solana',
   tags: ['dex', 'defi'],
+  defiLlamaId: 'wasabi',
   links: {
     website: 'https://app.wasabi.xyz/',
     documentation: 'https://docs.wasabi.xyz/',
