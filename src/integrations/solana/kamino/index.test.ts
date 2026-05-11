@@ -6,7 +6,7 @@ import {
   fetchAccountsBatch,
   fetchProgramAccountsBatch,
 } from '../../../utils/solana'
-import { kaminoIntegration } from './index'
+import { getKaminoLendingUsdValue, kaminoIntegration } from './index'
 
 const solanaRpcUrl =
   process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
@@ -21,6 +21,50 @@ if (!getUserPositions) throw new Error('getUserPositions not implemented')
 function isNumericString(value: string): boolean {
   return Number.isFinite(Number(value))
 }
+
+const SF_DENOMINATOR = 1n << 60n
+
+function usdToSf(value: bigint, decimals: bigint): bigint {
+  return (value * SF_DENOMINATOR) / decimals
+}
+
+describe('kamino lending valuation', () => {
+  it('prefers token price over stale obligation market value', () => {
+    const staleMarketValueSf = usdToSf(179026537794n, 1000000n)
+
+    expect(
+      getKaminoLendingUsdValue(1298927n, 9, 138.46, staleMarketValueSf, true),
+    ).toBe('0.17984943242')
+  })
+
+  it('omits stale obligation market value when token price is unavailable', () => {
+    const staleMarketValueSf = usdToSf(179026537794n, 1000000n)
+
+    expect(
+      getKaminoLendingUsdValue(
+        1298927n,
+        9,
+        undefined,
+        staleMarketValueSf,
+        true,
+      ),
+    ).toBeUndefined()
+  })
+
+  it('falls back to fresh obligation market value when token price is unavailable', () => {
+    const freshMarketValueSf = 179026n * SF_DENOMINATOR
+
+    expect(
+      getKaminoLendingUsdValue(
+        1298927n,
+        9,
+        undefined,
+        freshMarketValueSf,
+        false,
+      ),
+    ).toBe('179026')
+  })
+})
 
 describe('kamino integration', () => {
   it('fetches KLend and KVault positions', async () => {
