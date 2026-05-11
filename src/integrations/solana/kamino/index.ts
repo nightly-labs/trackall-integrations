@@ -103,6 +103,7 @@ interface KlendObligationDecoded {
   lendingMarket: string
   deposits: KlendDeposit[]
   borrows: KlendBorrow[]
+  isStale: boolean
   depositedValueSf: bigint
   borrowedAssetsMarketValueSf: bigint
   allowedBorrowValueSf: bigint
@@ -134,6 +135,9 @@ interface PublicKeyLike {
 interface KlendObligationWire {
   owner: PublicKeyLike
   lendingMarket: PublicKeyLike
+  lastUpdate: {
+    stale: unknown
+  }
   deposits: Array<{
     depositReserve: string
     depositedAmount: unknown
@@ -515,6 +519,44 @@ function sumUsdValues(values: Array<string | undefined>): string | undefined {
   return total.toString()
 }
 
+function netUsdValueFromCompleteComponents(
+  supplied: LendingSuppliedAsset[],
+  borrowed: LendingBorrowedAsset[],
+): string | undefined {
+  const assets = [...supplied, ...borrowed]
+  if (
+    assets.length === 0 ||
+    assets.some((asset) => asset.usdValue === undefined)
+  ) {
+    return undefined
+  }
+
+  const suppliedTotal = supplied.reduce(
+    (sum, asset) => sum + Number(asset.usdValue),
+    0,
+  )
+  const borrowedTotal = borrowed.reduce(
+    (sum, asset) => sum + Number(asset.usdValue),
+    0,
+  )
+  const total = suppliedTotal - borrowedTotal
+  if (!Number.isFinite(total)) return undefined
+  return total.toString()
+}
+
+export function getKaminoLendingUsdValue(
+  amountRaw: bigint,
+  decimals: number,
+  priceUsd: number | undefined,
+  marketValueSf: bigint,
+  isObligationStale: boolean,
+): string | undefined {
+  const pricedValue = buildUsdValue(amountRaw, decimals, priceUsd)
+  if (pricedValue !== undefined) return pricedValue
+  if (isObligationStale) return undefined
+  return sfToDecimalString(marketValueSf)
+}
+
 function weightedSupplyApyPct(
   legs: Array<{ usdValue: string | undefined; ratePct: string | undefined }>,
   equityUsd: string | undefined,
@@ -574,6 +616,7 @@ function decodeKlendObligation(
     lendingMarket: decoded.lendingMarket.toString(),
     deposits,
     borrows,
+    isStale: toNumber(decoded.lastUpdate.stale) !== 0,
     depositedValueSf: toBigInt(decoded.depositedValueSf),
     borrowedAssetsMarketValueSf: toBigInt(decoded.borrowedAssetsMarketValueSf),
     allowedBorrowValueSf: toBigInt(decoded.allowedBorrowValueSf),
@@ -1378,6 +1421,13 @@ export const kaminoIntegration: SolanaIntegration = {
         )
         const token = tokens.get(reserve.liquidityMint)
         const metrics = reserveMetricsByAddress.get(deposit.depositReserve)
+        const usdValue = getKaminoLendingUsdValue(
+          amountRaw,
+          reserve.liquidityDecimals,
+          token?.priceUsd,
+          deposit.marketValueSf,
+          obligation.isStale,
+        )
 
         supplied.push({
           amount: {
@@ -1385,7 +1435,7 @@ export const kaminoIntegration: SolanaIntegration = {
             amount: amountRaw.toString(),
             decimals: reserve.liquidityDecimals.toString(),
           },
-          usdValue: sfToDecimalString(deposit.marketValueSf),
+          ...(usdValue !== undefined && { usdValue }),
           ...(token?.priceUsd !== undefined && {
             priceUsd: token.priceUsd.toString(),
           }),
@@ -1405,6 +1455,13 @@ export const kaminoIntegration: SolanaIntegration = {
         const amountRaw = sfToLamports(debt.borrowedAmountSf)
         const token = tokens.get(reserve.liquidityMint)
         const metrics = reserveMetricsByAddress.get(debt.borrowReserve)
+        const usdValue = getKaminoLendingUsdValue(
+          amountRaw,
+          reserve.liquidityDecimals,
+          token?.priceUsd,
+          debt.marketValueSf,
+          obligation.isStale,
+        )
 
         borrowed.push({
           amount: {
@@ -1412,7 +1469,7 @@ export const kaminoIntegration: SolanaIntegration = {
             amount: amountRaw.toString(),
             decimals: reserve.liquidityDecimals.toString(),
           },
-          usdValue: sfToDecimalString(debt.marketValueSf),
+          ...(usdValue !== undefined && { usdValue }),
           ...(token?.priceUsd !== undefined && {
             priceUsd: token.priceUsd.toString(),
           }),
@@ -1424,15 +1481,14 @@ export const kaminoIntegration: SolanaIntegration = {
 
       if (supplied.length === 0 && borrowed.length === 0) continue
 
-      const netValueSf =
-        obligation.depositedValueSf - obligation.borrowedAssetsMarketValueSf
+      const usdValue = netUsdValueFromCompleteComponents(supplied, borrowed)
 
       const position: LendingDefiPosition = {
         platformId: 'kamino',
         positionKind: 'lending',
         ...(supplied.length > 0 && { supplied }),
         ...(borrowed.length > 0 && { borrowed }),
-        usdValue: sfToDecimalString(netValueSf),
+        ...(usdValue !== undefined && { usdValue }),
       }
 
       if (borrowed.length === 0) {
