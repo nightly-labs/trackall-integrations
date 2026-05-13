@@ -11,7 +11,7 @@ import type {
   UsersFilterSource,
 } from '../../../types/index'
 import { applyPositionsPctUsdValueChange24 } from '../../../utils/positionChange'
-import { ONE_MINUTE_IN_MS } from '../../../utils/solana'
+import { ONE_HOUR_IN_MS, ONE_MINUTE_IN_MS } from '../../../utils/solana'
 
 const SAVE_PROGRAM_ID = 'So1endDq2YkqhipRh3WViPa8hdiSpxWy6z3Z6tMCpAo'
 const DEFAULT_PUBLIC_KEY = '11111111111111111111111111111111'
@@ -359,6 +359,7 @@ export const saveIntegration: SolanaIntegration = {
     const reservesMap = yield {
       kind: 'getProgramAccounts' as const,
       programId: SAVE_PROGRAM_ID,
+      cacheTtlMs: ONE_HOUR_IN_MS,
       filters: [{ dataSize: RESERVE_ACCOUNT_SIZE }],
     }
 

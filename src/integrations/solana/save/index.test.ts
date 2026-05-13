@@ -10,6 +10,7 @@ import { runIntegrations, TokenPlugin } from '../../../types/index'
 import {
   fetchAccountsBatch,
   fetchProgramAccountsBatch,
+  ONE_HOUR_IN_MS,
   ONE_MINUTE_IN_MS,
 } from '../../../utils/solana'
 import { saveIntegration, testAddress } from './index'
@@ -184,6 +185,7 @@ describe('save integration', () => {
             'dataSize' in filter && filter.dataSize === RESERVE_ACCOUNT_SIZE,
         )
         if (!isReserveDiscovery) return {}
+        expect(request.cacheTtlMs).toBe(ONE_HOUR_IN_MS)
 
         return {
           [reserveAddress]: {
