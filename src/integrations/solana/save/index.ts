@@ -25,6 +25,7 @@ const OBLIGATION_BORROWS_LEN_OFFSET = 203
 const OBLIGATION_ITEMS_OFFSET = 204
 const OBLIGATION_DEPOSIT_SIZE = 88
 const OBLIGATION_BORROW_SIZE = 112
+const OBLIGATION_ACCOUNT_SIZE = 1300
 const OBLIGATION_DEPOSIT_RESERVE_OFFSET = 0
 const OBLIGATION_DEPOSIT_AMOUNT_OFFSET = 32
 const OBLIGATION_BORROW_RESERVE_OFFSET = 0
@@ -310,6 +311,7 @@ export const saveIntegration: SolanaIntegration = {
         kind: 'getProgramAccounts' as const,
         programId: SAVE_PROGRAM_ID,
         filters: [
+          { dataSize: OBLIGATION_ACCOUNT_SIZE },
           { memcmp: { offset: OBLIGATION_OWNER_OFFSET, bytes: walletAddress } },
         ],
       },

@@ -110,7 +110,7 @@ describe('save integration', () => {
       throw new Error('Expected Save obligation owner discovery request')
     }
 
-    expect(ownerDiscovery.filters.some((f) => 'dataSize' in f)).toBe(false)
+    expect(ownerDiscovery.filters.some((f) => 'dataSize' in f)).toBe(true)
 
     const tokenRequests = requests.filter(
       (request) => request.kind === 'getTokenAccountsByOwner',
