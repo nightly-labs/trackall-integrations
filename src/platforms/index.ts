@@ -15,6 +15,7 @@ import glowPlatform from './glow'
 import gmtradePlatform from './gmtrade'
 import iloopPlatform from './iloop'
 import jupiterLendPlatform from './jupiter'
+import jupiterPredictionPlatform from './jupiter-prediction'
 import jupiterDaoPlatform from './jupiter-dao'
 import kaminoPlatform from './kamino'
 import loopscalePlatform from './loopscale'
@@ -66,6 +67,7 @@ export const platforms = [
   meteoraPlatform,
   jupiterDaoPlatform,
   jupiterLendPlatform,
+  jupiterPredictionPlatform,
   kaminoPlatform,
   loopscalePlatform,
   luloPlatform,

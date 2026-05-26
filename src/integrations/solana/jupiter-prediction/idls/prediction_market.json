@@ -1,0 +1,2949 @@
+{
+  "address": "J3qzHStJn1gFgU1aaauK2UTYLZ2DeTPVLYK9JiMziWEE",
+  "metadata": {
+    "name": "prediction_market",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "claim_payout",
+      "discriminator": [
+        127,
+        240,
+        132,
+        62,
+        227,
+        198,
+        146,
+        133
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.settlement_mint",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true
+        },
+        {
+          "name": "market_result",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116,
+                  95,
+                  114,
+                  101,
+                  115,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "position.market_id",
+                "account": "Position"
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner_token_account",
+          "writable": true
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.settlement_mint",
+                "account": "Vault"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "close_order",
+      "discriminator": [
+        90,
+        103,
+        209,
+        28,
+        7,
+        63,
+        168,
+        4
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "relations": [
+            "order",
+            "position"
+          ]
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "settlement_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "order",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "account",
+                "path": "order.external_order_id",
+                "account": "Order"
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "relations": [
+            "order"
+          ]
+        },
+        {
+          "name": "order_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "order"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "settlement_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "owner_token_account",
+          "docs": [
+            "TokenAccount, keeper will create it in the instruction before (alternative)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "settlement_mint"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_market_result",
+      "discriminator": [
+        51,
+        39,
+        218,
+        9,
+        68,
+        94,
+        136,
+        115
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "address": "91adjq3kL88LPkRc5rXfH1GmRqYcBvrwMQDXN5MnVXN2"
+        },
+        {
+          "name": "market_result",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116,
+                  95,
+                  114,
+                  101,
+                  115,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "params.market_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "CreateMarketResultParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "create_order",
+      "discriminator": [
+        141,
+        54,
+        37,
+        207,
+        237,
+        210,
+        250,
+        215
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "settlement_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true
+        },
+        {
+          "name": "order",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "arg",
+                "path": "params.external_order_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner_token_account",
+          "writable": true
+        },
+        {
+          "name": "settlement_mint"
+        },
+        {
+          "name": "order_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "order"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "settlement_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "CreateOrderParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "fill_buy_order",
+      "discriminator": [
+        179,
+        201,
+        221,
+        22,
+        91,
+        16,
+        208,
+        4
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "owner",
+          "writable": true,
+          "relations": [
+            "position",
+            "order"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.settlement_mint",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "relations": [
+            "order"
+          ]
+        },
+        {
+          "name": "order",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "account",
+                "path": "order.external_order_id",
+                "account": "Order"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.settlement_mint",
+                "account": "Vault"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "order_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "order"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.settlement_mint",
+                "account": "Vault"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "FillBuyOrderParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "fill_sell_order",
+      "discriminator": [
+        251,
+        169,
+        25,
+        71,
+        13,
+        120,
+        20,
+        126
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "owner",
+          "writable": true,
+          "relations": [
+            "position",
+            "order"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.settlement_mint",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "relations": [
+            "order"
+          ]
+        },
+        {
+          "name": "order",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "account",
+                "path": "order.external_order_id",
+                "account": "Order"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.settlement_mint",
+                "account": "Vault"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "order_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "order"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.settlement_mint",
+                "account": "Vault"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "FillSellOrderParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "initialize_vault",
+      "discriminator": [
+        48,
+        191,
+        163,
+        44,
+        71,
+        129,
+        63,
+        164
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "address": "91adjq3kL88LPkRc5rXfH1GmRqYcBvrwMQDXN5MnVXN2"
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "settlement_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "settlement_mint"
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "settlement_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "set_vault_config",
+      "discriminator": [
+        65,
+        5,
+        248,
+        136,
+        48,
+        58,
+        235,
+        231
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "address": "91adjq3kL88LPkRc5rXfH1GmRqYcBvrwMQDXN5MnVXN2"
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.settlement_mint",
+                "account": "Vault"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "global_max_contracts",
+          "type": "u64"
+        },
+        {
+          "name": "position_max_contracts",
+          "type": "u64"
+        },
+        {
+          "name": "position_max_orders",
+          "type": "u32"
+        },
+        {
+          "name": "protocol_fee_bps",
+          "type": "u16"
+        },
+        {
+          "name": "settlement_delay_seconds",
+          "type": "u64"
+        },
+        {
+          "name": "deposits_disabled",
+          "type": "bool"
+        },
+        {
+          "name": "withdrawals_disabled",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "update_market_result",
+      "discriminator": [
+        98,
+        196,
+        33,
+        22,
+        90,
+        8,
+        47,
+        71
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "address": "91adjq3kL88LPkRc5rXfH1GmRqYcBvrwMQDXN5MnVXN2"
+        },
+        {
+          "name": "market_result",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116,
+                  95,
+                  114,
+                  101,
+                  115,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market_result.market_id",
+                "account": "MarketResult"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "UpdateMarketResultParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "withdraw",
+      "discriminator": [
+        183,
+        18,
+        70,
+        156,
+        148,
+        109,
+        161,
+        34
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.settlement_mint",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "destination_token_account",
+          "writable": true
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "MarketResult",
+      "discriminator": [
+        228,
+        116,
+        192,
+        234,
+        125,
+        54,
+        69,
+        142
+      ]
+    },
+    {
+      "name": "Order",
+      "discriminator": [
+        134,
+        173,
+        223,
+        185,
+        77,
+        86,
+        28,
+        51
+      ]
+    },
+    {
+      "name": "Position",
+      "discriminator": [
+        170,
+        188,
+        143,
+        228,
+        122,
+        64,
+        247,
+        208
+      ]
+    },
+    {
+      "name": "Vault",
+      "discriminator": [
+        211,
+        8,
+        232,
+        43,
+        2,
+        152,
+        117,
+        119
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "OrderClosed",
+      "discriminator": [
+        237,
+        77,
+        101,
+        123,
+        72,
+        43,
+        149,
+        123
+      ]
+    },
+    {
+      "name": "OrderCreated",
+      "discriminator": [
+        224,
+        1,
+        229,
+        63,
+        254,
+        60,
+        190,
+        159
+      ]
+    },
+    {
+      "name": "OrderFailed",
+      "discriminator": [
+        60,
+        179,
+        157,
+        0,
+        164,
+        131,
+        38,
+        236
+      ]
+    },
+    {
+      "name": "OrderFilled",
+      "discriminator": [
+        120,
+        124,
+        109,
+        66,
+        249,
+        116,
+        174,
+        30
+      ]
+    },
+    {
+      "name": "PayoutClaimed",
+      "discriminator": [
+        200,
+        39,
+        105,
+        112,
+        116,
+        63,
+        58,
+        149
+      ]
+    },
+    {
+      "name": "PositionUpdated",
+      "discriminator": [
+        208,
+        212,
+        54,
+        188,
+        246,
+        71,
+        235,
+        88
+      ]
+    },
+    {
+      "name": "VaultConfigUpdated",
+      "discriminator": [
+        72,
+        22,
+        37,
+        111,
+        58,
+        30,
+        160,
+        212
+      ]
+    },
+    {
+      "name": "VaultDeposit",
+      "discriminator": [
+        4,
+        248,
+        234,
+        163,
+        99,
+        238,
+        140,
+        45
+      ]
+    },
+    {
+      "name": "VaultInitialized",
+      "discriminator": [
+        180,
+        43,
+        207,
+        2,
+        18,
+        71,
+        3,
+        75
+      ]
+    },
+    {
+      "name": "VaultWithdrawal",
+      "discriminator": [
+        168,
+        109,
+        95,
+        252,
+        76,
+        240,
+        237,
+        56
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidAdmin",
+      "msg": "Invalid admin"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidKeeper",
+      "msg": "Invalid keeper"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidMint",
+      "msg": "Invalid mint"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidVaultConfig",
+      "msg": "Invalid vault config"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidDefaults",
+      "msg": "Invalid defaults"
+    },
+    {
+      "code": 6005,
+      "name": "DepositsDisabled",
+      "msg": "Deposits disabled"
+    },
+    {
+      "code": 6006,
+      "name": "WithdrawalsDisabled",
+      "msg": "Withdrawals disabled"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidMaxContracts",
+      "msg": "Invalid max contracts"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidMaxOpenOrders",
+      "msg": "Invalid max open orders"
+    },
+    {
+      "code": 6009,
+      "name": "InvalidFee",
+      "msg": "Invalid fee"
+    },
+    {
+      "code": 6010,
+      "name": "ContractsBelowMinimum",
+      "msg": "Contracts below minimum"
+    },
+    {
+      "code": 6011,
+      "name": "EventCreationDisabled",
+      "msg": "Event creation disabled"
+    },
+    {
+      "code": 6012,
+      "name": "MarketCreationDisabled",
+      "msg": "Market creation disabled"
+    },
+    {
+      "code": 6013,
+      "name": "MaxEventsExceeded",
+      "msg": "Max events exceeded"
+    },
+    {
+      "code": 6014,
+      "name": "MathOverflow",
+      "msg": "Math overflow"
+    },
+    {
+      "code": 6015,
+      "name": "InvalidExpiryTime",
+      "msg": "Invalid expiry time"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidEventUpdate",
+      "msg": "Invalid event update - event is finalized or immutable"
+    },
+    {
+      "code": 6017,
+      "name": "EventAlreadyExists",
+      "msg": "Event already exists"
+    },
+    {
+      "code": 6018,
+      "name": "InvalidSettlementTime",
+      "msg": "Invalid settlement time"
+    },
+    {
+      "code": 6019,
+      "name": "InvalidOpenTime",
+      "msg": "Invalid open time"
+    },
+    {
+      "code": 6020,
+      "name": "InvalidCloseTime",
+      "msg": "Invalid close time"
+    },
+    {
+      "code": 6021,
+      "name": "InvalidEvent",
+      "msg": "Invalid event"
+    },
+    {
+      "code": 6022,
+      "name": "MarketAlreadySettled",
+      "msg": "Market already settled"
+    },
+    {
+      "code": 6023,
+      "name": "MarketNotClosed",
+      "msg": "Market not closed"
+    },
+    {
+      "code": 6024,
+      "name": "MarketNotOpen",
+      "msg": "Market not open"
+    },
+    {
+      "code": 6025,
+      "name": "MarketNotSettled",
+      "msg": "Market not settled"
+    },
+    {
+      "code": 6026,
+      "name": "InvalidStatusTransition",
+      "msg": "Invalid status transition"
+    },
+    {
+      "code": 6027,
+      "name": "ExceedsGlobalLimit",
+      "msg": "Exceeds global limit"
+    },
+    {
+      "code": 6028,
+      "name": "InvalidMarketStatus",
+      "msg": "Invalid market status"
+    },
+    {
+      "code": 6029,
+      "name": "EventAlreadyExpired",
+      "msg": "Event already expired"
+    },
+    {
+      "code": 6030,
+      "name": "EventAlreadyResolved",
+      "msg": "Event already resolved"
+    },
+    {
+      "code": 6031,
+      "name": "EventAlreadyCancelled",
+      "msg": "Event already cancelled"
+    },
+    {
+      "code": 6032,
+      "name": "InvalidArgument",
+      "msg": "Invalid argument"
+    },
+    {
+      "code": 6033,
+      "name": "InvalidPosition",
+      "msg": "Invalid argument"
+    },
+    {
+      "code": 6034,
+      "name": "TooManyOpenOrders",
+      "msg": "Too many open orders"
+    },
+    {
+      "code": 6035,
+      "name": "InvalidTokenAccount",
+      "msg": "Invalid token account owner"
+    },
+    {
+      "code": 6036,
+      "name": "InvalidPositionOwner",
+      "msg": "Position owner mismatch"
+    },
+    {
+      "code": 6037,
+      "name": "InvalidDepositAmount",
+      "msg": "Invalid deposit amount"
+    },
+    {
+      "code": 6038,
+      "name": "InsufficientFunds",
+      "msg": "Insufficient funds"
+    },
+    {
+      "code": 6039,
+      "name": "DepositNotAllowedForSells",
+      "msg": "Deposit not allowed for sell orders"
+    },
+    {
+      "code": 6040,
+      "name": "DepositBelowMinimum",
+      "msg": "Deposit amount must be at least $1"
+    },
+    {
+      "code": 6041,
+      "name": "InsufficientContracts",
+      "msg": "Insufficient contracts"
+    },
+    {
+      "code": 6042,
+      "name": "PositionMaxContractsExceeded",
+      "msg": "Position max contracts limit exceeded"
+    },
+    {
+      "code": 6043,
+      "name": "GlobalMaxContractsExceeded",
+      "msg": "Global max contracts limit exceeded"
+    },
+    {
+      "code": 6044,
+      "name": "InvalidOwner",
+      "msg": "Invalid owner"
+    },
+    {
+      "code": 6045,
+      "name": "InvalidFill",
+      "msg": "Invalid fill data - contracts or price is zero"
+    },
+    {
+      "code": 6046,
+      "name": "InvalidFillPrice",
+      "msg": "Invalid fill price"
+    },
+    {
+      "code": 6047,
+      "name": "MarketStillOpen",
+      "msg": "Market still open (before close time)"
+    },
+    {
+      "code": 6048,
+      "name": "InvalidOrder",
+      "msg": "Invalid order"
+    },
+    {
+      "code": 6049,
+      "name": "MissingFillData",
+      "msg": "Missing fill data"
+    },
+    {
+      "code": 6050,
+      "name": "PartialFillNotAllowed",
+      "msg": "Partial fills not allowed (FOK orders only)"
+    },
+    {
+      "code": 6051,
+      "name": "FillPriceExceedsLimit",
+      "msg": "Fill price exceeds user's limit"
+    },
+    {
+      "code": 6052,
+      "name": "InsufficientVaultFunds",
+      "msg": "Insufficient vault funds"
+    },
+    {
+      "code": 6053,
+      "name": "OrderNotFailed",
+      "msg": "Order is not failed"
+    },
+    {
+      "code": 6054,
+      "name": "MarketNotResolved",
+      "msg": "Market not resolved"
+    },
+    {
+      "code": 6055,
+      "name": "PayoutAlreadyClaimed",
+      "msg": "Payout already claimed"
+    },
+    {
+      "code": 6056,
+      "name": "InsufficientVaultBalance",
+      "msg": "Insufficient vault balance"
+    },
+    {
+      "code": 6057,
+      "name": "SettlementDelayNotPassed",
+      "msg": "Settlement delay not passed"
+    },
+    {
+      "code": 6058,
+      "name": "ClaimsNotEnabled",
+      "msg": "Claims not enabled"
+    },
+    {
+      "code": 6059,
+      "name": "InvalidMarketResult",
+      "msg": "Invalid market result"
+    },
+    {
+      "code": 6060,
+      "name": "PositionOpenedAfterSettlement",
+      "msg": "Position opened after settlement time"
+    }
+  ],
+  "types": [
+    {
+      "name": "CreateMarketResultParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "is_yes",
+            "type": "bool"
+          },
+          {
+            "name": "settlement_time",
+            "type": "i64"
+          },
+          {
+            "name": "claims_enabled",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CreateOrderParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "external_order_id",
+            "type": "string"
+          },
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "is_yes",
+            "type": "bool"
+          },
+          {
+            "name": "is_buy",
+            "type": "bool"
+          },
+          {
+            "name": "contracts",
+            "type": "u64"
+          },
+          {
+            "name": "max_fill_price_usd",
+            "type": "u64"
+          },
+          {
+            "name": "deposit_amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FillBuyOrderParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "filled_contracts",
+            "type": "u64"
+          },
+          {
+            "name": "total_cost_usd",
+            "type": "u64"
+          },
+          {
+            "name": "venue_fee_usd",
+            "type": "u64"
+          },
+          {
+            "name": "order_id",
+            "type": {
+              "option": "string"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "FillSellOrderParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "filled_contracts",
+            "type": "u64"
+          },
+          {
+            "name": "net_proceeds_usd",
+            "type": "u64"
+          },
+          {
+            "name": "venue_fee_usd",
+            "type": "u64"
+          },
+          {
+            "name": "order_id",
+            "type": {
+              "option": "string"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketResult",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "is_yes",
+            "type": "bool"
+          },
+          {
+            "name": "settlement_time",
+            "docs": [
+              "Unix timestamp after which claims are permitted"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "claims_enabled",
+            "docs": [
+              "Whether claims are currently enabled for this market"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Order",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "position",
+            "type": "pubkey"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "OrderStatus"
+              }
+            }
+          },
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "is_yes",
+            "type": "bool"
+          },
+          {
+            "name": "is_buy",
+            "type": "bool"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "contracts",
+            "type": "u64"
+          },
+          {
+            "name": "max_fill_price_usd",
+            "type": "u64"
+          },
+          {
+            "name": "filled_at",
+            "type": "i64"
+          },
+          {
+            "name": "filled_contracts",
+            "type": "u64"
+          },
+          {
+            "name": "avg_fill_price_usd",
+            "type": "u64"
+          },
+          {
+            "name": "order_id",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "external_order_id",
+            "type": "string"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderClosed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          },
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "external_order_id",
+            "type": "string"
+          },
+          {
+            "name": "order_id",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "OrderStatus"
+              }
+            }
+          },
+          {
+            "name": "is_buy",
+            "type": "bool"
+          },
+          {
+            "name": "is_yes",
+            "type": "bool"
+          },
+          {
+            "name": "contracts",
+            "type": "u64"
+          },
+          {
+            "name": "max_fill_price_usd",
+            "type": "u64"
+          },
+          {
+            "name": "transfer_amount_token",
+            "type": "u64"
+          },
+          {
+            "name": "closed_by",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          },
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "order_id",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "external_order_id",
+            "type": "string"
+          },
+          {
+            "name": "is_yes",
+            "type": "bool"
+          },
+          {
+            "name": "is_buy",
+            "type": "bool"
+          },
+          {
+            "name": "contracts",
+            "type": "u64"
+          },
+          {
+            "name": "max_fill_price_usd",
+            "type": "u64"
+          },
+          {
+            "name": "deposit_amount",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderFailed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          },
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "external_order_id",
+            "type": "string"
+          },
+          {
+            "name": "order_id",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "OrderStatus"
+              }
+            }
+          },
+          {
+            "name": "is_buy",
+            "type": "bool"
+          },
+          {
+            "name": "is_yes",
+            "type": "bool"
+          },
+          {
+            "name": "requested_contracts",
+            "type": "u64"
+          },
+          {
+            "name": "filled_contracts",
+            "type": "u64"
+          },
+          {
+            "name": "max_fill_price_usd",
+            "type": "u64"
+          },
+          {
+            "name": "avg_fill_price_usd",
+            "type": "u64"
+          },
+          {
+            "name": "updated_by",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "transfer_amount_token",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderFilled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          },
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "external_order_id",
+            "type": "string"
+          },
+          {
+            "name": "order_id",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "OrderStatus"
+              }
+            }
+          },
+          {
+            "name": "is_buy",
+            "type": "bool"
+          },
+          {
+            "name": "is_yes",
+            "type": "bool"
+          },
+          {
+            "name": "requested_contracts",
+            "type": "u64"
+          },
+          {
+            "name": "filled_contracts",
+            "type": "u64"
+          },
+          {
+            "name": "max_fill_price_usd",
+            "type": "u64"
+          },
+          {
+            "name": "avg_fill_price_usd",
+            "type": "u64"
+          },
+          {
+            "name": "total_cost_usd",
+            "type": "u64"
+          },
+          {
+            "name": "gross_proceeds_usd",
+            "type": "u64"
+          },
+          {
+            "name": "net_proceeds_usd",
+            "type": "u64"
+          },
+          {
+            "name": "transfer_amount_token",
+            "type": "u64"
+          },
+          {
+            "name": "fee_usd",
+            "type": "u64"
+          },
+          {
+            "name": "realized_pnl_usd",
+            "type": "i64"
+          },
+          {
+            "name": "updated_by",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Pending"
+          },
+          {
+            "name": "Filled"
+          },
+          {
+            "name": "Failed"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PayoutClaimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market_id",
+            "type": "string"
+          },
+          {
+            "name": "position",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "is_yes",
+            "type": "bool"
+          },
+          {
+            "name": "contracts_settled",
+            "type": "u64"
+          },
+          {
+            "name": "payout_amount",
+            "type": "u64"
+          },
+          {
+            "name": "transfer_amount_token",
+            "type": "u64"
+          },
+          {
+            "name": "fee_usd",
+            "type": "u64"
+          },
+          {
+            "name": "realized_pnl",
+            "type": "i64"
+          },
+          {
+            "name": "updated_by",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Position",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "docs": [
+              "Owner of this position"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "market_id",
+            "docs": [
+              "Market ID"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "is_yes",
+            "docs": [
+              "Whether this is a YES or NO position"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "payout_claimed",
+            "docs": [
+              "Whether payout has been claimed (only relevant after market settlement)"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "payout_claimed_usd",
+            "docs": [
+              "Amount claimed in USD with 6 decimals (for record keeping)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "opened_at",
+            "docs": [
+              "Timestamp when position was opened"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "contracts",
+            "docs": [
+              "Total contracts currently held"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_cost_usd",
+            "docs": [
+              "Total cost basis for all contracts (USD with 6 decimals)",
+              "This is the sum of all dollars paid for currently held contracts"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "open_orders",
+            "docs": [
+              "Number of open orders for this position"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "fees_paid_usd",
+            "docs": [
+              "Total fees paid (USD with 6 decimals)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "realized_pnl_usd",
+            "docs": [
+              "Realized PnL from closed positions (USD, can be negative)"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "updated_at",
+            "docs": [
+              "Timestamp when position was last updated"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "position",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "is_yes",
+            "type": "bool"
+          },
+          {
+            "name": "contracts",
+            "type": "u64"
+          },
+          {
+            "name": "total_cost_usd",
+            "type": "u64"
+          },
+          {
+            "name": "realized_pnl_usd",
+            "type": "i64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UpdateMarketResultParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "is_yes",
+            "type": {
+              "option": "bool"
+            }
+          },
+          {
+            "name": "settlement_time",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "claims_enabled",
+            "type": {
+              "option": "bool"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Vault",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "settlement_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "current_contracts",
+            "type": "u64"
+          },
+          {
+            "name": "current_open_orders",
+            "type": "u32"
+          },
+          {
+            "name": "global_max_contracts",
+            "type": "u64"
+          },
+          {
+            "name": "position_max_contracts",
+            "type": "u64"
+          },
+          {
+            "name": "position_max_orders",
+            "type": "u32"
+          },
+          {
+            "name": "settlement_delay_seconds",
+            "type": "u64"
+          },
+          {
+            "name": "deposits_disabled",
+            "type": "bool"
+          },
+          {
+            "name": "withdrawals_disabled",
+            "type": "bool"
+          },
+          {
+            "name": "protocol_fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultConfigUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "config",
+            "type": "pubkey"
+          },
+          {
+            "name": "global_max_contracts",
+            "type": "u64"
+          },
+          {
+            "name": "protocol_fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "withdrawals_disabled",
+            "type": "bool"
+          },
+          {
+            "name": "deposits_disabled",
+            "type": "bool"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultDeposit",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_usd",
+            "type": "u64"
+          },
+          {
+            "name": "balance_after",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "config",
+            "type": "pubkey"
+          },
+          {
+            "name": "settlement_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultWithdrawal",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_usd",
+            "type": "u64"
+          },
+          {
+            "name": "balance_after",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    }
+  ]
+}
